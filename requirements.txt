@@ -1,0 +1,5 @@
+Flask
+werkzeug
+psycopg2-binary
+supabase
+gunicorn
