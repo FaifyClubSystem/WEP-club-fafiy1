@@ -46,7 +46,12 @@ def init_db():
             can_delete INTEGER DEFAULT 0,
             can_view_all_archive INTEGER DEFAULT 1,
             can_view_all_achievements INTEGER DEFAULT 0,
-            can_add_user INTEGER DEFAULT 1
+            can_add_user INTEGER DEFAULT 1,
+            can_page_inbox INTEGER DEFAULT 1,
+            can_page_outbox INTEGER DEFAULT 1,
+            can_page_achievements INTEGER DEFAULT 1,
+            can_page_archive INTEGER DEFAULT 1,
+            can_page_quick_upload INTEGER DEFAULT 1
         )
     ''')
 
@@ -89,6 +94,18 @@ def init_db():
         cursor.execute('ALTER TABLE departments ADD COLUMN can_view_all_achievements INTEGER DEFAULT 0')
     if 'can_add_user' not in dept_columns:
         cursor.execute('ALTER TABLE departments ADD COLUMN can_add_user INTEGER DEFAULT 1')
+        
+    # إضافة أعمدة صلاحيات الصفحات الجديدة إن لم تكن موجودة
+    if 'can_page_inbox' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_inbox INTEGER DEFAULT 1')
+    if 'can_page_outbox' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_outbox INTEGER DEFAULT 1')
+    if 'can_page_achievements' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_achievements INTEGER DEFAULT 1')
+    if 'can_page_archive' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_archive INTEGER DEFAULT 1')
+    if 'can_page_quick_upload' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_quick_upload INTEGER DEFAULT 1')
 
     cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='letters'")
     letter_cols = [col['column_name'] for col in cursor.fetchall()]
@@ -362,8 +379,10 @@ def register():
         password = request.form['password']
         
         try:
-            cursor.execute('INSERT INTO departments (name, username, password, can_access_archive, can_view_all_archive, can_view_all_achievements, can_add_user) VALUES (%s, %s, %s, 1, 1, 0, 1)',
-                         (dept_name, username, password))
+            cursor.execute('''
+                INSERT INTO departments (name, username, password, can_access_archive, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload) 
+                VALUES (%s, %s, %s, 1, 1, 0, 1, 1, 1, 1, 1, 1)
+            ''', (dept_name, username, password))
             conn.commit()
             cursor.close()
             conn.close()
@@ -524,10 +543,12 @@ DASHBOARD_HTML = '''
             </div>
             
             <div class="d-flex align-items-center gap-2">
+                {% if can_page_quick_upload == 1 or is_admin %}
                 <a href="/quick_upload" class="btn btn-sm btn-warning fw-bold text-dark d-flex align-items-center gap-1 shadow-sm px-2">
                     <i class='bx bx-cloud-upload fs-5'></i> 
                     <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
                 </a>
+                {% endif %}
                 <div class="dropdown">
                     <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                         <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
@@ -547,11 +568,21 @@ DASHBOARD_HTML = '''
                 <span class="fw-bold text-white">قائمة التنقل</span>
                 <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
             </div>
+            {% if can_page_inbox == 1 or is_admin %}
             <a href="/dashboard" class="sidebar-link {{ 'active' if current_page == 'inbox' else '' }}"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+            {% endif %}
+            {% if can_page_outbox == 1 or is_admin %}
             <a href="/outbox" class="sidebar-link {{ 'active' if current_page == 'outbox' else '' }}"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+            {% endif %}
+            {% if can_page_achievements == 1 or is_admin %}
             <a href="/monthly_achievements" class="sidebar-link {{ 'active' if current_page == 'achievements' else '' }}"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+            {% endif %}
+            {% if can_page_archive == 1 or is_admin %}
             <a href="/archive" class="sidebar-link {{ 'active' if current_page == 'archive' else '' }}"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+            {% endif %}
+            {% if can_page_quick_upload == 1 or is_admin %}
             <a href="/quick_upload" class="sidebar-link {{ 'active' if current_page == 'quick_upload' else '' }}"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+            {% endif %}
             {% if is_admin %}
             <a href="/admin/dashboard" class="sidebar-link {{ 'active' if current_page == 'admin_dashboard' else '' }}" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
             <a href="/admin/permissions" class="sidebar-link {{ 'active' if current_page == 'permissions' else '' }}"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -691,6 +722,12 @@ def dashboard():
     
     cursor.execute('SELECT * FROM departments WHERE id = %s', (dept_id,))
     current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_page_inbox'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول للصندوق الوارد."); window.location.href="/";</script>'''
     
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
@@ -706,7 +743,6 @@ def dashboard():
     
     cursor.close()
     conn.close()
-    is_admin = is_admin_user(session.get('dept_name'))
     
     return render_template_string(DASHBOARD_HTML, 
                                   page_title="الصندوق الوارد",
@@ -716,6 +752,11 @@ def dashboard():
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
                                   can_add_user=current_dept['can_add_user'],
+                                  can_page_quick_upload=current_dept['can_page_quick_upload'],
+                                  can_page_inbox=current_dept['can_page_inbox'],
+                                  can_page_outbox=current_dept['can_page_outbox'],
+                                  can_page_achievements=current_dept['can_page_achievements'],
+                                  can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   now=datetime.now())
 
@@ -730,6 +771,12 @@ def outbox():
     
     cursor.execute('SELECT * FROM departments WHERE id = %s', (dept_id,))
     current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_page_outbox'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول للخطابات الصادرة."); window.location.href="/dashboard";</script>'''
     
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
@@ -745,7 +792,6 @@ def outbox():
     
     cursor.close()
     conn.close()
-    is_admin = is_admin_user(session.get('dept_name'))
     
     return render_template_string(DASHBOARD_HTML, 
                                   page_title="الخطابات الصادرة",
@@ -755,6 +801,11 @@ def outbox():
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
                                   can_add_user=current_dept['can_add_user'],
+                                  can_page_quick_upload=current_dept['can_page_quick_upload'],
+                                  can_page_inbox=current_dept['can_page_inbox'],
+                                  can_page_outbox=current_dept['can_page_outbox'],
+                                  can_page_achievements=current_dept['can_page_achievements'],
+                                  can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   now=datetime.now())
 
@@ -804,6 +855,11 @@ def archive():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
     
+    if current_dept['can_page_archive'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول لأرشيف الإدارة."); window.location.href="/dashboard";</script>'''
+    
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
 
@@ -838,6 +894,11 @@ def archive():
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
                                   can_add_user=current_dept['can_add_user'],
+                                  can_page_quick_upload=current_dept['can_page_quick_upload'],
+                                  can_page_inbox=current_dept['can_page_inbox'],
+                                  can_page_outbox=current_dept['can_page_outbox'],
+                                  can_page_achievements=current_dept['can_page_achievements'],
+                                  can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   now=datetime.now())
 
@@ -846,6 +907,17 @@ def quick_upload():
     if 'dept_id' not in session:
         return redirect(url_for('login'))
         
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_page_quick_upload'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة الرفع الفوري."); window.location.href="/dashboard";</script>'''
+
     if request.method == 'POST':
         dept_id = session['dept_id']
         document_title = request.form.get('document_title')
@@ -854,9 +926,6 @@ def quick_upload():
         
         files = request.files.getlist('archive_files')
         uploaded_count = 0
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
 
         for file in files:
             if file and file.filename != '':
@@ -891,13 +960,8 @@ def quick_upload():
         else:
             return '''<script>alert("الرجاء التأكد من رفع الملفات بشكل صحيح."); window.location.href="/quick_upload";</script>'''
     
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
-    current_dept = cursor.fetchone()
     cursor.close()
     conn.close()
-    is_admin = is_admin_user(session.get('dept_name'))
     
     html_code = '''
     <!DOCTYPE html>
@@ -953,11 +1017,21 @@ def quick_upload():
                     <span class="fw-bold text-white">قائمة التنقل</span>
                     <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
                 </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
                 <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
                 <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
                 <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
                 <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
                 <a href="/quick_upload" class="sidebar-link active"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
                 {% if is_admin %}
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -1017,6 +1091,11 @@ def monthly_achievements():
     cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_page_achievements'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة إنجازات الشهر."); window.location.href="/dashboard";</script>'''
     
     can_view_all_ach = current_dept['can_view_all_achievements'] == 1 or is_admin
 
@@ -1093,11 +1172,21 @@ def monthly_achievements():
                     <span class="fw-bold text-white">قائمة التنقل</span>
                     <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
                 </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
                 <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
                 <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
                 <a href="/monthly_achievements" class="sidebar-link active"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
                 <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
                 <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
                 {% if is_admin %}
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -1277,11 +1366,21 @@ def admin_dashboard():
                     <span class="fw-bold text-white">قائمة التنقل</span>
                     <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
                 </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
                 <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
                 <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
                 <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
                 <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
                 <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
                 {% if is_admin %}
                 <a href="/admin/dashboard" class="sidebar-link active" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -1409,11 +1508,19 @@ def admin_permissions():
         can_view_all_ach = 1 if f'can_view_all_achievements_{dept_id}' in request.form else 0
         can_add_user = 1 if f'can_add_user_{dept_id}' in request.form else 0
         
+        # صلاحيات الصفحات الجديدة
+        can_page_inbox = 1 if f'can_page_inbox_{dept_id}' in request.form else 0
+        can_page_outbox = 1 if f'can_page_outbox_{dept_id}' in request.form else 0
+        can_page_achievements = 1 if f'can_page_achievements_{dept_id}' in request.form else 0
+        can_page_archive = 1 if f'can_page_archive_{dept_id}' in request.form else 0
+        can_page_quick_upload = 1 if f'can_page_quick_upload_{dept_id}' in request.form else 0
+        
         cursor.execute('''
             UPDATE departments 
-            SET can_view_all_archive = %s, can_delete = %s, can_view_all_achievements = %s, can_add_user = %s
+            SET can_view_all_archive = %s, can_delete = %s, can_view_all_achievements = %s, can_add_user = %s,
+                can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
             WHERE id = %s
-        ''', (can_view_all, can_delete, can_view_all_ach, can_add_user, dept_id))
+        ''', (can_view_all, can_delete, can_view_all_ach, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
         conn.commit()
         cursor.close()
         conn.close()
@@ -1479,11 +1586,21 @@ def admin_permissions():
                     <span class="fw-bold text-white">قائمة التنقل</span>
                     <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
                 </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
                 <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
                 <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
                 <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
                 <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
                 <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
                 {% if is_admin %}
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link active"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -1502,13 +1619,18 @@ def admin_permissions():
                         <table class="table table-bordered align-middle fs-7 bg-white">
                             <thead class="table-light">
                                 <tr>
-                                    <th>اسم الإدارة / القسم</th>
+                                    <th>اسم الإدارة</th>
                                     <th>اسم المستخدم</th>
-                                    <th class="text-center">عرض كل الأرشيف</th>
-                                    <th class="text-center">صلاحية الحذف</th>
-                                    <th class="text-center">عرض كل الإنجازات</th>
-                                    <th class="text-center">إضافة مستخدمين</th>
-                                    <th class="text-center">حفظ التعديل</th>
+                                    <th class="text-center">الوارد</th>
+                                    <th class="text-center">الصادرة</th>
+                                    <th class="text-center">الإنجازات</th>
+                                    <th class="text-center">الأرشيف</th>
+                                    <th class="text-center">الرفع الفوري</th>
+                                    <th class="text-center">كل الأرشيف</th>
+                                    <th class="text-center">الحذف</th>
+                                    <th class="text-center">كل الإنجازات</th>
+                                    <th class="text-center">إضافة مستخدم</th>
+                                    <th class="text-center">حفظ</th>
                                     <th class="text-center">حذف اليوزر</th>
                                 </tr>
                             </thead>
@@ -1519,18 +1641,20 @@ def admin_permissions():
                                         <input type="hidden" name="dept_id" value="{{ dept.id }}">
                                         <td class="fw-bold text-dark text-nowrap">{{ dept.name }}</td>
                                         <td><code class="text-secondary">{{ dept.username }}</code></td>
-                                        <td class="text-center">
-                                            <input type="checkbox" name="can_view_all_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }} class="form-check-input">
-                                        </td>
-                                        <td class="text-center">
-                                            <input type="checkbox" name="can_delete_{{ dept.id }}" value="1" {{ 'checked' if dept.can_delete == 1 else '' }} class="form-check-input">
-                                        </td>
-                                        <td class="text-center">
-                                            <input type="checkbox" name="can_view_all_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }} class="form-check-input">
-                                        </td>
-                                        <td class="text-center">
-                                            <input type="checkbox" name="can_add_user_{{ dept.id }}" value="1" {{ 'checked' if dept.can_add_user == 1 else '' }} class="form-check-input">
-                                        </td>
+                                        
+                                        <!-- صلاحيات الصفحات الجديدة -->
+                                        <td class="text-center"><input type="checkbox" name="can_page_inbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_inbox == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_page_outbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_outbox == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_page_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_page_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_page_quick_upload_{& dept.id if False else dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }} class="form-check-input"></td>
+
+                                        <!-- الصلاحيات السابقة -->
+                                        <td class="text-center"><input type="checkbox" name="can_view_all_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_delete_{{ dept.id }}" value="1" {{ 'checked' if dept.can_delete == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_view_all_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_add_user_{{ dept.id }}" value="1" {{ 'checked' if dept.can_add_user == 1 else '' }} class="form-check-input"></td>
+                                        
                                         <td class="text-center">
                                             <button type="submit" class="btn btn-sm btn-fifa-gold py-1 px-3">حفظ</button>
                                         </td>
