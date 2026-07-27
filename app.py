@@ -291,8 +291,8 @@ def login():
             body { font-family: 'Almarai', sans-serif; background: linear-gradient(135deg, #eaf3ec 0%, #d5e2d8 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; padding: 15px; }
             .login-card { background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid rgba(197, 160, 89, 0.2); box-shadow: 0 15px 35px rgba(18, 56, 38, 0.12); width: 100%; max-width: 440px; padding: 2rem 1.5rem; position: relative; overflow: hidden; }
             .login-card::before { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 6px; background: linear-gradient(90deg, var(--fifa-green), var(--fifa-gold)); }
-            .brand-icon-box { width: 60px; height: 60px; background-color: rgba(18, 56, 38, 0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; border: 2px dashed var(--fifa-gold); }
-            .brand-icon-box i { font-size: 2rem; color: var(--fifa-green); }
+            .brand-logo-box { margin: 0 auto 1rem auto; text-align: center; }
+            .brand-logo-box img { max-height: 85px; width: auto; object-fit: contain; }
             .custom-input-wrapper { position: relative; }
             .input-group-icon { position: absolute; top: 50%; right: 15px; transform: translateY(-50%); z-index: 10; color: var(--fifa-gold); font-size: 1.2rem; }
             .btn-fifa { background-color: var(--fifa-green); color: #ffffff; border-radius: 10px; padding: 0.8rem; font-weight: 700; border: none; width: 100%; transition: all 0.3s ease; }
@@ -302,8 +302,9 @@ def login():
     </head>
     <body>
         <div class="login-card text-center">
-            <div class="brand-icon-box">
-                <i class='bx bxs-shield-alt-2'></i>
+            <div class="brand-logo-box">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار نادي فيفا" onerror="this.style.display='none'; document.getElementById('alt-icon').style.display='inline-block';">
+                <i id="alt-icon" class='bx bxs-shield-alt-2' style="display:none; font-size: 3.5rem; color: var(--fifa-green);"></i>
             </div>
             <h4 class="fw-bold mb-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</h4>
             <p class="text-muted fs-7 mb-4">نظام الأرشفة والخطابات الإلكتروني</p>
@@ -458,6 +459,7 @@ DASHBOARD_HTML = '''
         }
         body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
         .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+        .nav-logo { height: 42px; width: auto; object-fit: contain; }
         .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
         
         .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
@@ -513,6 +515,7 @@ DASHBOARD_HTML = '''
                     <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                 </button>
                 <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                     <div class="d-flex flex-column">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                         <span class="text-muted fs-8 d-none d-sm-block mt-1">نظام الأرشفة والخطابات الإلكتروني</span>
@@ -910,6 +913,7 @@ def quick_upload():
             :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
             body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
             .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
             .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
@@ -937,6 +941,7 @@ def quick_upload():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -1047,6 +1052,7 @@ def monthly_achievements():
             :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
             body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
             .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
             .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
@@ -1075,6 +1081,7 @@ def monthly_achievements():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -1229,6 +1236,7 @@ def admin_dashboard():
             :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
             body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
             .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
             .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
@@ -1256,6 +1264,7 @@ def admin_dashboard():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -1311,7 +1320,7 @@ def admin_dashboard():
                                 <tr>
                                     <th>#</th>
                                     <th>العنوان</th>
-                                    <th>الملف המرفق</th>
+                                    <th>الملف المرفق</th>
                                     <th>التاريخ</th>
                                     <th class="text-center">الإجراءات</th>
                                 </tr>
@@ -1429,6 +1438,7 @@ def admin_permissions():
             :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
             body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
             .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
             .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
@@ -1456,6 +1466,7 @@ def admin_permissions():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
