@@ -289,7 +289,23 @@ def login():
         if dept:
             session['dept_id'] = dept['id']
             session['dept_name'] = dept['name']
-            return redirect(url_for('dashboard'))
+            
+            is_admin = is_admin_user(dept['name'])
+            
+            # توجيه ذكي حسب الصلاحيات بالترتيب المطلوب
+            if dept.get('can_page_inbox') == 1 or is_admin:
+                return redirect(url_for('dashboard'))
+            elif dept.get('can_page_outbox') == 1 or is_admin:
+                return redirect(url_for('outbox'))
+            elif dept.get('can_page_achievements') == 1 or is_admin:
+                return redirect(url_for('monthly_achievements'))
+            elif dept.get('can_page_archive') == 1 or is_admin:
+                return redirect(url_for('archive'))
+            elif dept.get('can_page_quick_upload') == 1 or is_admin:
+                return redirect(url_for('quick_upload'))
+            else:
+                session.clear()
+                return '''<script>alert("عذراً، لا تملك صلاحية الوصول لأي صفحة في النظام."); window.location.href="/";</script>'''
         else:
             return '''<script>alert("خطأ في اسم المستخدم أو كلمة المرور"); window.location.href="/";</script>'''
             
@@ -1647,7 +1663,7 @@ def admin_permissions():
                                         <td class="text-center"><input type="checkbox" name="can_page_outbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_outbox == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_quick_upload_{& dept.id if False else dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }} class="form-check-input"></td>
+                                        <td class="text-center"><input type="checkbox" name="can_page_quick_upload_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }} class="form-check-input"></td>
 
                                         <!-- الصلاحيات السابقة -->
                                         <td class="text-center"><input type="checkbox" name="can_view_all_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }} class="form-check-input"></td>
