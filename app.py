@@ -95,7 +95,6 @@ def init_db():
     if 'can_add_user' not in dept_columns:
         cursor.execute('ALTER TABLE departments ADD COLUMN can_add_user INTEGER DEFAULT 1')
         
-    # إضافة أعمدة صلاحيات الصفحات الجديدة إن لم تكن موجودة
     if 'can_page_inbox' not in dept_columns:
         cursor.execute('ALTER TABLE departments ADD COLUMN can_page_inbox INTEGER DEFAULT 1')
     if 'can_page_outbox' not in dept_columns:
@@ -199,6 +198,48 @@ def delete_letter(letter_id):
     conn.close()
     return '''<script>alert("تم الحذف بنجاح"); window.history.back();</script>'''
 
+# --- مسار حذف الملفات المحددة أو الكل في الأرشيف ---
+@app.route('/delete_selected_letters', methods=['POST'])
+def delete_selected_letters():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
+        
+    letter_ids = request.form.getlist('letter_ids')
+    action_type = request.form.get('action_type')
+    dept_id = session['dept_id']
+
+    if action_type == 'all':
+        # حذف كل الملفات التي تخص أرشيف الإدارة الحالية بناءً على نفس شروط عرض الأرشيف
+        if current_dept['can_view_all_archive'] == 1 or is_admin:
+            cursor.execute('''
+                DELETE FROM letters 
+                WHERE (sender_id = receiver_id AND sender_id IS NOT NULL) OR (sender_id IS NULL AND receiver_id IS NULL)
+            ''')
+        else:
+            cursor.execute('''
+                DELETE FROM letters 
+                WHERE (sender_id = receiver_id AND sender_id = %s) OR (sender_id IS NULL AND receiver_id IS NULL AND archive_dept_id = %s)
+            ''', (dept_id, dept_id))
+    elif letter_ids:
+        # حذف المعرفات المحددة فقط
+        cursor.execute('DELETE FROM letters WHERE id = ANY(%s)', (letter_ids,))
+        
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تمت عملية الحذف بنجاح!"); window.location.href="/archive";</script>'''
+
 @app.route('/upload_achievement', methods=['POST'])
 def upload_achievement():
     if 'dept_id' not in session:
@@ -292,7 +333,6 @@ def login():
             
             is_admin = is_admin_user(dept['name'])
             
-            # توجيه ذكي حسب الصلاحيات بالترتيب المطلوب
             if dept.get('can_page_inbox') == 1 or is_admin:
                 return redirect(url_for('dashboard'))
             elif dept.get('can_page_outbox') == 1 or is_admin:
@@ -623,10 +663,33 @@ DASHBOARD_HTML = '''
 
                 <div class="modern-card p-2 p-sm-3">
                     {% if letters %}
+                        <!-- نموذج لحذف العناصر المحددة أو الكل في صفحة الأرشيف -->
+                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                        <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
+                            <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
+                                <div class="form-check m-0">
+                                    <input class="form-check-input" type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
+                                    <label class="form-check-label fw-bold fs-7 text-dark" for="selectAllCheckbox">تحديد الكل</label>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger fs-7" onclick="submitBulkDelete('selected')">
+                                        <i class='bx bx-trash ms-1'></i>حذف الملفات المحددة
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-danger fs-7 fw-bold" onclick="submitBulkDelete('all')">
+                                        <i class='bx bx-trash-alt ms-1'></i>حذف كل الأرشيف
+                                    </button>
+                                </div>
+                            </div>
+                        {% endif %}
+
                         <div class="letters-list">
                             {% for letter in letters %}
                                 <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
                                     <div class="d-flex align-items-start gap-2 w-100">
+                                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                                            <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
+                                        {% endif %}
                                         <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
                                         <div class="w-100">
                                             <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
@@ -658,6 +721,11 @@ DASHBOARD_HTML = '''
                                 </div>
                             {% endfor %}
                         </div>
+
+                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                        </form>
+                        {% endif %}
+
                     {% else %}
                         <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد بيانات حالياً.</p></div>
                     {% endif %}
@@ -721,6 +789,31 @@ DASHBOARD_HTML = '''
         function toggleSidebar() {
             document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
             document.getElementById('mobileOverlay').classList.toggle('active');
+        }
+
+        function toggleSelectAll(source) {
+            checkboxes = document.querySelectorAll('.letter-checkbox');
+            for(var i=0, n=checkboxes.length; i<n; i++) {
+                checkboxes[i].checked = source.checked;
+            }
+        }
+
+        function submitBulkDelete(type) {
+            document.getElementById('actionTypeInput').value = type;
+            if (type === 'all') {
+                if (confirm('تحذير شديد: هل أنت متأكد من حذف كافة الملفات الموجودة في الأرشيف نهائياً؟')) {
+                    document.getElementById('bulkDeleteForm').submit();
+                }
+            } else {
+                var checkedCount = document.querySelectorAll('.letter-checkbox:checked').length;
+                if (checkedCount === 0) {
+                    alert('الرجاء تحديد ملف واحد على الأقل للحذف.');
+                    return;
+                }
+                if (confirm('هل أنت متأكد من حذف الملفات المحددة؟')) {
+                    document.getElementById('bulkDeleteForm').submit();
+                }
+            }
         }
     </script>
 </body>
@@ -1524,7 +1617,6 @@ def admin_permissions():
         can_view_all_ach = 1 if f'can_view_all_achievements_{dept_id}' in request.form else 0
         can_add_user = 1 if f'can_add_user_{dept_id}' in request.form else 0
         
-        # صلاحيات الصفحات الجديدة
         can_page_inbox = 1 if f'can_page_inbox_{dept_id}' in request.form else 0
         can_page_outbox = 1 if f'can_page_outbox_{dept_id}' in request.form else 0
         can_page_achievements = 1 if f'can_page_achievements_{dept_id}' in request.form else 0
@@ -1658,14 +1750,12 @@ def admin_permissions():
                                         <td class="fw-bold text-dark text-nowrap">{{ dept.name }}</td>
                                         <td><code class="text-secondary">{{ dept.username }}</code></td>
                                         
-                                        <!-- صلاحيات الصفحات الجديدة -->
                                         <td class="text-center"><input type="checkbox" name="can_page_inbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_inbox == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_outbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_outbox == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_quick_upload_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }} class="form-check-input"></td>
 
-                                        <!-- الصلاحيات السابقة -->
                                         <td class="text-center"><input type="checkbox" name="can_view_all_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_delete_{{ dept.id }}" value="1" {{ 'checked' if dept.can_delete == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_view_all_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }} class="form-check-input"></td>
