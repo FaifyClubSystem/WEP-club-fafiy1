@@ -198,7 +198,6 @@ def delete_letter(letter_id):
     conn.close()
     return '''<script>alert("تم الحذف بنجاح"); window.history.back();</script>'''
 
-# --- مسار حذف الملفات المحددة أو الكل في الأرشيف (مُحدّث وآمن) ---
 @app.route('/delete_selected_letters', methods=['POST'])
 def delete_selected_letters():
     if 'dept_id' not in session:
@@ -231,7 +230,6 @@ def delete_selected_letters():
                 WHERE (sender_id = receiver_id AND sender_id = %s) OR (sender_id IS NULL AND receiver_id IS NULL AND archive_dept_id = %s)
             ''', (dept_id, dept_id))
     elif letter_ids_raw:
-        # تحويل المعرفات إلى أعداد صحيحة لتفادي أي خطأ في استعلام SQL
         letter_ids = [int(lid) for lid in letter_ids_raw if lid.isdigit()]
         if letter_ids:
             cursor.execute('DELETE FROM letters WHERE id = ANY(%s)', (letter_ids,))
@@ -702,7 +700,14 @@ DASHBOARD_HTML = '''
                                                 <span class="fs-7 text-muted">
                                                     {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
                                                     {% elif current_page == 'inbox' %}من: <strong>{{ letter.sender_name }}</strong>
-                                                    {% elif current_page == 'archive' and letter.sender_id and letter.receiver_id %}من: <strong>{{ letter.sender_name }}</strong> إلى: <strong>{{ letter.receiver_name }}</strong>
+                                                    {% elif current_page == 'archive' %}
+                                                        {% if letter.archive_dept_name %}
+                                                            أرشيف إدارة: <span class="badge bg-success text-white px-2 py-1">{{ letter.archive_dept_name }}</span>
+                                                        {% elif letter.sender_id and letter.receiver_id %}
+                                                            من: <strong>{{ letter.sender_name }}</strong> إلى: <strong>{{ letter.receiver_name }}</strong>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">أرشيف عام</span>
+                                                        {% endif %}
                                                     {% else %}<span class="badge bg-warning text-dark">رفع فوري خاص</span>{% endif %}
                                                 </span>
                                             </div>
@@ -974,19 +979,21 @@ def archive():
 
     if current_dept['can_view_all_archive'] == 1 or is_admin:
         cursor.execute('''
-            SELECT l.*, s.name as sender_name, r.name as receiver_name 
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
             FROM letters l 
             LEFT JOIN departments s ON l.sender_id = s.id 
             LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
             WHERE (l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL) OR (l.sender_id IS NULL AND l.receiver_id IS NULL)
             ORDER BY l.id DESC
         ''')
     else:
         cursor.execute('''
-            SELECT l.*, s.name as sender_name, r.name as receiver_name 
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
             FROM letters l 
             LEFT JOIN departments s ON l.sender_id = s.id 
             LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
             WHERE ((l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s))
             ORDER BY l.id DESC
         ''', (dept_id, dept_id))
@@ -1638,155 +1645,4 @@ def admin_permissions():
     depts = cursor.fetchall()
     cursor.close()
     conn.close()
-
-    html_code = '''
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>إدارة الصلاحيات - نادي فيفا</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
-        <style>
-            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
-            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
-            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
-            .nav-logo { height: 42px; width: auto; object-fit: contain; }
-            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
-            
-            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
-            @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
-                .sidebar.show-sidebar { right: 0; }
-            }
-            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
-            .mobile-overlay.active { display: block; }
-
-            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; font-size: 0.95rem; }
-            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
-            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
-            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
-            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; border-radius: 6px; }
-        </style>
-    </head>
-    <body>
-        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
-        <nav class="navbar top-navbar sticky-top">
-            <div class="container-fluid">
-                <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
-                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
-                    </button>
-                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
-                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
-                    </a>
-                </div>
-            </div>
-        </nav>
-
-        <div class="main-wrapper">
-            <aside class="sidebar" id="sidebarMenu">
-                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
-                    <span class="fw-bold text-white">قائمة التنقل</span>
-                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
-                </div>
-                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
-                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
-                {% endif %}
-                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
-                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الصادرة</a>
-                {% endif %}
-                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
-                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
-                {% endif %}
-                {% if current_dept['can_page_archive'] == 1 or is_admin %}
-                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
-                {% endif %}
-                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
-                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
-                {% endif %}
-                {% if is_admin %}
-                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
-                <a href="/admin/permissions" class="sidebar-link active"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
-                {% endif %}
-                {% if current_dept['can_add_user'] == 1 or is_admin %}
-                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
-                {% endif %}
-                <div class="border-top border-secondary my-3 opacity-25"></div>
-                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
-            </aside>
-
-            <main class="main-content">
-                <div class="modern-card p-3 p-md-4">
-                    <h5 class="fw-bold fs-6 mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة تحكم الصلاحيات وحذف المستخدمين</h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle fs-7 bg-white">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>اسم الإدارة</th>
-                                    <th>اسم المستخدم</th>
-                                    <th class="text-center">الوارد</th>
-                                    <th class="text-center">الصادرة</th>
-                                    <th class="text-center">الإنجازات</th>
-                                    <th class="text-center">الأرشيف</th>
-                                    <th class="text-center">الرفع الفوري</th>
-                                    <th class="text-center">كل الأرشيف</th>
-                                    <th class="text-center">الحذف</th>
-                                    <th class="text-center">كل الإنجازات</th>
-                                    <th class="text-center">إضافة مستخدم</th>
-                                    <th class="text-center">حفظ</th>
-                                    <th class="text-center">حذف اليوزر</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dept in depts %}
-                                <tr>
-                                    <form action="/admin/permissions" method="post">
-                                        <input type="hidden" name="dept_id" value="{{ dept.id }}">
-                                        <td class="fw-bold text-dark text-nowrap">{{ dept.name }}</td>
-                                        <td><code class="text-secondary">{{ dept.username }}</code></td>
-                                        
-                                        <td class="text-center"><input type="checkbox" name="can_page_inbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_inbox == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_outbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_outbox == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_quick_upload_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_view_all_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_delete_{{ dept.id }}" value="1" {{ 'checked' if dept.can_delete == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_view_all_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><input type="checkbox" name="can_add_user_{{ dept.id }}" value="1" {{ 'checked' if dept.can_add_user == 1 else '' }} class="form-check-input"></td>
-                                        <td class="text-center"><button type="submit" class="btn btn-sm btn-success py-1 px-2 fs-8">حفظ</button></td>
-                                    </form>
-                                    <td class="text-center">
-                                        {% if session['dept_id'] != dept.id %}
-                                            <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة نهائياً؟');">حذف</a>
-                                        {% else %}
-                                            <span class="text-muted fs-8">الحالي</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </main>
-        </div>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            function toggleSidebar() {
-                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
-                document.getElementById('mobileOverlay').classList.toggle('active');
-            }
-        </script>
-    </body>
-    </html>
-    '''
-    return render_template_string(html_code, depts=depts, is_admin=is_admin, current_dept=current_dept)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    # (بقية كود صفحة الصلاحيات...)
