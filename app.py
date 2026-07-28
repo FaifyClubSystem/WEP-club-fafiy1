@@ -653,7 +653,7 @@ DASHBOARD_HTML = '''
             <div class="container-fluid p-0">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                     <h4 class="section-header m-0">{{ page_title }}</h4>
-                    {% if current_page == 'outbox' %}
+                    {% if current_page == 'outbox' or current_page == 'inbox' %}
                     <button type="button" class="btn btn-fifa-primary d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#sendLetterModal">
                         <i class='bx bxs-paper-plane fs-5' style="color: var(--fifa-gold);"></i> إرسال خطاب
                     </button>
@@ -954,7 +954,8 @@ def send_letter():
     cursor.close()
     conn.close()
     
-    return redirect(url_for('outbox'))
+    # بعد إرسال الخطاب يتم إعادة توجيه المستخدم إلى الصفحة التي أرسل منها (أو الصادرة كافتراضي)
+    return redirect(request.referrer or url_for('outbox'))
 
 @app.route('/archive')
 def archive():
@@ -1765,22 +1766,18 @@ def admin_permissions():
                                         <td class="text-center">
                                             <input type="checkbox" class="form-check-input" name="can_add_user_{{ d.id }}" value="1" {{ 'checked' if d.can_add_user == 1 else '' }}>
                                         </td>
-                                        
-                                        <td class="text-center" style="min-width: 180px;">
-                                            <div class="d-flex flex-column gap-1 text-start fs-8">
-                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_inbox == 1 else '' }}><label class="form-check-label">الصندوق الوارد</label></div>
-                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_outbox == 1 else '' }}><label class="form-check-label">الصادرة</label></div>
-                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_page_achievements == 1 else '' }}><label class="form-check-label">الإنجازات</label></div>
-                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_page_archive == 1 else '' }}><label class="form-check-label">الأرشيف</label></div>
-                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}><label class="form-check-label">الرفع الفوري</label></div>
+                                        <td class="text-center" style="min-width: 280px;">
+                                            <div class="d-flex flex-wrap gap-2 justify-content-center fs-8">
+                                                <label><input type="checkbox" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_inbox', 1) == 1 else '' }}> الوارد</label>
+                                                <label><input type="checkbox" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_outbox', 1) == 1 else '' }}> الصادر</label>
+                                                <label><input type="checkbox" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_achievements', 1) == 1 else '' }}> الإنجازات</label>
+                                                <label><input type="checkbox" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_archive', 1) == 1 else '' }}> الأرشيف</label>
+                                                <label><input type="checkbox" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_quick_upload', 1) == 1 else '' }}> الرفع الفوري</label>
                                             </div>
                                         </td>
-                                        
-                                        <td class="text-center text-nowksrap">
-                                            <div class="d-flex flex-column gap-1">
-                                                <button type="submit" class="btn btn-sm btn-fifa-gold py-1 px-2 fs-8">حفظ</button>
-                                                <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف هذه الإدارة نهائياً؟');">حذف الحساب</a>
-                                            </div>
+                                        <td class="text-center">
+                                            <button type="submit" class="btn btn-sm btn-fifa-gold py-1 px-2 fs-8 mb-1">حفظ</button>
+                                            <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف هذه الإدارة نهائياً؟');">حذف</a>
                                         </td>
                                     </form>
                                 </tr>
@@ -1801,7 +1798,7 @@ def admin_permissions():
     </body>
     </html>
     '''
-    return render_template_string(html_code, is_admin=is_admin, current_dept=current_dept, depts=depts)
+    return render_template_string(html_code, depts=depts, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
