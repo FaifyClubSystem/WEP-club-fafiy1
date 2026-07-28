@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Flask, render_template_string, request, redirect, url_for, session, send_file
+from flask import Flask, render_template_string, request, redirect, url_for, session, send_file, send_from_directory
 from werkzeug.utils import secure_filename
 import psycopg2
 import psycopg2.extras
@@ -154,6 +154,24 @@ def download_letter_file(letter_id):
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
             as_attachment=True,
+            download_name=row['file_name'] or 'file'
+        )
+    return "الملف غير موجود", 404
+
+@app.route('/view_letter_file/<int:letter_id>')
+def view_letter_file(letter_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM letters WHERE id = %s', (letter_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if row and row['file_data']:
+        return send_file(
+            io.BytesIO(row['file_data']),
+            mimetype=row['file_mimetype'] or 'application/octet-stream',
+            as_attachment=False,
             download_name=row['file_name'] or 'file'
         )
     return "الملف غير موجود", 404
@@ -654,8 +672,8 @@ DASHBOARD_HTML = '''
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                     <h4 class="section-header m-0">{{ page_title }}</h4>
                     {% if current_page == 'outbox' or current_page == 'inbox' %}
-                    <button type="button" class="btn btn-fifa-primary d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#sendLetterModal">
-                        <i class='bx bxs-paper-plane fs-5' style="color: var(--fifa-gold);"></i> إرسال خطاب
+                    <button type="button" class="btn btn-fifa-primary d-flex align-items-center gap-2 shadow-sm" onclick="openNewLetterModal()">
+                        <i class='bx bxs-paper-plane fs-5' style="color: var(--fifa-gold);"></i> إنشاء وإرسال خطاب جديد
                     </button>
                     {% endif %}
                 </div>
@@ -716,8 +734,14 @@ DASHBOARD_HTML = '''
                                     
                                     <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0">
                                         {% if letter.file_data %}
-                                            <a href="/download_letter_file/{{ letter.id }}" target="_blank" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">فتح المرفق</a>
+                                            <a href="/view_letter_file/{{ letter.id }}" target="_blank" class="btn btn-sm btn-success py-1 px-2 fs-7 shadow-sm">فتح بالموقع</a>
+                                            <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
                                         {% endif %}
+                                        
+                                        {% if current_page == 'outbox' %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="editLetter('{{ letter.id }}', '{{ letter.receiver_id }}', '{{ letter.title|e }}', '{{ letter.priority }}', '{{ (letter.content or '')|e }}')">تعديل وإعادة إرسال</button>
+                                        {% endif %}
+
                                         <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
                                         {% if can_delete == 1 or is_admin %}
                                             <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
@@ -739,18 +763,20 @@ DASHBOARD_HTML = '''
         </main>
     </div>
 
+    <!-- نافذة إرسال أو تعديل الخطاب (مودال قابل للإضافة والتعديل) -->
     <div class="modal fade" id="sendLetterModal" tabindex="-1" aria-labelledby="sendLetterModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content modern-card border-0 shadow-lg">
                 <div class="modal-header border-bottom px-4 py-3" style="background-color: var(--fifa-green-primary); color: #fff;">
-                    <h5 class="modal-title fw-bold fs-6" id="sendLetterModalLabel"><i class='bx bxs-paper-plane ms-2' style="color: var(--fifa-gold);"></i>إرسال خطاب جديد</h5>
+                    <h5 class="modal-title fw-bold fs-6" id="sendLetterModalLabel"><i class='bx bxs-paper-plane ms-2' style="color: var(--fifa-gold);"></i><span id="modalTitleText">إنشاء وإرسال خطاب جديد</span></h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-3 p-md-4">
-                    <form action="/send_letter" method="post" enctype="multipart/form-data">
+                    <form id="letterForm" action="/send_letter" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="letter_id" id="editLetterId" value="">
                         <div class="mb-3">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">إلى إدارة:</label>
-                            <select name="receiver_id" class="form-select fs-7" required>
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">إلى الإدارة (المستلم):</label>
+                            <select name="receiver_id" id="receiverSelect" class="form-select fs-7" required>
                                 <option value="" selected disabled>اختر الإدارة المستقبلة...</option>
                                 {% for d in depts %}
                                     <option value="{{ d.id }}">{{ d.name }}</option>
@@ -758,30 +784,30 @@ DASHBOARD_HTML = '''
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">موضوع الخطاب:</label>
-                            <input type="text" name="title" class="form-control fs-7" required placeholder="أدخل موضوع الخطاب...">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">عنوان الخطاب (الموضوع):</label>
+                            <input type="text" name="title" id="letterTitle" class="form-control fs-7" required placeholder="أدخل موضوع الخطاب...">
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">الأهمية:</label>
-                                <select name="priority" class="form-select fs-7">
+                                <select name="priority" id="letterPriority" class="form-select fs-7">
                                     <option value="عادي">عادي</option>
                                     <option value="عاجل">عاجل</option>
                                     <option value="سري للغاية">سري للغاية</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المرفق:</label>
+                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>
                                 <input type="file" name="file" class="form-control fs-7">
                             </div>
                         </div>
                         <div class="mb-4">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المحتوى:</label>
-                            <textarea name="content" class="form-control fs-7" rows="4" placeholder="اكتب تفاصيل المحتوى هنا..."></textarea>
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">محتوى ووصف الخطاب:</label>
+                            <textarea name="content" id="letterContent" class="form-control fs-7" rows="5" placeholder="اكتب تفاصيل ومحتوى الخطاب هنا..."></textarea>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary fs-7 px-3" data-bs-dismiss="modal">إلغاء</button>
-                            <button type="submit" class="btn btn-fifa-primary fs-7 px-4">إرسال الخطاب</button>
+                            <button type="submit" class="btn btn-fifa-primary fs-7 px-4" id="submitBtnText">إرسال الخطاب</button>
                         </div>
                     </form>
                 </div>
@@ -801,6 +827,28 @@ DASHBOARD_HTML = '''
             for(var i=0, n=checkboxes.length; i<n; i++) {
                 checkboxes[i].checked = source.checked;
             }
+        }
+
+        function openNewLetterModal() {
+            document.getElementById('letterForm').reset();
+            document.getElementById('editLetterId').value = '';
+            document.getElementById('modalTitleText').innerText = 'إنشاء وإرسال خطاب جديد';
+            document.getElementById('submitBtnText').innerText = 'إرسال الخطاب';
+            var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
+            myModal.show();
+        }
+
+        function editLetter(id, receiverId, title, priority, content) {
+            document.getElementById('editLetterId').value = id;
+            document.getElementById('receiverSelect').value = receiverId;
+            document.getElementById('letterTitle').value = title;
+            document.getElementById('letterPriority').value = priority;
+            document.getElementById('letterContent').value = content;
+            
+            document.getElementById('modalTitleText').innerText = 'تعديل وإعادة إرسال الخطاب';
+            document.getElementById('submitBtnText').innerText = 'حفظ وإعادة إرسال';
+            var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
+            myModal.show();
         }
 
         function submitBulkDelete(type) {
@@ -929,33 +977,57 @@ def send_letter():
         return redirect(url_for('login'))
     
     sender_id = session['dept_id']
+    letter_id = request.form.get('letter_id')
     receiver_id = request.form.get('receiver_id')
     title = request.form.get('title')
     priority = request.form.get('priority', 'عادي')
     content = request.form.get('content', '')
     
-    file_name = ''
-    file_data = None
-    file_mimetype = None
     file = request.files.get('file')
-    if file and file.filename != '':
-        original_name = secure_filename(file.filename)
-        file_name = f"{int(datetime.now().timestamp())}_{original_name}"
-        file_data = psycopg2.Binary(file.read())
-        file_mimetype = file.content_type or 'application/octet-stream'
-        
+    
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+    
+    if letter_id and letter_id.isdigit():
+        # تعديل وإعادة إرسال خطاب موجود مسبقاً
+        if file and file.filename != '':
+            original_name = secure_filename(file.filename)
+            file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+            file_data = psycopg2.Binary(file.read())
+            file_mimetype = file.content_type or 'application/octet-stream'
+            
+            cursor.execute('''
+                UPDATE letters 
+                SET title = %s, content = %s, priority = %s, receiver_id = %s, file_name = %s, file_data = %s, file_mimetype = %s, created_at = %s
+                WHERE id = %s AND sender_id = %s
+            ''', (title, content, priority, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
+        else:
+            cursor.execute('''
+                UPDATE letters 
+                SET title = %s, content = %s, priority = %s, receiver_id = %s, created_at = %s
+                WHERE id = %s AND sender_id = %s
+            ''', (title, content, priority, receiver_id, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
+    else:
+        # إرسال خطاب جديد
+        file_name = ''
+        file_data = None
+        file_mimetype = None
+        if file and file.filename != '':
+            original_name = secure_filename(file.filename)
+            file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+            file_data = psycopg2.Binary(file.read())
+            file_mimetype = file.content_type or 'application/octet-stream'
+            
+        cursor.execute('''
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+        
     conn.commit()
     cursor.close()
     conn.close()
     
-    # بعد إرسال الخطاب يتم إعادة توجيه المستخدم إلى الصفحة التي أرسل منها (أو الصادرة كافتراضي)
-    return redirect(request.referrer or url_for('outbox'))
+    return redirect(url_for('outbox'))
 
 @app.route('/archive')
 def archive():
@@ -1345,7 +1417,9 @@ def monthly_achievements():
                                                         <strong class="text-dark fs-7">{{ a.title }}</strong>
                                                         <span class="text-muted d-block fs-8">{{ a.uploaded_at }}</span>
                                                     </div>
-                                                    <a href="/download_ach_file/{{ a.id }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fs-8 dept-file-link">تنزيل</a>
+                                                    <div>
+                                                        <a href="/download_ach_file/{{ a.id }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fs-8 dept-file-link">تنزيل</a>
+                                                    </div>
                                                 </div>
                                             {% endif %}
                                         {% endfor %}
@@ -1548,7 +1622,8 @@ def admin_dashboard():
                                     <td class="fw-bold text-dark">{{ item.title }}</td>
                                     <td>
                                         {% if item.file_data %}
-                                            <a href="/download_letter_file/{{ item.id }}" target="_blank" class="btn btn-sm btn-outline-success py-1 px-2 fs-8">تنزيل / فتح الملف</a>
+                                            <a href="/view_letter_file/{{ item.id }}" target="_blank" class="btn btn-sm btn-success py-1 px-2 fs-8">فتح</a>
+                                            <a href="/download_letter_file/{{ item.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-8">تنزيل</a>
                                         {% else %}
                                             <span class="text-muted fs-8">لا يوجد ملف</span>
                                         {% endif %}
@@ -1766,18 +1841,20 @@ def admin_permissions():
                                         <td class="text-center">
                                             <input type="checkbox" class="form-check-input" name="can_add_user_{{ d.id }}" value="1" {{ 'checked' if d.can_add_user == 1 else '' }}>
                                         </td>
-                                        <td class="text-center" style="min-width: 280px;">
+                                        <td class="text-center" style="max-width: 250px;">
                                             <div class="d-flex flex-wrap gap-2 justify-content-center fs-8">
-                                                <label><input type="checkbox" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_inbox', 1) == 1 else '' }}> الوارد</label>
-                                                <label><input type="checkbox" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_outbox', 1) == 1 else '' }}> الصادر</label>
-                                                <label><input type="checkbox" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_achievements', 1) == 1 else '' }}> الإنجازات</label>
-                                                <label><input type="checkbox" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_archive', 1) == 1 else '' }}> الأرشيف</label>
-                                                <label><input type="checkbox" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.get('can_page_quick_upload', 1) == 1 else '' }}> الرفع الفوري</label>
+                                                <label><input type="checkbox" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_inbox == 1 else '' }}> الوارد</label>
+                                                <label><input type="checkbox" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_outbox == 1 else '' }}> الصادر</label>
+                                                <label><input type="checkbox" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_page_achievements == 1 else '' }}> الإنجازات</label>
+                                                <label><input type="checkbox" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_page_archive == 1 else '' }}> الأرشيف</label>
+                                                <label><input type="checkbox" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}> الرفع الفوري</label>
                                             </div>
                                         </td>
                                         <td class="text-center">
-                                            <button type="submit" class="btn btn-sm btn-fifa-gold py-1 px-2 fs-8 mb-1">حفظ</button>
-                                            <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف هذه الإدارة نهائياً؟');">حذف</a>
+                                            <div class="d-flex justify-content-center gap-1">
+                                                <button type="submit" class="btn btn-sm btn-success py-1 px-2 fs-8">حفظ</button>
+                                                <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب هذه الإدارة نهائياً؟');">حذف</a>
+                                            </div>
                                         </td>
                                     </form>
                                 </tr>
