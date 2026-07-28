@@ -1766,21 +1766,21 @@ def admin_permissions():
                                             <input type="checkbox" class="form-check-input" name="can_add_user_{{ d.id }}" value="1" {{ 'checked' if d.can_add_user == 1 else '' }}>
                                         </td>
                                         
-                                        <td>
-                                            <div class="d-flex flex-wrap gap-2 justify-content-center fs-8">
-                                                <label><input type="checkbox" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_inbox == 1 else '' }}> الوارد</label>
-                                                <label><input type="checkbox" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_outbox == 1 else '' }}> الصادر</label>
-                                                <label><input type="checkbox" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_page_achievements == 1 else '' }}> الإنجازات</label>
-                                                <label><input type="checkbox" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_page_archive == 1 else '' }}> الأرشيف</label>
-                                                <label><input type="checkbox" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}> رفع فوري</label>
+                                        <td class="text-center" style="min-width: 180px;">
+                                            <div class="d-flex flex-column gap-1 text-start fs-8">
+                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_inbox == 1 else '' }}><label class="form-check-label">الصندوق الوارد</label></div>
+                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_outbox == 1 else '' }}><label class="form-check-label">الصادرة</label></div>
+                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_page_achievements == 1 else '' }}><label class="form-check-label">الإنجازات</label></div>
+                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_page_archive == 1 else '' }}><label class="form-check-label">الأرشيف</label></div>
+                                                <div class="form-check"><input type="checkbox" class="form-check-input" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}><label class="form-check-label">الرفع الفوري</label></div>
                                             </div>
                                         </td>
                                         
-                                        <td class="text-center text-nowrap">
-                                            <button type="submit" class="btn btn-sm btn-success py-1 px-2 fs-8 mb-1">حفظ</button>
-                                            {% if session['dept_id'] != d.id %}
-                                                <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8 mb-1" onclick="return confirm('هل أنت متأكد من حذف حساب هذه الإدارة نهائياً؟');">حذف</a>
-                                            {% endif %}
+                                        <td class="text-center text-nowksrap">
+                                            <div class="d-flex flex-column gap-1">
+                                                <button type="submit" class="btn btn-sm btn-fifa-gold py-1 px-2 fs-8">حفظ</button>
+                                                <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف هذه الإدارة نهائياً؟');">حذف الحساب</a>
+                                            </div>
                                         </td>
                                     </form>
                                 </tr>
@@ -1801,7 +1801,7 @@ def admin_permissions():
     </body>
     </html>
     '''
-    return render_template_string(html_code, depts=depts, is_admin=is_admin, current_dept=current_dept)
+    return render_template_string(html_code, is_admin=is_admin, current_dept=current_dept, depts=depts)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
