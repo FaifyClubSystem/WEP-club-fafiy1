@@ -989,7 +989,6 @@ def send_letter():
     cursor = conn.cursor()
     
     if letter_id and letter_id.isdigit():
-        # تعديل وإعادة إرسال خطاب موجود مسبقاً
         if file and file.filename != '':
             original_name = secure_filename(file.filename)
             file_name = f"{int(datetime.now().timestamp())}_{original_name}"
@@ -1008,7 +1007,6 @@ def send_letter():
                 WHERE id = %s AND sender_id = %s
             ''', (title, content, priority, receiver_id, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
     else:
-        # إرسال خطاب جديد
         file_name = ''
         file_data = None
         file_mimetype = None
@@ -1705,7 +1703,7 @@ def admin_permissions():
         can_page_achievements = 1 if f'can_page_achievements_{dept_id}' in request.form else 0
         can_page_archive = 1 if f'can_page_archive_{dept_id}' in request.form else 0
         can_page_quick_upload = 1 if f'can_page_quick_upload_{dept_id}' in request.form else 0
-        
+
         cursor.execute('''
             UPDATE departments 
             SET can_view_all_archive = %s, can_delete = %s, can_view_all_achievements = %s, can_add_user = %s,
@@ -1717,8 +1715,8 @@ def admin_permissions():
         conn.close()
         return '''<script>alert("تم تحديث الصلاحيات بنجاح!"); window.location.href="/admin/permissions";</script>'''
 
-    cursor.execute('SELECT * FROM departments')
-    depts = cursor.fetchall()
+    cursor.execute('SELECT * FROM departments ORDER BY id ASC')
+    departments = cursor.fetchall()
     cursor.close()
     conn.close()
 
@@ -1751,8 +1749,7 @@ def admin_permissions():
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
-            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
-            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; border-radius: 6px; }
+            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
         </style>
     </head>
     <body>
@@ -1804,65 +1801,95 @@ def admin_permissions():
             </aside>
 
             <main class="main-content">
-                <div class="modern-card p-3 p-md-4">
-                    <h5 class="fw-bold fs-5 mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة إدارة صلاحيات الإدارات</h5>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle fs-7">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>اسم الإدارة</th>
-                                    <th>اسم المستخدم</th>
-                                    <th class="text-center">عرض كل الأرشيف</th>
-                                    <th class="text-center">صلاحية الحذف</th>
-                                    <th class="text-center">عرض كل الإنجازات</th>
-                                    <th class="text-center">إضافة مستخدمين</th>
-                                    <th class="text-center">صفحات النظام المرئية</th>
-                                    <th class="text-center">الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for d in depts %}
-                                <tr>
-                                    <form action="/admin/permissions" method="post">
-                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                        <td class="fw-bold text-dark">{{ d.name }}</td>
-                                        <td><code>{{ d.username }}</code></td>
-                                        
-                                        <td class="text-center">
-                                            <input type="checkbox" class="form-check-input" name="can_view_all_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input type="checkbox" class="form-check-input" name="can_delete_{{ d.id }}" value="1" {{ 'checked' if d.can_delete == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input type="checkbox" class="form-check-input" name="can_view_all_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input type="checkbox" class="form-check-input" name="can_add_user_{{ d.id }}" value="1" {{ 'checked' if d.can_add_user == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center" style="max-width: 250px;">
-                                            <div class="d-flex flex-wrap gap-2 justify-content-center fs-8">
-                                                <label><input type="checkbox" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_inbox == 1 else '' }}> الوارد</label>
-                                                <label><input type="checkbox" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_outbox == 1 else '' }}> الصادر</label>
-                                                <label><input type="checkbox" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_page_achievements == 1 else '' }}> الإنجازات</label>
-                                                <label><input type="checkbox" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_page_archive == 1 else '' }}> الأرشيف</label>
-                                                <label><input type="checkbox" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}> الرفع الفوري</label>
-                                            </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="d-flex justify-content-center gap-1">
-                                                <button type="submit" class="btn btn-sm btn-success py-1 px-2 fs-8">حفظ</button>
-                                                <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب هذه الإدارة نهائياً؟');">حذف</a>
-                                            </div>
-                                        </td>
-                                    </form>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>إدارة الصلاحيات والصفحات للإدارات</h4>
                 </div>
+                
+                {% for dept in departments %}
+                <div class="modern-card p-3 p-md-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                        <div>
+                            <h5 class="fw-bold fs-6 mb-1 text-dark">{{ dept.name }}</h5>
+                            <span class="text-muted fs-8">اسم المستخدم: <code>{{ dept.username }}</code></span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب هذه الإدارة نهائياً؟');">
+                                <i class='bx bx-trash ms-1'></i>حذف الإدارة
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <form action="/admin/permissions" method="post">
+                        <input type="hidden" name="dept_id" value="{{ dept.id }}">
+                        
+                        <h6 class="fw-bold fs-8 text-secondary mb-2">صلاحيات الإجراءات العامة:</h6>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ dept.id }}" id="v_all_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="v_all_{{ dept.id }}">عرض أرشيف كل الإدارات</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" id="del_{{ dept.id }}" value="1" {{ 'checked' if dept.can_delete == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="del_{{ dept.id }}">صلاحية الحذف</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ dept.id }}" id="ach_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="ach_{{ dept.id }}">عرض إنجازات كافة الإدارات</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_add_user_{{ dept.id }}" id="add_{{ dept.id }}" value="1" {{ 'checked' if dept.can_add_user == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="add_{{ dept.id }}">صلاحية إضافة إدارات</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold fs-8 text-secondary mb-2">صلاحيات صفحات القائمة الجانبية:</h6>
+                        <div class="row g-2 mb-4">
+                            <div class="col-md-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ dept.id }}" id="p_inbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_inbox == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="p_inbox_{{ dept.id }}">الصندوق الوارد</label>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ dept.id }}" id="p_outbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_outbox == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="p_outbox_{{ dept.id }}">الخطابات الصادرة</label>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ dept.id }}" id="p_ach_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="p_ach_{{ dept.id }}">إنجازات الشهر</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_page_archive_{{ dept.id }}" id="p_arc_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="p_arc_{{ dept.id }}">أرشيف الإدارة</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ dept.id }}" id="p_q_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }}>
+                                    <label class="form-check-label fs-7" for="p_q_{{ dept.id }}">رفع وتوثيق فوري</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-sm fw-bold px-4 py-2 fs-8" style="background-color: var(--fifa-gold); color: #fff;">حفظ صلاحيات {{ dept.name }}</button>
+                        </div>
+                    </form>
+                </div>
+                {% endfor %}
             </main>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1875,7 +1902,7 @@ def admin_permissions():
     </body>
     </html>
     '''
-    return render_template_string(html_code, depts=depts, is_admin=is_admin, current_dept=current_dept)
+    return render_template_string(html_code, departments=departments, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
