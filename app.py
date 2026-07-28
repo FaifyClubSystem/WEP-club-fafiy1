@@ -594,6 +594,30 @@ DASHBOARD_HTML = '''
         .bg-fifa-green { background-color: var(--fifa-green-primary) !important; color: #fff; }
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
+
+        /* تنسيق نموذج الخطاب الرسمي المعتمد */
+        .official-letter-preview {
+            background: #fff;
+            border: 2px solid #c5a059;
+            border-radius: 12px;
+            padding: 30px;
+            font-family: 'Almarai', sans-serif;
+            position: relative;
+        }
+        .official-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #123826;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .official-letter-body {
+            line-height: 2.2;
+            font-size: 1.05rem;
+            color: #123826;
+            text-align: justify;
+        }
     </style>
 </head>
 <body>
@@ -672,9 +696,16 @@ DASHBOARD_HTML = '''
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                     <h4 class="section-header m-0">{{ page_title }}</h4>
                     {% if current_page == 'outbox' or current_page == 'inbox' %}
-                    <button type="button" class="btn btn-fifa-primary d-flex align-items-center gap-2 shadow-sm" onclick="openNewLetterModal()">
-                        <i class='bx bxs-paper-plane fs-5' style="color: var(--fifa-gold);"></i> إنشاء وإرسال خطاب جديد
-                    </button>
+                    <div class="d-flex gap-2">
+                        {% if current_page == 'outbox' %}
+                        <button type="button" class="btn btn-outline-success fw-bold d-flex align-items-center gap-1 shadow-sm" onclick="openPresetOfficialLetter()">
+                            <i class='bx bxs-file-doc fs-5'></i> نموذج رد تقنية المعلومات الرسمي
+                        </button>
+                        {% endif %}
+                        <button type="button" class="btn btn-fifa-primary d-flex align-items-center gap-2 shadow-sm" onclick="openNewLetterModal()">
+                            <i class='bx bxs-paper-plane fs-5' style="color: var(--fifa-gold);"></i> إنشاء وإرسال خطاب جديد
+                        </button>
+                    </div>
                     {% endif %}
                 </div>
 
@@ -712,7 +743,7 @@ DASHBOARD_HTML = '''
                                                 <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
                                                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
                                             </div>
-                                            {% if letter.content %}<p class="text-secondary small mb-2">{{ letter.content }}</p>{% endif %}
+                                            {% if letter.content %}<p class="text-secondary small mb-2" style="white-space: pre-line;">{{ letter.content }}</p>{% endif %}
 
                                             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                                                 <span class="fs-7 text-muted">
@@ -797,13 +828,13 @@ DASHBOARD_HTML = '''
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>
+                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>g
                                 <input type="file" name="file" class="form-control fs-7">
                             </div>
                         </div>
                         <div class="mb-4">
                             <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">محتوى ووصف الخطاب:</label>
-                            <textarea name="content" id="letterContent" class="form-control fs-7" rows="5" placeholder="اكتب تفاصيل ومحتوى الخطاب هنا..."></textarea>
+                            <textarea name="content" id="letterContent" class="form-control fs-7" rows="7" placeholder="اكتب تفاصيل ومحتوى الخطاب هنا..."></textarea>
                         </div>
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary fs-7 px-3" data-bs-dismiss="modal">إلغاء</button>
@@ -834,6 +865,32 @@ DASHBOARD_HTML = '''
             document.getElementById('editLetterId').value = '';
             document.getElementById('modalTitleText').innerText = 'إنشاء وإرسال خطاب جديد';
             document.getElementById('submitBtnText').innerText = 'إرسال الخطاب';
+            var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
+            myModal.show();
+        }
+
+        function openPresetOfficialLetter() {
+            document.getElementById('letterForm').reset();
+            document.getElementById('editLetterId').value = '';
+            document.getElementById('letterTitle').value = 'رد تقنية المعلومات بشأن ملاحظات الامتثال';
+            document.getElementById('letterPriority').value = 'عاجل';
+            
+            // تعيين نص النموذج الرسمي المعتمد
+            document.getElementById('letterContent').value = 
+`سعادة الرئيس التنفيذي
+السلام عليكم ورحمة الله وبركاته،
+
+إشارة إلى خطابكم الكريم بشأن ملاحظات عدم الامتثال خلال شهر أبريل، نود الإفادة بأنه تم الاطلاع على ما ورد من ملاحظات، والعمل على معالجتها، حيث تم تعزيز الالتزام بإجراءات النسخ الاحتياطي للبيانات، ومراجعة وتحديث صلاحيات المستخدمين بما يتناسب مع طبيعة مهامهم، والتأكيد على توثيق جميع الأعطال والحوادث التقنية في السجل الرسمي المعتمد.
+
+كما تم اتخاذ الإجراءات التصحيحية اللازمة لضمان رفع مستوى الالتزام ومنع تكرار هذه الملاحظات مستقبلاً، وسيتم تزويد إدارة الحكومة والامتثال بتقرير يوضح ما تم اتخاذه خلال المدة المحددة.
+
+شاكرين ومقدرين
+
+مدير تقنية المعلومات
+عيسى حسين الفيفي`;
+
+            document.getElementById('modalTitleText').innerText = 'إرسال نموذج تقنية المعلومات الرسمي';
+            document.getElementById('submitBtnText').innerText = 'إرسال الخطاب الرسمي';
             var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
             myModal.show();
         }
@@ -1716,7 +1773,7 @@ def admin_permissions():
         return '''<script>alert("تم تحديث الصلاحيات بنجاح!"); window.location.href="/admin/permissions";</script>'''
 
     cursor.execute('SELECT * FROM departments ORDER BY id ASC')
-    departments = cursor.fetchall()
+    departments_list = cursor.fetchall()
     cursor.close()
     conn.close()
 
@@ -1749,7 +1806,7 @@ def admin_permissions():
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
-            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
+            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
         </style>
     </head>
     <body>
@@ -1797,99 +1854,91 @@ def admin_permissions():
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
-                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+                <button type="button" class="sidebar-link text-danger border-0 bg-transparent w-100 text-start" onclick="window.location.href='/logout'"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</button>
             </aside>
 
             <main class="main-content">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>إدارة الصلاحيات والصفحات للإدارات</h4>
-                </div>
-                
-                {% for dept in departments %}
                 <div class="modern-card p-3 p-md-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
-                        <div>
-                            <h5 class="fw-bold fs-6 mb-1 text-dark">{{ dept.name }}</h5>
-                            <span class="text-muted fs-8">اسم المستخدم: <code>{{ dept.username }}</code></span>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب هذه الإدارة نهائياً؟');">
-                                <i class='bx bx-trash ms-1'></i>حذف الإدارة
-                            </a>
-                        </div>
-                    </div>
+                    <h5 class="fw-bold fs-5 mb-4" style="color: var(--fifa-green-primary);">إدارة صلاحيات الإدارات والأقسام</h5>
                     
-                    <form action="/admin/permissions" method="post">
-                        <input type="hidden" name="dept_id" value="{{ dept.id }}">
-                        
-                        <h6 class="fw-bold fs-8 text-secondary mb-2">صلاحيات الإجراءات العامة:</h6>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ dept.id }}" id="v_all_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="v_all_{{ dept.id }}">عرض أرشيف كل الإدارات</label>
+                    {% for d in departments_list %}
+                    <div class="border rounded p-3 mb-4 bg-light">
+                        <form action="/admin/permissions" method="post">
+                            <input type="hidden" name="dept_id" value="{{ d.id }}">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <h6 class="fw-bold m-0" style="color: var(--fifa-green-primary);">
+                                    <i class='bx bxs-user-account ms-1' style="color: var(--fifa-gold);"></i> {{ d.name }} 
+                                    <span class="text-muted fs-8 fw-normal">({{ d.username }})</span>
+                                </h6>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-success px-3 fs-8 fw-bold">حفظ التغييرات</button>
+                                    <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة نهائياً؟');">حذف الحساب</a>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" id="del_{{ dept.id }}" value="1" {{ 'checked' if dept.can_delete == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="del_{{ dept.id }}">صلاحية الحذف</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ dept.id }}" id="ach_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="ach_{{ dept.id }}">عرض إنجازات كافة الإدارات</label>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_add_user_{{ dept.id }}" id="add_{{ dept.id }}" value="1" {{ 'checked' if dept.can_add_user == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="add_{{ dept.id }}">صلاحية إضافة إدارات</label>
-                                </div>
-                            </div>
-                        </div>
 
-                        <h6 class="fw-bold fs-8 text-secondary mb-2">صلاحيات صفحات القائمة الجانبية:</h6>
-                        <div class="row g-2 mb-4">
-                            <div class="col-md-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ dept.id }}" id="p_inbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_inbox == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="p_inbox_{{ dept.id }}">الصندوق الوارد</label>
+                            <div class="row g-2 fs-8">
+                                <div class="col-12 mb-1"><strong class="text-secondary">صلاحيات الصفحات:</strong></div>
+                                <div class="col-6 col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ d.id }}" id="inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
+                                        <label class="form-check-label" for="inbox_{{ d.id }}">الصندوق الوارد</label>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ dept.id }}" id="p_outbox_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_outbox == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="p_outbox_{{ dept.id }}">الخطابات الصادرة</label>
+                                <div class="col-6 col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ d.id }}" id="outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
+                                        <label class="form-check-label" for="outbox_{{ d.id }}">الخطابات الصادرة</label>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ dept.id }}" id="p_ach_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="p_ach_{{ dept.id }}">إنجازات الشهر</label>
+                                <div class="col-6 col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ d.id }}" id="ach_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
+                                        <label class="form-check-label" for="ach_{{ d.id }}">إنجازات الشهر</label>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_page_archive_{{ dept.id }}" id="p_arc_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="p_arc_{{ dept.id }}">أرشيف الإدارة</label>
+                                <div class="col-6 col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_archive_{{ d.id }}" id="arc_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}>
+                                        <label class="form-check-label" for="arc_{{ d.id }}">أرشيف الإدارة</label>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ dept.id }}" id="p_q_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }}>
-                                    <label class="form-check-label fs-7" for="p_q_{{ dept.id }}">رفع وتوثيق فوري</label>
+                                <div class="col-6 col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ d.id }}" id="quick_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
+                                        <label class="form-check-label" for="quick_{{ d.id }}">رفع فوري</label>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        <div class="text-end">
-                            <button type="submit" class="btn btn-sm fw-bold px-4 py-2 fs-8" style="background-color: var(--fifa-gold); color: #fff;">حفظ صلاحيات {{ dept.name }}</button>
-                        </div>
-                    </form>
+                                <div class="col-12 mt-3 mb-1"><strong class="text-secondary">صلاحيات العمليات والتحكم:</strong></div>
+                                <div class="col-6 col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_delete_{{ d.id }}" id="del_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}>
+                                        <label class="form-check-label text-danger fw-bold" for="del_{{ d.id }}">صلاحية الحذف</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ d.id }}" id="v_all_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
+                                        <label class="form-check-label" for="v_all_{{ d.id }}">عرض كل الأرشيف</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ d.id }}" id="v_ach_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
+                                        <label class="form-check-label" for="v_ach_{{ d.id }}">عرض كل إنجازات الإدارات</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_add_user_{{ d.id }}" id="add_u_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}>
+                                        <label class="form-check-label" for="add_u_{{ d.id }}">صلاحية إضافة مستخدم/إدارة</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </main>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1902,7 +1951,8 @@ def admin_permissions():
     </body>
     </html>
     '''
-    return render_template_string(html_code, departments=departments, is_admin=is_admin, current_dept=current_dept)
+    return render_template_string(html_code, departments_list=departments_list, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
