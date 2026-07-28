@@ -198,7 +198,7 @@ def delete_letter(letter_id):
     conn.close()
     return '''<script>alert("تم الحذف بنجاح"); window.history.back();</script>'''
 
-# --- مسار حذف الملفات المحددة أو الكل في الأرشيف ---
+# --- مسار حذف الملفات المحددة أو الكل في الأرشيف (مُحدّث وآمن) ---
 @app.route('/delete_selected_letters', methods=['POST'])
 def delete_selected_letters():
     if 'dept_id' not in session:
@@ -215,12 +215,11 @@ def delete_selected_letters():
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
         
-    letter_ids = request.form.getlist('letter_ids')
+    letter_ids_raw = request.form.getlist('letter_ids')
     action_type = request.form.get('action_type')
     dept_id = session['dept_id']
 
     if action_type == 'all':
-        # حذف كل الملفات التي تخص أرشيف الإدارة الحالية بناءً على نفس شروط عرض الأرشيف
         if current_dept['can_view_all_archive'] == 1 or is_admin:
             cursor.execute('''
                 DELETE FROM letters 
@@ -231,9 +230,11 @@ def delete_selected_letters():
                 DELETE FROM letters 
                 WHERE (sender_id = receiver_id AND sender_id = %s) OR (sender_id IS NULL AND receiver_id IS NULL AND archive_dept_id = %s)
             ''', (dept_id, dept_id))
-    elif letter_ids:
-        # حذف المعرفات المحددة فقط
-        cursor.execute('DELETE FROM letters WHERE id = ANY(%s)', (letter_ids,))
+    elif letter_ids_raw:
+        # تحويل المعرفات إلى أعداد صحيحة لتفادي أي خطأ في استعلام SQL
+        letter_ids = [int(lid) for lid in letter_ids_raw if lid.isdigit()]
+        if letter_ids:
+            cursor.execute('DELETE FROM letters WHERE id = ANY(%s)', (letter_ids,))
         
     conn.commit()
     cursor.close()
@@ -663,7 +664,6 @@ DASHBOARD_HTML = '''
 
                 <div class="modern-card p-2 p-sm-3">
                     {% if letters %}
-                        <!-- نموذج لحذف العناصر المحددة أو الكل في صفحة الأرشيف -->
                         {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
                         <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
                             <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
@@ -1755,18 +1755,18 @@ def admin_permissions():
                                         <td class="text-center"><input type="checkbox" name="can_page_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_page_quick_upload_{{ dept.id }}" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }} class="form-check-input"></td>
-
                                         <td class="text-center"><input type="checkbox" name="can_view_all_archive_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_delete_{{ dept.id }}" value="1" {{ 'checked' if dept.can_delete == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_view_all_achievements_{{ dept.id }}" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }} class="form-check-input"></td>
                                         <td class="text-center"><input type="checkbox" name="can_add_user_{{ dept.id }}" value="1" {{ 'checked' if dept.can_add_user == 1 else '' }} class="form-check-input"></td>
-                                        
-                                        <td class="text-center">
-                                            <button type="submit" class="btn btn-sm btn-fifa-gold py-1 px-3">حفظ</button>
-                                        </td>
+                                        <td class="text-center"><button type="submit" class="btn btn-sm btn-success py-1 px-2 fs-8">حفظ</button></td>
                                     </form>
                                     <td class="text-center">
-                                        <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 text-nowrap" onclick="return confirm('هل أنت متأكد من حذف هذا المستخدم/الإدارة نهائياً؟');">حذف اليوزر</a>
+                                        {% if session['dept_id'] != dept.id %}
+                                            <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة نهائياً؟');">حذف</a>
+                                        {% else %}
+                                            <span class="text-muted fs-8">الحالي</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
