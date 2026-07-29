@@ -854,7 +854,7 @@ DASHBOARD_HTML = '''
 </html>
 '''
 
-# --- صفحة الخطابات الصادرة (مطابقة تماماً لنموذج الخطاب الرسمي في الصورة بدون تعديلات أو فلسفة) ---
+# --- صفحة الخطابات الصادرة (مطابقة تماماً لنموذج الخطاب الرسمي لنادي فيفا الرياضي) ---
 @app.route('/outbox')
 def outbox():
     if 'dept_id' not in session:
@@ -894,7 +894,7 @@ def outbox():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>الخطابات الصادرة - نموذج الخطاب الرسمي - نادي فيفا</title>
+        <title>الخطابات الصادرة - نموذج الخطاب الرسمي - نادي فيفا الرياضي</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
         <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
         <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
@@ -924,7 +924,7 @@ def outbox():
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .content-body { flex: 1; padding: 1.5rem; width: 100%; overflow-x: hidden; }
 
-            /* نموذج ورقة الخطاب الرسمي تماماً كما في الصورة */
+            /* تصميم ورقة الخطاب الرسمي المطبوعة تماماً كما في صورة نادي فيفا */
             .official-letter-sheet {
                 max-width: 850px;
                 margin: 0 auto;
@@ -1025,21 +1025,21 @@ def outbox():
             <main class="content-body">
                 <div class="container-fluid p-0">
                     
-                    <!-- نموذج الخطاب الرسمي المطابق للصورة تماماً -->
+                    <!-- نموذج الخطاب الرسمي مطابق تماماً للصورة المعروضة -->
                     <form action="/send_letter" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="letter_id" id="editLetterId" value="">
                         
                         <div class="official-letter-sheet">
                             
-                            <!-- الترويسة العلوية -->
+                            <!-- الترويسة العلوية الرسمية لنادي فيفا الرياضي (شعار يمين، ترويسة يسار) -->
                             <div class="row align-items-center border-bottom pb-3 mb-4">
                                 <div class="col-4">
-                                    <div class="fs-7 text-dark fw-bold mb-1">الرقم: <input type="text" name="letter_number" class="form-control-official d-inline-block w-75 form-control-sm" placeholder="أدخل الرقم"></div>
-                                    <div class="fs-7 text-dark fw-bold mb-1">التاريخ: <input type="text" name="letter_date" value="{{ current_date }} هـ" class="form-control-official d-inline-block w-75 form-control-sm"></div>
+                                    <div class="fs-7 text-dark fw-bold mb-1">الرقم: <input type="text" name="letter_number" class="form-control-official d-inline-block w-75 form-control-sm" placeholder="260" value="260"></div>
+                                    <div class="fs-7 text-dark fw-bold mb-1">التاريخ: <input type="text" name="letter_date" value="2025/7/15م" class="form-control-official d-inline-block w-75 form-control-sm"></div>
                                     <div class="fs-7 text-dark fw-bold">المشفعات: <input type="text" name="attachments_count" class="form-control-official d-inline-block w-75 form-control-sm" value="-"></div>
                                 </div>
                                 <div class="col-4 text-center">
-                                    <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار النادي" style="max-height: 80px;" onerror="this.style.display='none'">
+                                    <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار نادي فيفا" style="max-height: 85px;" onerror="this.style.display='none'">
                                 </div>
                                 <div class="col-4 text-start">
                                     <h6 class="fw-bold mb-1 text-dark" style="font-size: 0.95rem;">المملكة العربية السعودية</h6>
@@ -1058,7 +1058,7 @@ def outbox():
                             <!-- محتوى الخطاب الرئيسي -->
                             <div class="mb-4">
                                 <label class="form-label fw-bold fs-7 text-secondary">محتوى الخطاب:</label>
-                                <textarea name="content" id="letterContent" class="form-control-official w-100 fs-7" rows="12" placeholder="اكتب نص الخطاب هنا..." required></textarea>
+                                <textarea name="content" id="letterContent" class="form-control-official w-100 fs-7" rows="12" placeholder="اكتب نص الخطاب الرسمي هنا..." required></textarea>
                             </div>
 
                             <!-- المرفقات الاختيارية -->
@@ -1146,8 +1146,7 @@ def outbox():
                                   depts=depts, 
                                   current_dept=current_dept, 
                                   out_letters=out_letters,
-                                  is_admin=is_admin,
-                                  current_date=datetime.now().strftime('%Y/%m/%d'))
+                                  is_admin=is_admin)
 
 @app.route('/send_letter', methods=['POST'])
 def send_letter():
