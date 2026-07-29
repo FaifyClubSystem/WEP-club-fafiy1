@@ -854,7 +854,7 @@ DASHBOARD_HTML = '''
 </html>
 '''
 
-# --- صفحة الخطابات الصادرة (مصححة لتعمل بسلاسة بدون أخطاء السيرفر) ---
+# --- صفحة الخطابات الصادرة (مطابقة تماماً لنموذج الوورد وقابلة للتعديل والكتابة بالكامل) ---
 @app.route('/outbox')
 def outbox():
     if 'dept_id' not in session:
@@ -876,7 +876,6 @@ def outbox():
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
     
-    # جلب الخطابات الصادرة هنا بداخل بايثون لمنع أي خطأ في العرض داخل القالب
     cursor.execute('''
         SELECT l.*, d.name as receiver_name 
         FROM letters l 
@@ -965,7 +964,7 @@ def outbox():
                 line-height: 2.2;
                 color: var(--fifa-green-primary);
                 resize: vertical;
-                min-height: 220px;
+                min-height: 250px;
                 background-color: #fafcfb;
             }
             .word-textarea-content:focus {
@@ -1061,7 +1060,7 @@ def outbox():
             <main class="content-body">
                 <div class="container-fluid p-0">
                     
-                    <!-- نموذج ورقة الوورد المفتوحة مباشرة -->
+                    <!-- نموذج ورقة الوورد المطابق للتصميم والمفتوح للكتابة والتعديل بالكامل -->
                     <form action="/send_letter" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="letter_id" id="editLetterId" value="">
                         
@@ -1097,9 +1096,15 @@ def outbox():
 
                             <div class="mb-4">
                                 <label class="form-label fw-bold fs-7 text-muted">محتوى الخطاب (اكتب أو عدل النص بحرية تامة):</label>
-                                <textarea name="content" id="letterContent" class="word-textarea-content" rows="7" placeholder="اكتب تفاصيل الخطاب الرسمي هنا..." required>السلام عليكم ورحمة الله وبركاته،
+                                <textarea name="content" id="letterContent" class="word-textarea-content" rows="8" placeholder="اكتب تفاصيل الخطاب الرسمي هنا..." required>السلام عليكم ورحمة الله وبركاته،
 
-نود إفادتكم بأنه...</textarea>
+بالإشارة إلى الموضوع أعلاه، نود إفادتكم بأنه...</textarea>
+                            </div>
+
+                            <!-- حقل المرفقات داخل ورقة الخطاب -->
+                            <div class="mb-3 p-3 border rounded bg-light no-print">
+                                <label class="form-label fw-bold fs-7 text-success"><i class='bx bx-paperclip'></i> إرفاق ملف أو مستند إضافي (اختياري):</label>
+                                <input type="file" name="file" class="form-control form-control-sm fs-7 bg-white">
                             </div>
 
                             <div class="text-start mt-4 pt-3 border-top">
