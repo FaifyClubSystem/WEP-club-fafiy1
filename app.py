@@ -594,6 +594,36 @@ DASHBOARD_HTML = '''
         .bg-fifa-green { background-color: var(--fifa-green-primary) !important; color: #fff; }
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
+
+        /* --- تصميم نمط الخطابات الصادرة (مستوحى من قالب Canva) --- */
+        .canva-letter-pattern {
+            background: linear-gradient(135deg, #f9fbf9 0%, #edf4f0 100%);
+            border: 2px solid var(--fifa-gold);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(18, 56, 38, 0.08);
+            direction: rtl;
+        }
+        .canva-letter-pattern::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; left: 0;
+            height: 8px;
+            background: linear-gradient(90deg, var(--fifa-green-primary), var(--fifa-gold));
+            border-radius: 16px 16px 0 0;
+        }
+        .canva-header-box {
+            border-bottom: 2px dashed #d5e2d8;
+            padding-bottom: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .canva-watermark-title {
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            color: var(--fifa-gold);
+            font-weight: 800;
+        }
     </style>
 </head>
 <body>
@@ -763,53 +793,68 @@ DASHBOARD_HTML = '''
         </main>
     </div>
 
-    <!-- نافذة إرسال أو تعديل الخطاب (مودال قابل للإضافة والتعديل) -->
+    <!-- نافذة إرسال أو تعديل الخطاب (محاط بنمط الخطابات الصادرة وزر الإرسال أسفله) -->
     <div class="modal fade" id="sendLetterModal" tabindex="-1" aria-labelledby="sendLetterModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content modern-card border-0 shadow-lg">
-                <div class="modal-header border-bottom px-4 py-3" style="background-color: var(--fifa-green-primary); color: #fff;">
-                    <h5 class="modal-title fw-bold fs-6" id="sendLetterModalLabel"><i class='bx bxs-paper-plane ms-2' style="color: var(--fifa-gold);"></i><span id="modalTitleText">إرسال خطاب</span></h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-3 p-md-4">
-                    <form id="letterForm" action="/send_letter" method="post" enctype="multipart/form-data">
-                        <input type="hidden" name="letter_id" id="editLetterId" value="">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">إلى الإدارة (المستلم):</label>
-                            <select name="receiver_id" id="receiverSelect" class="form-select fs-7" required>
-                                <option value="" selected disabled>اختر الإدارة المستقبلة...</option>
-                                {% for d in depts %}
-                                    <option value="{{ d.id }}">{{ d.name }}</option>
-                                {% endfor %}
-                            </select>
+            <div class="modal-content border-0 shadow-lg bg-transparent">
+                <div class="canva-letter-pattern">
+                    <div class="d-flex justify-content-between align-items-center canva-header-box">
+                        <div>
+                            <span class="canva-watermark-title">نادي فيفا الرياضي - FIFA CLUB</span>
+                            <h5 class="modal-title fw-bold fs-5 mt-1" style="color: var(--fifa-green-primary);" id="sendLetterModalLabel">
+                                <i class='bx bxs-paper-plane ms-2' style="color: var(--fifa-gold);"></i><span id="modalTitleText">نموذج الخطابات الصادرة الرسمية</span>
+                            </h5>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">عنوان الخطاب (الموضوع):</label>
-                            <input type="text" name="title" id="letterTitle" class="form-control fs-7" required placeholder="أدخل موضوع الخطاب...">
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">الأهمية:</label>
-                                <select name="priority" id="letterPriority" class="form-select fs-7">
-                                    <option value="عادي">عادي</option>
-                                    <option value="عاجل">عاجل</option>
-                                    <option value="سري للغاية">سري للغاية</option>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body p-0">
+                        <form id="letterForm" action="/send_letter" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="letter_id" id="editLetterId" value="">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">إلى الإدارة (المستلم):</label>
+                                <select name="receiver_id" id="receiverSelect" class="form-select fs-7" required>
+                                    <option value="" selected disabled>اختر الإدارة المستقبلة...</option>
+                                    {% for d in depts %}
+                                        <option value="{{ d.id }}">{{ d.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>
-                                <input type="file" name="file" class="form-control fs-7">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">عنوان الخطاب (الموضوع):</label>
+                                <input type="text" name="title" id="letterTitle" class="form-control fs-7" required placeholder="أدخل موضوع الخطاب...">
                             </div>
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">محتوى ووصف الخطاب:</label>
-                            <textarea name="content" id="letterContent" class="form-control fs-7" rows="5" placeholder="اكتب تفاصيل ومحتوى الخطاب هنا..."></textarea>
-                        </div>
-                        <div class="d-flex justify-content-end gap-2">
-                            <button type="button" class="btn btn-secondary fs-7 px-3" data-bs-dismiss="modal">إلغاء</button>
-                            <button type="submit" class="btn btn-fifa-primary fs-7 px-4" id="submitBtnText">إرسال الخطاب</button>
-                        </div>
-                    </form>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">الأهمية:</label>
+                                    <select name="priority" id="letterPriority" class="form-select fs-7">
+                                        <option value="عادي">عادي</option>
+                                        <option value="عاجل">عاجل</option>
+                                        <option value="سري للغاية">سري للغاية</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>
+                                    <input type="file" name="file" class="form-control fs-7">
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">محتوى ووصف الخطاب:</label>
+                                <textarea name="content" id="letterContent" class="form-control fs-7" rows="5" placeholder="اكتب تفاصيل ومحتوى الخطاب هنا..."></textarea>
+                            </div>
+
+                            <!-- زر الإرسال أسفل النمط مباشرة -->
+                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-3">
+                                <small class="text-muted">جميع الخطابات معتمدة رسمياً ومؤرشفة إلكترونياً</small>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-secondary fs-7 px-3" data-bs-dismiss="modal">إلغاء</button>
+                                    <button type="submit" class="btn btn-fifa-primary fs-7 px-4 shadow-sm fw-bold" id="submitBtnText" style="background-color: var(--fifa-green-primary); color: #fff;">
+                                        <i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -832,8 +877,8 @@ DASHBOARD_HTML = '''
         function openNewLetterModal() {
             document.getElementById('letterForm').reset();
             document.getElementById('editLetterId').value = '';
-            document.getElementById('modalTitleText').innerText = 'إرسال خطاب';
-            document.getElementById('submitBtnText').innerText = 'إرسال الخطاب';
+            document.getElementById('modalTitleText').innerText = 'نموذج الخطابات الصادرة الرسمية';
+            document.getElementById('submitBtnText').innerHTML = "<i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب";
             var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
             myModal.show();
         }
@@ -846,7 +891,7 @@ DASHBOARD_HTML = '''
             document.getElementById('letterContent').value = content;
             
             document.getElementById('modalTitleText').innerText = 'تعديل وإعادة إرسال الخطاب';
-            document.getElementById('submitBtnText').innerText = 'حفظ وإعادة إرسال';
+            document.getElementById('submitBtnText').innerHTML = "<i class='bx bxs-paper-plane ms-1'></i> حفظ وإعادة إرسال";
             var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
             myModal.show();
         }
@@ -1746,7 +1791,7 @@ def admin_permissions():
             .mobile-overlay.active { display: block; }
 
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; font-size: 0.95rem; }
-            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link:hover, .sidebar-link.active {background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
             .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
@@ -1799,69 +1844,37 @@ def admin_permissions():
                 <div class="border-top border-secondary my-3 opacity-25"></div>
                 <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
             </aside>
-
             <main class="main-content">
                 <div class="modern-card p-3 p-md-4">
-                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">إدارة صلاحيات الإدارات والمستخدمين</h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle fs-8 mb-0">
-                            <thead class="table-success text-center">
-                                <tr>
-                                    <th>اسم الإدارة</th>
-                                    <th>اسم المستخدم</th>
-                                    <th>عرض أرشيف الكل</th>
-                                    <th>صلاحية الحذف</th>
-                                    <th>عرض إنجازات الكل</th>
-                                    <th>إضافة إدارات</th>
-                                    <th>الصفحات (وارد/صادر/إنجازات/أرشيف/رفع)</th>
-                                    <th>حفظ</th>
-                                    <th>حذف الحساب</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for d in departments %}
-                                <tr>
-                                    <form action="/admin/permissions" method="post">
-                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                        <td class="fw-bold">{{ d.name }}</td>
-                                        <td><code>{{ d.username }}</code></td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_delete_{{ d.id }}" value="1" {{ 'checked' if d.can_delete == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_add_user_{{ d.id }}" value="1" {{ 'checked' if d.can_add_user == 1 else '' }}>
-                                        </td>
-                                        <td>
-                                            <div class="d-flex flex-wrap gap-2 justify-content-center">
-                                                <label title="الصندوق الوارد"><input type="checkbox" name="can_page_inbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_inbox == 1 else '' }}> وارد</label>
-                                                <label title="الخطابات الصادرة"><input type="checkbox" name="can_page_outbox_{{ d.id }}" value="1" {{ 'checked' if d.can_page_outbox == 1 else '' }}> صادر</label>
-                                                <label title="إنجازات الشهر"><input type="checkbox" name="can_page_achievements_{{ d.id }}" value="1" {{ 'checked' if d.can_page_achievements == 1 else '' }}> إنجازات</label>
-                                                <label title="أرشيف الإدارة"><input type="checkbox" name="can_page_archive_{{ d.id }}" value="1" {{ 'checked' if d.can_page_archive == 1 else '' }}> أرشيف</label>
-                                                <label title="رفع وتوثيق فوري"><input type="checkbox" name="can_page_quick_upload_{{ d.id }}" value="1" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}> رفع</label>
-                                            </div>
-                                        </td>
-                                        <td class="text-center">
-                                            <button type="submit" class="btn btn-sm btn-success py-1 px-2 fs-8">حفظ</button>
-                                        </td>
-                                        <td class="text-center">
-                                            {% if d.id != session['dept_id'] %}
-                                                <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف هذه الإدارة نهائياً؟');">حذف</a>
-                                            {% else %}
-                                                <span class="text-muted fs-8">الحساب الحالي</span>
-                                            {% endif %}
-                                        </td>
-                                    </form>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <h5 class="fw-bold fs-6 mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة تحكم الصلاحيات المتقدمة</h5>
+                    {% for dept in departments %}
+                    <div class="border rounded p-3 mb-3 bg-light">
+                        <form action="/admin/permissions" method="post">
+                            <input type="hidden" name="dept_id" value="{{ dept.id }}">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 border-bottom pb-2">
+                                <span class="fw-bold text-success fs-6">{{ dept.name }} <small class="text-muted">({{ dept.username }})</small></span>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-success px-3 fs-8 fw-bold">حفظ التغييرات</button>
+                                    {% if dept.id != session['dept_id'] %}
+                                    <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف هذا الحساب نهائياً؟');">حذف الحساب</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row g-2 fs-8">
+                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" value="1" {% if dept.can_delete == 1 %}checked{% endif %}><label class="form-check-label">صلاحية الحذف</label></div></div>
+                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_view_all_archive_{ dept.id }}" value="1" {% if dept.can_view_all_archive == 1 %}checked{% endif %}><label class="form-check-label">مشاهدة كل الأرشيف</label></div></div>
+                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_view_all_achievements_{ dept.id }}" value="1" {% if dept.can_view_all_achievements == 1 %}checked{% endif %}><label class="form-check-label">مشاهدة كل الإنجازات</label></div></div>
+                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_add_user_{ dept.id }}" value="1" {% if dept.can_add_user == 1 %}checked{% endif %}><label class="form-check-label">صلاحية إضافة مستخدم</label></div></div>
+
+                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_inbox_{ dept.id }}" value="1" {% if dept.can_page_inbox == 1 %}checked{% endif %}><label class="form-check-label">صندوق الوارد</label></div></div>
+                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_outbox_{ dept.id }}" value="1" {% if dept.can_page_outbox == 1 %}checked{% endif %}><label class="form-check-label">الخطابات الصادرة</label></div></div>
+                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_achievements_{ dept.id }}" value="1" {% if dept.can_page_achievements == 1 %}checked{% endif %}><label class="form-check-label">إنجازات الشهر</label></div></div>
+                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_archive_{ dept.id }}" value="1" {% if dept.can_page_archive == 1 %}checked{% endif %}><label class="form-check-label">أرشيف الإدارة</label></div></div>
+                                <div class="col-md-4 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_quick_upload_{ dept.id }}" value="1" {% if dept.can_page_quick_upload == 1 %}checked{% endif %}><label class="form-check-label">صفحة الرفع والتوثيق الفوري</label></div></div>
+                            </div>
+                        </form>
                     </div>
+                    {% endfor %}
                 </div>
             </main>
         </div>
@@ -1878,4 +1891,4 @@ def admin_permissions():
     return render_template_string(html_code, departments=departments, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True, port=5000)
