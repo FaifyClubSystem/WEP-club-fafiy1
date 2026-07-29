@@ -68,7 +68,8 @@ def init_db():
             file_data BYTEA,
             file_mimetype TEXT,
             created_at TEXT,
-            archive_dept_id INTEGER
+            archive_dept_id INTEGER,
+            letter_number TEXT
         )
     ''')
     
@@ -116,6 +117,8 @@ def init_db():
         cursor.execute('ALTER TABLE letters ADD COLUMN file_data BYTEA')
     if 'file_mimetype' not in letter_cols:
         cursor.execute('ALTER TABLE letters ADD COLUMN file_mimetype TEXT')
+    if 'letter_number' not in letter_cols:
+        cursor.execute('ALTER TABLE letters ADD COLUMN letter_number TEXT')
 
     cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='monthly_achievements'")
     ach_cols = [col['column_name'] for col in cursor.fetchall()]
@@ -595,35 +598,52 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* --- تصميم نمط الخطابات الصادرة (مستوحى من قالب Canva) --- */
-        .canva-letter-pattern {
-            background: linear-gradient(135deg, #f9fbf9 0%, #edf4f0 100%);
-            border: 2px solid var(--fifa-gold);
-            border-radius: 16px;
-            padding: 2.5rem 2rem;
+        /* ================= نمط الخطاب الرسمي (وفق قالب النادي المعتمد) ================= */
+        .official-letter {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 1.75rem 1.75rem 1.25rem 1.75rem;
             position: relative;
-            box-shadow: 0 10px 30px rgba(18, 56, 38, 0.08);
+            box-shadow: 0 10px 30px rgba(18, 56, 38, 0.10);
             direction: rtl;
+            max-height: 78vh;
+            overflow-y: auto;
         }
-        .canva-letter-pattern::before {
+        .official-letter::before {
             content: '';
             position: absolute;
             top: 0; right: 0; left: 0;
-            height: 8px;
+            height: 6px;
             background: linear-gradient(90deg, var(--fifa-green-primary), var(--fifa-gold));
-            border-radius: 16px 16px 0 0;
+            border-radius: 10px 10px 0 0;
         }
-        .canva-header-box {
-            border-bottom: 2px dashed #d5e2d8;
-            padding-bottom: 1.2rem;
-            margin-bottom: 1.5rem;
+        .letter-head-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            border-bottom: 2px solid var(--fifa-green-primary);
+            padding-bottom: 0.9rem;
+            margin-bottom: 1.1rem;
         }
-        .canva-watermark-title {
-            font-size: 0.85rem;
-            letter-spacing: 1px;
-            color: var(--fifa-gold);
-            font-weight: 800;
-        }
+        .letter-head-meta { font-size: 0.78rem; font-weight: 700; color: var(--fifa-green-primary); line-height: 1.9; white-space: nowrap; }
+        .letter-head-meta input { border: none; border-bottom: 1px dotted #b9c7bf; background: transparent; font-weight: 700; color: var(--fifa-green-primary); font-size: 0.78rem; width: 110px; padding: 0 2px; }
+        .letter-head-meta input:focus { outline: none; border-bottom: 1px solid var(--fifa-gold); }
+        .letter-head-center { text-align: center; flex: 1; }
+        .letter-head-center .kingdom { font-weight: 800; font-size: 0.95rem; color: var(--fifa-green-primary); }
+        .letter-head-center .sub { font-weight: 700; font-size: 0.82rem; color: #3c4a43; }
+        .letter-head-logo img { height: 55px; object-fit: contain; }
+        .letter-head-logo i { font-size: 2.6rem; color: var(--fifa-green-primary); }
+
+        .letter-meta-fields { background: var(--fifa-bg); border: 1px solid var(--fifa-card-border); border-radius: 10px; padding: 0.9rem; margin-bottom: 1.1rem; }
+        .letter-salutation { font-weight: 800; color: var(--fifa-green-primary); font-size: 0.95rem; margin-bottom: 0.2rem; }
+        .letter-greeting { font-weight: 700; color: #3c4a43; font-size: 0.88rem; margin-bottom: 1rem; }
+        .letter-body-box textarea { border: none; background: transparent; resize: vertical; font-size: 0.9rem; line-height: 2; padding: 0; }
+        .letter-body-box textarea:focus { outline: none; box-shadow: none; }
+        .letter-closing { font-weight: 700; color: #3c4a43; font-size: 0.88rem; margin-top: 1rem; }
+        .letter-signature { text-align: center; margin-top: 1.5rem; }
+        .letter-signature .role { font-weight: 700; color: #3c4a43; font-size: 0.85rem; }
+        .letter-signature .name { font-weight: 800; color: var(--fifa-green-primary); font-size: 0.95rem; margin-top: 0.3rem; }
     </style>
 </head>
 <body>
@@ -793,68 +813,91 @@ DASHBOARD_HTML = '''
         </main>
     </div>
 
-    <!-- نافذة إرسال أو تعديل الخطاب (محاط بنمط الخطابات الصادرة وزر الإرسال أسفله) -->
+    <!-- ============ نافذة الخطاب الرسمي (نموذج جاهز مطابق لترويسة النادي) ============ -->
     <div class="modal fade" id="sendLetterModal" tabindex="-1" aria-labelledby="sendLetterModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg bg-transparent">
-                <div class="canva-letter-pattern">
-                    <div class="d-flex justify-content-between align-items-center canva-header-box">
-                        <div>
-                            <span class="canva-watermark-title">نادي فيفا الرياضي - FIFA CLUB</span>
-                            <h5 class="modal-title fw-bold fs-5 mt-1" style="color: var(--fifa-green-primary);" id="sendLetterModalLabel">
-                                <i class='bx bxs-paper-plane ms-2' style="color: var(--fifa-gold);"></i><span id="modalTitleText">نموذج الخطابات الصادرة الرسمية</span>
-                            </h5>
+                <div class="official-letter">
+                    <button type="button" class="btn-close position-absolute" style="top:14px; left:14px;" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                    <!-- ترويسة الخطاب الرسمية -->
+                    <div class="letter-head-row">
+                        <div class="letter-head-meta text-start">
+                            الرقم: <input type="text" name="letter_number" id="letterNumber" placeholder="—">
+                            <br>التاريخ: <span id="letterDateDisplay">{{ now.strftime('%Y/%m/%d') }}م</span>
+                            <br>المشفوعات: <input type="text" name="attachments_note" id="attachmentsNote" placeholder="-">
                         </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <div class="letter-head-center">
+                            <div class="kingdom">المملكة العربية السعودية</div>
+                            <div class="sub">وزارة الرياضة</div>
+                            <div class="sub">فرع وزارة الرياضة بجازان</div>
+                            <div class="sub">نادي فيفا الرياضي</div>
+                        </div>
+                        <div class="letter-head-logo">
+                            <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار نادي فيفا" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                            <i class='bx bxs-shield-alt-2' style="display:none;"></i>
+                        </div>
                     </div>
 
-                    <div class="modal-body p-0">
-                        <form id="letterForm" action="/send_letter" method="post" enctype="multipart/form-data">
-                            <input type="hidden" name="letter_id" id="editLetterId" value="">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">إلى الإدارة (المستلم):</label>
-                                <select name="receiver_id" id="receiverSelect" class="form-select fs-7" required>
-                                    <option value="" selected disabled>اختر الإدارة المستقبلة...</option>
-                                    {% for d in depts %}
-                                        <option value="{{ d.id }}">{{ d.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">عنوان الخطاب (الموضوع):</label>
-                                <input type="text" name="title" id="letterTitle" class="form-control fs-7" required placeholder="أدخل موضوع الخطاب...">
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">الأهمية:</label>
-                                    <select name="priority" id="letterPriority" class="form-select fs-7">
+                    <form id="letterForm" action="/send_letter" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="letter_id" id="editLetterId" value="">
+
+                        <!-- بيانات الخطاب الوظيفية: المستلم / الموضوع / الأهمية / المرفق -->
+                        <div class="letter-meta-fields">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">إلى الإدارة (المستلم):</label>
+                                    <select name="receiver_id" id="receiverSelect" class="form-select form-select-sm fs-7" required>
+                                        <option value="" selected disabled>اختر الإدارة المستقبلة...</option>
+                                        {% for d in depts %}
+                                            <option value="{{ d.id }}">{{ d.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">عنوان الخطاب (الموضوع):</label>
+                                    <input type="text" name="title" id="letterTitle" class="form-control form-control-sm fs-7" required placeholder="أدخل موضوع الخطاب...">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">الأهمية:</label>
+                                    <select name="priority" id="letterPriority" class="form-select form-select-sm fs-7">
                                         <option value="عادي">عادي</option>
                                         <option value="عاجل">عاجل</option>
                                         <option value="سري للغاية">سري للغاية</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>
-                                    <input type="file" name="file" class="form-control fs-7">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>
+                                    <input type="file" name="file" class="form-control form-control-sm fs-7">
                                 </div>
                             </div>
-                            <div class="mb-4">
-                                <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">محتوى ووصف الخطاب:</label>
-                                <textarea name="content" id="letterContent" class="form-control fs-7" rows="5" placeholder="اكتب تفاصيل ومحتوى الخطاب هنا..."></textarea>
-                            </div>
+                        </div>
 
-                            <!-- زر الإرسال أسفل النمط مباشرة -->
-                            <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-3">
-                                <small class="text-muted">جميع الخطابات معتمدة رسمياً ومؤرشفة إلكترونياً</small>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-secondary fs-7 px-3" data-bs-dismiss="modal">إلغاء</button>
-                                    <button type="submit" class="btn btn-fifa-primary fs-7 px-4 shadow-sm fw-bold" id="submitBtnText" style="background-color: var(--fifa-green-primary); color: #fff;">
-                                        <i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب
-                                    </button>
-                                </div>
+                        <!-- نص الخطاب على شكل رسمي -->
+                        <div class="letter-salutation" id="modalTitleText">سعادة .......................... المحترم</div>
+                        <div class="letter-greeting">السلام عليكم ورحمة الله وبركاته .. وبعد،،</div>
+
+                        <div class="letter-body-box mb-2">
+                            <textarea name="content" id="letterContent" class="form-control" rows="7" placeholder="اكتب نص ومحتوى الخطاب هنا..."></textarea>
+                        </div>
+
+                        <div class="letter-closing">وتفضلوا بقبول فائق الاحترام والتقدير ،،،</div>
+
+                        <div class="letter-signature">
+                            <div class="role">مقدمه</div>
+                            <div class="name">{{ dept_name }}</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-3">
+                            <small class="text-muted">جميع الخطابات معتمدة رسمياً ومؤرشفة إلكترونياً</small>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-secondary fs-7 px-3" data-bs-dismiss="modal">إلغاء</button>
+                                <button type="submit" class="btn btn-fifa-primary fs-7 px-4 shadow-sm fw-bold" id="submitBtnText" style="background-color: var(--fifa-green-primary); color: #fff;">
+                                    <i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب
+                                </button>
                             </div>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -877,7 +920,7 @@ DASHBOARD_HTML = '''
         function openNewLetterModal() {
             document.getElementById('letterForm').reset();
             document.getElementById('editLetterId').value = '';
-            document.getElementById('modalTitleText').innerText = 'نموذج الخطابات الصادرة الرسمية';
+            document.getElementById('modalTitleText').innerText = 'سعادة .......................... المحترم';
             document.getElementById('submitBtnText').innerHTML = "<i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب";
             var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
             myModal.show();
@@ -890,7 +933,7 @@ DASHBOARD_HTML = '''
             document.getElementById('letterPriority').value = priority;
             document.getElementById('letterContent').value = content;
             
-            document.getElementById('modalTitleText').innerText = 'تعديل وإعادة إرسال الخطاب';
+            document.getElementById('modalTitleText').innerText = 'سعادة .......................... المحترم (تعديل)';
             document.getElementById('submitBtnText').innerHTML = "<i class='bx bxs-paper-plane ms-1'></i> حفظ وإعادة إرسال";
             var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
             myModal.show();
