@@ -854,7 +854,7 @@ DASHBOARD_HTML = '''
 </html>
 '''
 
-# --- صفحة الخطابات الصادرة (محرر ورقة الخطاب الفارغ بالكامل والقابل للتصميم الحر) ---
+# --- صفحة الخطابات الصادرة (مطابقة تماماً لنموذج الخطاب الرسمي في الصورة بدون تعديلات أو فلسفة) ---
 @app.route('/outbox')
 def outbox():
     if 'dept_id' not in session:
@@ -894,7 +894,7 @@ def outbox():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>الخطابات الصادرة - تصميم نموذج الخطاب الحر - نادي فيفا</title>
+        <title>الخطابات الصادرة - نموذج الخطاب الرسمي - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
         <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
         <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
@@ -924,69 +924,31 @@ def outbox():
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .content-body { flex: 1; padding: 1.5rem; width: 100%; overflow-x: hidden; }
 
-            /* ورقة الخطاب القابلة للتصميم الحر بالكامل */
-            .customizable-canvas-wrapper {
-                max-width: 900px;
+            /* نموذج ورقة الخطاب الرسمي تماماً كما في الصورة */
+            .official-letter-sheet {
+                max-width: 850px;
                 margin: 0 auto;
                 background: #ffffff;
-                border: 3px solid var(--fifa-gold);
-                border-radius: 16px;
-                box-shadow: 0 12px 35px rgba(18, 56, 38, 0.12);
+                border: 2px solid #b0c4bc;
+                border-radius: 8px;
+                box-shadow: 0 10px 30px rgba(18, 56, 38, 0.08);
                 padding: 40px;
                 position: relative;
             }
-            .canvas-editable-input {
-                border: 1px dashed #b0c4bc;
+            .form-control-official {
+                border: 1px solid #ced4da;
                 padding: 6px 12px;
-                border-radius: 6px;
-                background-color: #fbfdfc;
+                border-radius: 4px;
                 font-family: 'Almarai', sans-serif;
-                transition: all 0.2s ease;
             }
-            .canvas-editable-input:focus {
-                outline: none;
+            .form-control-official:focus {
                 border-color: var(--fifa-green-primary);
-                background-color: #fff;
-                box-shadow: 0 0 0 3px rgba(18, 56, 38, 0.12);
-            }
-            .big-editor-textarea {
-                width: 100%;
-                border: 2px dashed #b0c4bc;
-                border-radius: 10px;
-                padding: 22px;
-                font-family: 'Almarai', sans-serif;
-                font-size: 1.1rem;
-                line-height: 2.3;
-                color: var(--fifa-green-primary);
-                resize: vertical;
-                min-height: 280px;
-                background-color: #fbfdfc;
-                transition: all 0.2s ease;
-            }
-            .big-editor-textarea:focus {
-                outline: none;
-                border-color: var(--fifa-green-primary);
-                background-color: #fff;
-                box-shadow: 0 0 0 4px rgba(18, 56, 38, 0.1);
-            }
-            .design-tools-bar {
-                background: #f4f8f6;
-                border: 1px solid #d5e2d8;
-                border-radius: 10px;
-                padding: 15px;
-                margin-bottom: 25px;
-            }
-            .send-bottom-bar {
-                background: #f4f8f6;
-                border-top: 2px solid #d5e2d8;
-                padding: 20px;
-                margin-top: 35px;
-                border-radius: 10px;
+                box-shadow: 0 0 0 0.2rem rgba(18, 56, 38, 0.15);
             }
             @media print {
                 body * { visibility: hidden; }
-                .customizable-canvas-wrapper, .customizable-canvas-wrapper * { visibility: visible; }
-                .customizable-canvas-wrapper { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; padding: 15px; }
+                .official-letter-sheet, .official-letter-sheet * { visibility: visible; }
+                .official-letter-sheet { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none; padding: 10px; }
                 .no-print { display: none !important; }
             }
         </style>
@@ -1005,7 +967,7 @@ def outbox():
                         <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <div class="d-flex flex-column">
                             <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
-                            <span class="text-muted fs-8 d-none d-sm-block mt-1">مصمم ورقة الخطابات الحرة</span>
+                            <span class="text-muted fs-8 d-none d-sm-block mt-1">نموذج الخطاب الرسمي</span>
                         </div>
                     </a>
                 </div>
@@ -1013,7 +975,7 @@ def outbox():
                 <div class="d-flex align-items-center gap-2">
                     <button onclick="window.print()" class="btn btn-sm btn-outline-success fw-bold d-flex align-items-center gap-1 shadow-sm px-2">
                         <i class='bx bxs-file-pdf fs-5 text-danger'></i> 
-                        <span>تحميل / طباعة PDF</span>
+                        <span>طباعة / حفظ PDF</span>
                     </button>
                     <div class="dropdown">
                         <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
@@ -1063,94 +1025,64 @@ def outbox():
             <main class="content-body">
                 <div class="container-fluid p-0">
                     
-                    <!-- لوحة أدوات تصميم النموذج الحر -->
-                    <div class="design-tools-bar no-print shadow-sm">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                            <div>
-                                <h6 class="fw-bold mb-1" style="color: var(--fifa-green-primary);"><i class='bx bx-slider-alt'></i> خصائص وتصميم الورقة (صمم النموذج على كيفك):</h6>
-                                <p class="text-muted fs-8 m-0">النموذج أدناه فارغ تماماً وخالٍ من أي صيغ جاهزة. يمكنك كتابة وتعديل كل حقل وترويسة لتصميم الخطاب بالطريقة التي تناسبك.</p>
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-dark fw-bold fs-7 bg-white" onclick="clearCanvasCompletely()"><i class='bx bx-eraser'></i> تفريغ النموذج بالكامل</button>
-                                <button type="button" class="btn btn-sm btn-success fw-bold fs-7" onclick="addNewHeaderLine()"><i class='bx bx-plus'></i> إضافة سطر ترويسة حر</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ورقة الخطاب الفارغة والقابلة للتصميم الحر -->
+                    <!-- نموذج الخطاب الرسمي المطابق للصورة تماماً -->
                     <form action="/send_letter" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="letter_id" id="editLetterId" value="">
                         
-                        <div class="customizable-canvas-wrapper" id="canvasContainer">
+                        <div class="official-letter-sheet">
                             
-                            <!-- الترويسة العلوية الحرة والقابلة للتعديل الكامل -->
-                            <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4" style="border-color: var(--fifa-green-primary) !important;">
-                                <div id="headerLeftBlock" class="w-40">
-                                    <input type="text" name="header_line_1" class="canvas-editable-input fw-bold w-100 mb-1 text-success fs-7" value="المملكة العربية السعودية" placeholder="اكتب الدولة / الجهة الرئيسية...">
-                                    <input type="text" name="header_line_2" class="canvas-editable-input fw-bold w-100 mb-1 text-muted fs-7" value="وزارة الرياضة" placeholder="اكتب الوزارة / الفرع...">
-                                    <input type="text" name="header_line_3" class="canvas-editable-input fw-bold w-100 mb-1 text-muted fs-7" value="نادي فيفا الرياضي" placeholder="اكتب اسم المنشأة...">
-                                    <input type="text" name="header_line_4" class="canvas-editable-input fw-bold w-100 text-warning fs-7" style="color: var(--fifa-gold) !important;" value="{{ session['dept_name'] }}" placeholder="اكتب اسم إدارتك...">
+                            <!-- الترويسة العلوية -->
+                            <div class="row align-items-center border-bottom pb-3 mb-4">
+                                <div class="col-4">
+                                    <div class="fs-7 text-dark fw-bold mb-1">الرقم: <input type="text" name="letter_number" class="form-control-official d-inline-block w-75 form-control-sm" placeholder="أدخل الرقم"></div>
+                                    <div class="fs-7 text-dark fw-bold mb-1">التاريخ: <input type="text" name="letter_date" value="{{ current_date }} هـ" class="form-control-official d-inline-block w-75 form-control-sm"></div>
+                                    <div class="fs-7 text-dark fw-bold">المشفعات: <input type="text" name="attachments_count" class="form-control-official d-inline-block w-75 form-control-sm" value="-"></div>
                                 </div>
-                                <div class="text-center">
-                                    <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار النادي" style="max-height: 75px;" onerror="this.style.display='none'">
+                                <div class="col-4 text-center">
+                                    <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار النادي" style="max-height: 80px;" onerror="this.style.display='none'">
                                 </div>
-                                <div id="headerRightBlock" class="w-40 text-start">
-                                    <div class="mb-1 fs-7 d-flex align-items-center justify-content-end gap-1">
-                                        <span>الرقم:</span> <input type="text" name="letter_number" value="" class="canvas-editable-input w-50 text-center form-control-sm" placeholder="أدخل الرقم...">
-                                    </div>
-                                    <div class="mb-1 fs-7 d-flex align-items-center justify-content-end gap-1">
-                                        <span>التاريخ:</span> <input type="text" name="letter_date" value="{{ current_date }} هـ" class="canvas-editable-input w-75 text-center form-control-sm" placeholder="أدخل التاريخ...">
-                                    </div>
-                                    <div class="fs-7 d-flex align-items-center justify-content-end gap-1">
-                                        <span>الأهمية:</span> 
-                                        <select name="priority" id="letterPriority" class="canvas-editable-input w-50 form-control-sm fs-8">
-                                            <option value="عادي" selected>عادي</option>
-                                            <option value="عاجل">عاجل</option>
-                                            <option value="سري للغاية">سري للغاية</option>
-                                        </select>
-                                    </div>
+                                <div class="col-4 text-start">
+                                    <h6 class="fw-bold mb-1 text-dark" style="font-size: 0.95rem;">المملكة العربية السعودية</h6>
+                                    <p class="mb-1 text-muted fs-7">وزارة الرياضة</p>
+                                    <p class="mb-1 text-muted fs-7">فرع وزارة الرياضة بجازان</p>
+                                    <p class="mb-0 fw-bold fs-7" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</p>
                                 </div>
                             </div>
 
-                            <!-- عنوان الموضوع الأساسي (فارغ بالكامل) -->
+                            <!-- حقل عنوان الخطاب (الموضوع) -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold fs-7 text-secondary">الموضوع:</label>
+                                <input type="text" name="title" id="letterTitle" class="form-control-official fw-bold w-100 fs-7" placeholder="اكتب موضوع الخطاب..." required>
+                            </div>
+
+                            <!-- محتوى الخطاب الرئيسي -->
                             <div class="mb-4">
-                                <label class="form-label fw-bold fs-7 text-muted">عنوان الموضوع الأساسي (اكتبه على كيفك):</label>
-                                <input type="text" name="title" id="letterTitle" class="canvas-editable-input fw-bold fs-6 w-100 border-success" placeholder="اكتب موضوع الخطاب هنا..." required>
+                                <label class="form-label fw-bold fs-7 text-secondary">محتوى الخطاب:</label>
+                                <textarea name="content" id="letterContent" class="form-control-official w-100 fs-7" rows="12" placeholder="اكتب نص الخطاب هنا..." required></textarea>
                             </div>
 
-                            <!-- محتوى الخطاب الرئيسي (فارغ بالكامل وخالي من أي نص مسبق) -->
-                            <div class="mb-4">
-                                <label class="form-label fw-bold fs-7 text-muted">محتوى الخطاب الرئيسي (نموذج فارغ بالكامل - صممه واكتبه بحرية تامة):</label>
-                                <textarea name="content" id="letterContent" class="big-editor-textarea" rows="10" placeholder="ابدأ كتابة محتوى الخطاب هنا بحرية تامة..." required></textarea>
+                            <!-- المرفقات الاختيارية -->
+                            <div class="mb-3 no-print">
+                                <label class="form-label fw-bold fs-7 text-secondary"><i class='bx bx-paperclip'></i> إرفاق ملف (اختياري):</label>
+                                <input type="file" name="file" class="form-control form-control-sm fs-7">
                             </div>
 
-                            <!-- قسم المرفقات -->
-                            <div class="mb-3 p-3 border rounded bg-light no-print">
-                                <label class="form-label fw-bold fs-7 text-success"><i class='bx bx-paperclip'></i> إرفاق ملف أو مستند إضافي مع الخطاب (اختياري):</label>
-                                <input type="file" name="file" class="form-control form-control-sm fs-7 bg-white">
-                            </div>
-
-                            <!-- جهة الاعتماد والتوقيع القابلة للتخصيص -->
-                            <div class="text-start mt-4 pt-3 border-top">
-                                <input type="text" name="signer_title" class="canvas-editable-input fw-bold mb-1 w-25 text-start text-muted fs-7" value="معتمد من /" placeholder="المسمى...">
-                                <input type="text" name="signer_name" class="canvas-editable-input fw-bold w-50 text-start text-success fs-6" value="{{ session['dept_name'] }}" placeholder="اسم المعتمد...">
-                            </div>
-
-                            <!-- شريط إرسال الخطاب السفلي -->
-                            <div class="send-bottom-bar no-print">
+                            <!-- اختيار جهة الاستلام والإرسال -->
+                            <div class="p-3 bg-light rounded border mt-4 no-print">
                                 <div class="row align-items-center">
-                                    <div class="col-md-7 mb-3 mb-md-0">
-                                        <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);"><i class='bx bxs-paper-plane ms-1'></i> اختر الإدارة المستلمة للخطاب:</label>
-                                        <select name="receiver_id" id="receiverSelect" class="form-select fs-6 fw-bold border-success shadow-sm" required>
-                                            <option value="" selected disabled>-- اضغط لاختيار الإدارة المستقبلة --</option>
+                                    <div class="col-md-8 mb-2 mb-md-0">
+                                        <label class="form-label fw-bold fs-7 text-dark">جهة الاستلام (المستلم):</label>
+                                        <select name="receiver_id" id="receiverSelect" class="form-select form-select-sm fw-bold" required>
+                                            <option value="" selected disabled>اختر الإدارة المستقبلة للخطاب...</option>
                                             {% for d in depts %}
                                                 <option value="{{ d.id }}">{{ d.name }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    <div class="col-md-5 text-md-end">
-                                        <button type="submit" class="btn btn-success btn-lg w-100 fw-bold shadow py-2 fs-6" style="background-color: var(--fifa-green-primary); border: none;">
-                                            <i class='bx bx-send ms-2 fs-5 align-middle'></i> إرسال الخطاب للمستلم والأرشيف
+                                    <div class="col-md-4 text-md-end">
+                                        <input type="hidden" name="priority" value="عادي">
+                                        <button type="submit" class="btn btn-success btn-sm w-100 fw-bold py-2" style="background-color: var(--fifa-green-primary); border: none;">
+                                            <i class='bx bx-send ms-1'></i> إرسال الخطاب وحفظه
                                         </button>
                                     </div>
                                 </div>
@@ -1161,7 +1093,7 @@ def outbox():
 
                     <!-- سجل الخطابات الصادرة السابقة -->
                     <div class="modern-card p-3 mt-4">
-                        <h5 class="fw-bold mb-3 fs-6" style="color: var(--fifa-green-primary);">سجل الخطابات الصادرة السابقة (يمكنك إعادة تحرير أي خطاب وتعديله كلياً):</h5>
+                        <h5 class="fw-bold mb-3 fs-6" style="color: var(--fifa-green-primary);">سجل الخطابات الصادرة السابقة:</h5>
                         
                         {% if out_letters %}
                             <div class="letters-list">
@@ -1173,10 +1105,10 @@ def outbox():
                                                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
                                             </div>
                                             <p class="text-secondary small mb-2" style="white-space: pre-line;">{{ letter.content }}</p>
-                                            <span class="fs-7 text-muted">إلى: <strong>{{ letter.receiver_name }}</strong> | الأهمية: <span class="badge bg-success">{{ letter.priority }}</span></span>
+                                            <span class="fs-7 text-muted">إلى: <strong>{{ letter.receiver_name }}</strong></span>
                                         </div>
                                         <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0 no-print">
-                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="loadLetterIntoEditor('{{ letter.id }}', '{{ letter.receiver_id }}', {{ letter.title|tojson }}, '{{ letter.priority }}', {{ (letter.content or '')|tojson }})">تعديل في المحرر وإعادة إرسال</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="loadLetterIntoEditor('{{ letter.id }}', '{{ letter.receiver_id }}', {{ letter.title|tojson }}, {{ (letter.content or '')|tojson }})">تعديل</button>
                                             <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف الخطاب؟');">حذف</a>
                                         </div>
                                     </div>
@@ -1198,32 +1130,12 @@ def outbox():
                 document.getElementById('mobileOverlay').classList.toggle('active');
             }
 
-            function loadLetterIntoEditor(id, receiverId, title, priority, content) {
+            function loadLetterIntoEditor(id, receiverId, title, content) {
                 document.getElementById('editLetterId').value = id;
                 document.getElementById('receiverSelect').value = receiverId;
                 document.getElementById('letterTitle').value = title;
-                document.getElementById('letterPriority').value = priority;
                 document.getElementById('letterContent').value = content;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-
-            function addNewHeaderLine() {
-                const leftBlock = document.getElementById('headerLeftBlock');
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.name = 'extra_header_line';
-                input.className = 'canvas-editable-input fw-bold w-100 mb-1 text-secondary fs-7';
-                input.placeholder = 'نص ترويسة حر جديد...';
-                leftBlock.appendChild(input);
-            }
-
-            function clearCanvasCompletely() {
-                if (confirm('هل أنت متأكد من تفريغ نموذج الخطاب تماماً؟')) {
-                    document.getElementById('letterTitle').value = '';
-                    document.getElementById('letterContent').value = '';
-                    document.getElementById('receiverSelect').value = '';
-                    document.getElementById('editLetterId').value = '';
-                }
             }
         </script>
     </body>
@@ -1415,173 +1327,6 @@ def quick_upload():
     
     cursor.close()
     conn.close()
-    
-    html_code = '''
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>رفع ملفات متعددة للأرشفة - نادي فيفا</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
-        <style>
-            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
-            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
-            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
-            .nav-logo { height: 42px; width: auto; object-fit: contain; }
-            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
-            
-            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
-            @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
-                .sidebar.show-sidebar { right: 0; }
-            }
-            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
-            .mobile-overlay.active { display: block; }
-
-            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
-            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
-            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .content-body { flex: 1; padding: 1.25rem; display: flex; align-items: center; justify-content: center; }
-            .upload-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 16px; border: 1px solid #d5e2d8; box-shadow: 0 10px 30px rgba(18, 56, 38, 0.08); width: 100%; max-width: 650px; padding: 1.5rem; position: relative; }
-            .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 10px; padding: 0.75rem; font-weight: 700; border: none; }
-        </style>
-    </head>
-    <body>
-        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
-        <nav class="navbar top-navbar sticky-top">
-            <div class="container-fluid">
-                <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
-                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
-                    </button>
-                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
-                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
-                    </a>
-                </div>
-            </div>
-        </nav>
-        <div class="main-wrapper">
-            <aside class="sidebar" id="sidebarMenu">
-                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
-                    <span class="fw-bold text-white">قائمة التنقل</span>
-                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
-                </div>
-                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
-                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
-                {% endif %}
-                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
-                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
-                {% endif %}
-                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
-                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
-                {% endif %}
-                {% if current_dept['can_page_archive'] == 1 or is_admin %}
-                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
-                {% endif %}
-                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
-                <a href="/quick_upload" class="sidebar-link active"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
-                {% endif %}
-                {% if is_admin %}
-                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
-                <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
-                {% endif %}
-                {% if current_dept['can_add_user'] == 1 or is_admin %}
-                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
-                {% endif %}
-                <div class="border-top border-secondary my-3 opacity-25"></div>
-                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
-            </aside>
-            <main class="content-body">
-                <div class="upload-card">
-                    <div class="text-center mb-4">
-                        <h3 class="fw-bold fs-5" style="color: var(--fifa-green-primary);">رفع وتوثيق فوري (تظهر في أرشيف الإدارة فقط)</h3>
-                    </div>
-                    <form action="/quick_upload" method="post" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">عنوان رئيسي للملفات المرفوعة</label>
-                            <input type="text" name="document_title" required class="form-control py-2 fs-7" placeholder="مثال: فواتير وعقود قسم الصيانة">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">تصنيف الأرشيف (تسجيل يدوي)</label>
-                            <input type="text" name="archive_category" required class="form-control py-2 fs-7 bg-white" placeholder="أدخل تصنيف الأرشيف يدوياً...">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">اختر الملفات</label>
-                            <input type="file" name="archive_files" multiple required class="form-control fs-7">
-                        </div>
-                        <div class="mb-4">
-                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">ملاحظات وصفية (اختياري)</label>
-                            <textarea name="notes" rows="2" class="form-control fs-7" placeholder="أدخل تفاصيل..."></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-fifa-primary w-100 shadow-sm py-2 fs-7">رفع وأرشفة الملفات الآن</button>
-                    </form>
-                </div>
-            </main>
-        </div>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            function toggleSidebar() {
-                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
-                document.getElementById('mobileOverlay').classList.toggle('active');
-            }
-        </script>
-    </body>
-    </html>
-    '''
-    return render_template_string(html_code, is_admin=is_admin, current_dept=current_dept)
-
-@app.route('/dashboard')
-def dashboard():
-    if 'dept_id' not in session:
-        return redirect(url_for('login'))
-        
-    dept_id = session['dept_id']
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('SELECT * FROM departments WHERE id = %s', (dept_id,))
-    current_dept = cursor.fetchone()
-    is_admin = is_admin_user(session.get('dept_name'))
-    
-    if current_dept['can_page_inbox'] != 1 and not is_admin:
-        cursor.close()
-        conn.close()
-        return '''<script>alert("عذراً، لا تملك صلاحية الوصول للصندوق الوارد."); window.location.href="/";</script>'''
-    
-    cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
-    depts = cursor.fetchall()
-    
-    cursor.execute('''
-        SELECT l.*, d.name as sender_name 
-        FROM letters l 
-        JOIN departments d ON l.sender_id = d.id 
-        WHERE l.receiver_id = %s 
-        ORDER BY l.id DESC
-    ''', (dept_id,))
-    letters = cursor.fetchall()
-    
-    cursor.close()
-    conn.close()
-    
-    return render_template_string(DASHBOARD_HTML, 
-                                  page_title="الصندوق الوارد",
-                                  current_page="inbox",
-                                  letters=letters, 
-                                  depts=depts, 
-                                  dept_name=session['dept_name'],
-                                  can_delete=current_dept['can_delete'],
-                                  can_add_user=current_dept['can_add_user'],
-                                  can_page_quick_upload=current_dept['can_page_quick_upload'],
-                                  can_page_inbox=current_dept['can_page_inbox'],
-                                  can_page_outbox=current_dept['can_page_outbox'],
-                                  can_page_achievements=current_dept['can_page_achievements'],
-                                  can_page_archive=current_dept['can_page_archive'],
-                                  is_admin=is_admin,
-                                  now=datetime.now())
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
