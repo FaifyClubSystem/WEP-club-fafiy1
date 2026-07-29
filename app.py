@@ -854,7 +854,7 @@ DASHBOARD_HTML = '''
 </html>
 '''
 
-# --- صفحة الخطابات الصادرة (مصححة لتعمل بسلاسة بدون أخطاء السيرفر) ---
+# --- صفحة الخطابات الصادرة (مصممة كأنها ورقة وورد رسمية متكاملة بداخلها زر إرسال وباقي الخيارات) ---
 @app.route('/outbox')
 def outbox():
     if 'dept_id' not in session:
@@ -875,17 +875,6 @@ def outbox():
     
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
-    
-    # جلب الخطابات الصادرة هنا بداخل بايثون لمنع أي خطأ في العرض داخل القالب
-    cursor.execute('''
-        SELECT l.*, d.name as receiver_name 
-        FROM letters l 
-        JOIN departments d ON l.receiver_id = d.id 
-        WHERE l.sender_id = %s 
-        ORDER BY l.id DESC
-    ''', (dept_id,))
-    out_letters = cursor.fetchall()
-    
     cursor.close()
     conn.close()
 
@@ -925,6 +914,7 @@ def outbox():
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .content-body { flex: 1; padding: 1.5rem; width: 100%; overflow-x: hidden; }
 
+            /* تصميم ورقة الوورد المفتوحة داخل صفحة الخطابات الصادرة */
             .word-document-sheet {
                 max-width: 850px;
                 margin: 0 auto;
@@ -1061,12 +1051,13 @@ def outbox():
             <main class="content-body">
                 <div class="container-fluid p-0">
                     
-                    <!-- نموذج ورقة الوورد المفتوحة مباشرة -->
+                    <!-- نموذج ورقة الوورد المفتوحة مباشرة داخل الخطابات الصادرة -->
                     <form action="/send_letter" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="letter_id" id="editLetterId" value="">
                         
                         <div class="word-document-sheet">
                             
+                            <!-- رأس الخطاب الرسمي -->
                             <div class="doc-header-top">
                                 <div>
                                     <h6 class="fw-bold m-0" style="color: var(--fifa-green-primary);">المملكة العربية السعودية</h6>
@@ -1079,7 +1070,7 @@ def outbox():
                                 </div>
                                 <div class="text-start">
                                     <p class="mb-1 fs-7">الرقم: <input type="text" name="letter_number" value="---" class="editable-input-field d-inline-block w-50 text-center form-control-sm"></p>
-                                    <p class="mb-1 fs-7">التاريخ: <input type="text" name="letter_date" value="{{ current_date }} هـ" class="editable-input-field d-inline-block w-75 text-center form-control-sm"></p>
+                                    <p class="mb-1 fs-7">التاريخ: <input type="text" name="letter_date" value="{{ datetime.now().strftime('%Y/%m/%d') }} هـ" class="editable-input-field d-inline-block w-75 text-center form-control-sm"></p>
                                     <p class="mb-0 fs-7">الأهمية: 
                                         <select name="priority" id="letterPriority" class="editable-input-field d-inline-block w-50 form-control-sm fs-8">
                                             <option value="عادي">عادي</option>
@@ -1090,11 +1081,13 @@ def outbox():
                                 </div>
                             </div>
 
+                            <!-- عنوان الموضوع الأساسي للخطاب -->
                             <div class="mb-3">
                                 <label class="form-label fw-bold fs-7 text-muted">عنوان الخطاب (الموضوع):</label>
                                 <input type="text" name="title" id="letterTitle" class="form-control fw-bold fs-6 border-success" placeholder="أدخل موضوع الخطاب الرئيسي هنا..." required>
                             </div>
 
+                            <!-- محتوى الخطاب القابل للكتابة والتعديل بالكامل كملف وورد -->
                             <div class="mb-4">
                                 <label class="form-label fw-bold fs-7 text-muted">محتوى الخطاب (اكتب أو عدل النص بحرية تامة):</label>
                                 <textarea name="content" id="letterContent" class="word-textarea-content" rows="7" placeholder="اكتب تفاصيل الخطاب الرسمي هنا..." required>السلام عليكم ورحمة الله وبركاته،
@@ -1102,11 +1095,13 @@ def outbox():
 نود إفادتكم بأنه...</textarea>
                             </div>
 
+                            <!-- التوقيع -->
                             <div class="text-start mt-4 pt-3 border-top">
                                 <p class="fw-bold mb-1 fs-7 text-muted">معتمد من:</p>
                                 <input type="text" name="signer_name" class="editable-input-field fw-bold d-inline-block w-auto border-0 bg-transparent text-start text-success" value="{{ session['dept_name'] }}">
                             </div>
 
+                            <!-- صندوق أسفل الورقة (اختيار الإدارة المستقبلة وزر الإرسال) -->
                             <div class="send-bottom-bar no-print">
                                 <div class="row align-items-center">
                                     <div class="col-md-7 mb-3 mb-md-0">
@@ -1129,10 +1124,17 @@ def outbox():
                         </div>
                     </form>
 
-                    <!-- قائمة الخطابات الصادرة السابقة -->
+                    <!-- قائمة الخطابات الصادرة السابقة مع إمكانية التعديل وإعادة الإرسال -->
                     <div class="modern-card p-3 mt-4">
                         <h5 class="fw-bold mb-3 fs-6" style="color: var(--fifa-green-primary);">سجل الخطابات الصادرة السابقة (يمكنك التعديل وإعادة الإرسال لأي خطاب):</h5>
-                        
+                        {% set out_letters = [] %}
+                        {%- set conn_sub = get_db_connection() -%}
+                        {%- set cur_sub = conn_sub.cursor() -%}
+                        {%- set _ = cur_sub.execute('SELECT l.*, d.name as receiver_name FROM letters l JOIN departments d ON l.receiver_id = d.id WHERE l.sender_id = %s ORDER BY l.id DESC', (dept_id,)) -%}
+                        {%- set out_letters = cur_sub.fetchall() -%}
+                        {%- set _ = cur_sub.close() -%}
+                        {%- set _ = conn_sub.close() -%}
+
                         {% if out_letters %}
                             <div class="letters-list">
                                 {% for letter in out_letters %}
@@ -1146,7 +1148,7 @@ def outbox():
                                             <span class="fs-7 text-muted">إلى: <strong>{{ letter.receiver_name }}</strong> | الأهمية: <span class="badge bg-success">{{ letter.priority }}</span></span>
                                         </div>
                                         <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0 no-print">
-                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="loadLetterIntoEditor('{{ letter.id }}', '{{ letter.receiver_id }}', {{ letter.title|tojson }}, '{{ letter.priority }}', {{ (letter.content or '')|tojson }})">تعديل في الورقة وإعادة إرسال</button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="loadLetterIntoEditor('{{ letter.id }}', '{{ letter.receiver_id }}', '{{ letter.title|e }}', '{{ letter.priority }}', '{{ (letter.content or '')|e }}')">تعديل في الورقة وإعادة إرسال</button>
                                             <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف الخطاب؟');">حذف</a>
                                         </div>
                                     </div>
@@ -1181,12 +1183,21 @@ def outbox():
     </html>
     '''
     
+    # جلب معلومات القسم الحالي للـ html template
+    conn_info = get_db_connection()
+    cur_info = conn_info.cursor()
+    cur_info.execute('SELECT * FROM departments WHERE id = %s', (dept_id,))
+    current_dept = cur_info.fetchone()
+    cur_info.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
+    depts = cur_info.fetchall()
+    cur_info.close()
+    conn_info.close()
+    
     return render_template_string(html_code, 
                                   depts=depts, 
                                   current_dept=current_dept, 
-                                  out_letters=out_letters,
                                   is_admin=is_admin,
-                                  current_date=datetime.now().strftime('%Y/%m/%d'))
+                                  datetime=datetime)
 
 @app.route('/send_letter', methods=['POST'])
 def send_letter():
