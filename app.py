@@ -854,7 +854,7 @@ DASHBOARD_HTML = '''
 </html>
 '''
 
-# --- صفحة الخطابات الصادرة (محرر ورقة الخطاب القابل للتعديل الكامل - Fully Customizable Canvas) ---
+# --- صفحة الخطابات الصادرة (محرر ورقة الخطاب الفارغ بالكامل والقابل للتصميم الحر) ---
 @app.route('/outbox')
 def outbox():
     if 'dept_id' not in session:
@@ -894,7 +894,7 @@ def outbox():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>الخطابات الصادرة - محرر الخطاب الكامل - نادي فيفا</title>
+        <title>الخطابات الصادرة - تصميم نموذج الخطاب الحر - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
         <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
         <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
@@ -924,7 +924,7 @@ def outbox():
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .content-body { flex: 1; padding: 1.5rem; width: 100%; overflow-x: hidden; }
 
-            /* لوحة التحكم في تصميم الورقة بالكامل */
+            /* ورقة الخطاب القابلة للتصميم الحر بالكامل */
             .customizable-canvas-wrapper {
                 max-width: 900px;
                 margin: 0 auto;
@@ -1005,7 +1005,7 @@ def outbox():
                         <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <div class="d-flex flex-column">
                             <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
-                            <span class="text-muted fs-8 d-none d-sm-block mt-1">محرر الخطابات وتخصيص التصميم بالكامل</span>
+                            <span class="text-muted fs-8 d-none d-sm-block mt-1">مصمم ورقة الخطابات الحرة</span>
                         </div>
                     </a>
                 </div>
@@ -1063,48 +1063,48 @@ def outbox():
             <main class="content-body">
                 <div class="container-fluid p-0">
                     
-                    <!-- لوحة أدوات مساعدة لتغيير التصميم والهيكلة بالكامل حسب الرغبة -->
+                    <!-- لوحة أدوات تصميم النموذج الحر -->
                     <div class="design-tools-bar no-print shadow-sm">
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div>
-                                <h6 class="fw-bold mb-1" style="color: var(--fifa-green-primary);"><i class='bx bx-slider-alt'></i> أدوات التحكم الكاملة في تصميم الخطاب:</h6>
-                                <p class="text-muted fs-8 m-0">يمكنك تعديل أي نص، ترويسة، إضافة أسطر حرة، أو إعادة تعيين قالب جديد بالكامل.</p>
+                                <h6 class="fw-bold mb-1" style="color: var(--fifa-green-primary);"><i class='bx bx-slider-alt'></i> خصائص وتصميم الورقة (صمم النموذج على كيفك):</h6>
+                                <p class="text-muted fs-8 m-0">النموذج أدناه فارغ تماماً وخالٍ من أي صيغ جاهزة. يمكنك كتابة وتعديل كل حقل وترويسة لتصميم الخطاب بالطريقة التي تناسبك.</p>
                             </div>
                             <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-dark fw-bold fs-7 bg-white" onclick="resetToDefaultDesign()"><i class='bx bx-reset'></i> استعادة القالب الافتراضي</button>
-                                <button type="button" class="btn btn-sm btn-success fw-bold fs-7" onclick="addNewHeaderLine()"><i class='bx bx-plus'></i> إضافة سطر ترويسة جديد</button>
+                                <button type="button" class="btn btn-sm btn-outline-dark fw-bold fs-7 bg-white" onclick="clearCanvasCompletely()"><i class='bx bx-eraser'></i> تفريغ النموذج بالكامل</button>
+                                <button type="button" class="btn btn-sm btn-success fw-bold fs-7" onclick="addNewHeaderLine()"><i class='bx bx-plus'></i> إضافة سطر ترويسة حر</button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ورقة الخطاب القابلة للتخصيص بالكامل -->
+                    <!-- ورقة الخطاب الفارغة والقابلة للتصميم الحر -->
                     <form action="/send_letter" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="letter_id" id="editLetterId" value="">
                         
                         <div class="customizable-canvas-wrapper" id="canvasContainer">
                             
-                            <!-- رأس الترويسة القابل للتعديل بالكامل -->
+                            <!-- الترويسة العلوية الحرة والقابلة للتعديل الكامل -->
                             <div class="d-flex justify-content-between align-items-start border-bottom pb-4 mb-4" style="border-color: var(--fifa-green-primary) !important;">
                                 <div id="headerLeftBlock" class="w-40">
-                                    <input type="text" name="header_line_1" class="canvas-editable-input fw-bold w-100 mb-1 text-success fs-7" value="المملكة العربية السعودية">
-                                    <input type="text" name="header_line_2" class="canvas-editable-input fw-bold w-100 mb-1 text-muted fs-7" value="وزارة الرياضة">
-                                    <input type="text" name="header_line_3" class="canvas-editable-input fw-bold w-100 mb-1 text-muted fs-7" value="نادي فيفا الرياضي">
-                                    <input type="text" name="header_line_4" class="canvas-editable-input fw-bold w-100 text-warning fs-7" style="color: var(--fifa-gold) !important;" value="{{ session['dept_name'] }}">
+                                    <input type="text" name="header_line_1" class="canvas-editable-input fw-bold w-100 mb-1 text-success fs-7" value="المملكة العربية السعودية" placeholder="اكتب الدولة / الجهة الرئيسية...">
+                                    <input type="text" name="header_line_2" class="canvas-editable-input fw-bold w-100 mb-1 text-muted fs-7" value="وزارة الرياضة" placeholder="اكتب الوزارة / الفرع...">
+                                    <input type="text" name="header_line_3" class="canvas-editable-input fw-bold w-100 mb-1 text-muted fs-7" value="نادي فيفا الرياضي" placeholder="اكتب اسم المنشأة...">
+                                    <input type="text" name="header_line_4" class="canvas-editable-input fw-bold w-100 text-warning fs-7" style="color: var(--fifa-gold) !important;" value="{{ session['dept_name'] }}" placeholder="اكتب اسم إدارتك...">
                                 </div>
                                 <div class="text-center">
                                     <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار النادي" style="max-height: 75px;" onerror="this.style.display='none'">
                                 </div>
                                 <div id="headerRightBlock" class="w-40 text-start">
                                     <div class="mb-1 fs-7 d-flex align-items-center justify-content-end gap-1">
-                                        <span>الرقم:</span> <input type="text" name="letter_number" value="---" class="canvas-editable-input w-50 text-center form-control-sm">
+                                        <span>الرقم:</span> <input type="text" name="letter_number" value="" class="canvas-editable-input w-50 text-center form-control-sm" placeholder="أدخل الرقم...">
                                     </div>
                                     <div class="mb-1 fs-7 d-flex align-items-center justify-content-end gap-1">
-                                        <span>التاريخ:</span> <input type="text" name="letter_date" value="{{ current_date }} هـ" class="canvas-editable-input w-75 text-center form-control-sm">
+                                        <span>التاريخ:</span> <input type="text" name="letter_date" value="{{ current_date }} هـ" class="canvas-editable-input w-75 text-center form-control-sm" placeholder="أدخل التاريخ...">
                                     </div>
                                     <div class="fs-7 d-flex align-items-center justify-content-end gap-1">
                                         <span>الأهمية:</span> 
                                         <select name="priority" id="letterPriority" class="canvas-editable-input w-50 form-control-sm fs-8">
-                                            <option value="عادي">عادي</option>
+                                            <option value="عادي" selected>عادي</option>
                                             <option value="عاجل">عاجل</option>
                                             <option value="سري للغاية">سري للغاية</option>
                                         </select>
@@ -1112,18 +1112,16 @@ def outbox():
                                 </div>
                             </div>
 
-                            <!-- عنوان الخطاب (الموضوع) -->
+                            <!-- عنوان الموضوع الأساسي (فارغ بالكامل) -->
                             <div class="mb-4">
-                                <label class="form-label fw-bold fs-7 text-muted">عنوان الموضوع الأساسي (قابل للتعديل):</label>
-                                <input type="text" name="title" id="letterTitle" class="canvas-editable-input fw-bold fs-6 w-100 border-success" placeholder="أدخل موضوع الخطاب الرئيسي هنا..." required>
+                                <label class="form-label fw-bold fs-7 text-muted">عنوان الموضوع الأساسي (اكتبه على كيفك):</label>
+                                <input type="text" name="title" id="letterTitle" class="canvas-editable-input fw-bold fs-6 w-100 border-success" placeholder="اكتب موضوع الخطاب هنا..." required>
                             </div>
 
-                            <!-- محتوى الخطاب الحر -->
+                            <!-- محتوى الخطاب الرئيسي (فارغ بالكامل وخالي من أي نص مسبق) -->
                             <div class="mb-4">
-                                <label class="form-label fw-bold fs-7 text-muted">محتوى الخطاب الرئيسي (اكتب وحرر بحرية تامة دون أي قيود):</label>
-                                <textarea name="content" id="letterContent" class="big-editor-textarea" rows="10" placeholder="اكتب أو الصق نص الخطاب الرسمي هنا..." required>السلام عليكم ورحمة الله وبركاته،
-
-بالإشارة إلى الموضوع أعلاه، نود إفادتكم بأنه...</textarea>
+                                <label class="form-label fw-bold fs-7 text-muted">محتوى الخطاب الرئيسي (نموذج فارغ بالكامل - صممه واكتبه بحرية تامة):</label>
+                                <textarea name="content" id="letterContent" class="big-editor-textarea" rows="10" placeholder="ابدأ كتابة محتوى الخطاب هنا بحرية تامة..." required></textarea>
                             </div>
 
                             <!-- قسم المرفقات -->
@@ -1132,13 +1130,13 @@ def outbox():
                                 <input type="file" name="file" class="form-control form-control-sm fs-7 bg-white">
                             </div>
 
-                            <!-- جهة الاعتماد والتوقيع القابلة للتغيير -->
+                            <!-- جهة الاعتماد والتوقيع القابلة للتخصيص -->
                             <div class="text-start mt-4 pt-3 border-top">
-                                <input type="text" name="signer_title" class="canvas-editable-input fw-bold mb-1 w-25 text-start text-muted fs-7" value="معتمد من /">
-                                <input type="text" name="signer_name" class="canvas-editable-input fw-bold w-50 text-start text-success fs-6" value="{{ session['dept_name'] }}">
+                                <input type="text" name="signer_title" class="canvas-editable-input fw-bold mb-1 w-25 text-start text-muted fs-7" value="معتمد من /" placeholder="المسمى...">
+                                <input type="text" name="signer_name" class="canvas-editable-input fw-bold w-50 text-start text-success fs-6" value="{{ session['dept_name'] }}" placeholder="اسم المعتمد...">
                             </div>
 
-                            <!-- شريط الإرسال السفلي -->
+                            <!-- شريط إرسال الخطاب السفلي -->
                             <div class="send-bottom-bar no-print">
                                 <div class="row align-items-center">
                                     <div class="col-md-7 mb-3 mb-md-0">
@@ -1215,13 +1213,16 @@ def outbox():
                 input.type = 'text';
                 input.name = 'extra_header_line';
                 input.className = 'canvas-editable-input fw-bold w-100 mb-1 text-secondary fs-7';
-                input.placeholder = 'نص ترويسة إضافي...';
+                input.placeholder = 'نص ترويسة حر جديد...';
                 leftBlock.appendChild(input);
             }
 
-            function resetToDefaultDesign() {
-                if (confirm('هل أنت متأكد من استعادة القالب الافتراضي؟')) {
-                    window.location.reload();
+            function clearCanvasCompletely() {
+                if (confirm('هل أنت متأكد من تفريغ نموذج الخطاب تماماً؟')) {
+                    document.getElementById('letterTitle').value = '';
+                    document.getElementById('letterContent').value = '';
+                    document.getElementById('receiverSelect').value = '';
+                    document.getElementById('editLetterId').value = '';
                 }
             }
         </script>
