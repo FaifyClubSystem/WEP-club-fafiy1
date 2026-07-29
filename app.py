@@ -1791,10 +1791,11 @@ def admin_permissions():
             .mobile-overlay.active { display: block; }
 
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; font-size: 0.95rem; }
-            .sidebar-link:hover, .sidebar-link.active {background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
-            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
+            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
+            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
         </style>
     </head>
     <body>
@@ -1844,37 +1845,66 @@ def admin_permissions():
                 <div class="border-top border-secondary my-3 opacity-25"></div>
                 <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
             </aside>
+
             <main class="main-content">
                 <div class="modern-card p-3 p-md-4">
-                    <h5 class="fw-bold fs-6 mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة تحكم الصلاحيات المتقدمة</h5>
-                    {% for dept in departments %}
-                    <div class="border rounded p-3 mb-3 bg-light">
-                        <form action="/admin/permissions" method="post">
-                            <input type="hidden" name="dept_id" value="{{ dept.id }}">
-                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 border-bottom pb-2">
-                                <span class="fw-bold text-success fs-6">{{ dept.name }} <small class="text-muted">({{ dept.username }})</small></span>
-                                <div class="d-flex gap-2">
-                                    <button type="submit" class="btn btn-sm btn-success px-3 fs-8 fw-bold">حفظ التغييرات</button>
-                                    {% if dept.id != session['dept_id'] %}
-                                    <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger px-2 fs-8" onclick="return confirm('هل أنت متأكد من حذف هذا الحساب نهائياً؟');">حذف الحساب</a>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="row g-2 fs-8">
-                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" value="1" {% if dept.can_delete == 1 %}checked{% endif %}><label class="form-check-label">صلاحية الحذف</label></div></div>
-                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_view_all_archive_{ dept.id }}" value="1" {% if dept.can_view_all_archive == 1 %}checked{% endif %}><label class="form-check-label">مشاهدة كل الأرشيف</label></div></div>
-                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_view_all_achievements_{ dept.id }}" value="1" {% if dept.can_view_all_achievements == 1 %}checked{% endif %}><label class="form-check-label">مشاهدة كل الإنجازات</label></div></div>
-                                <div class="col-md-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_add_user_{ dept.id }}" value="1" {% if dept.can_add_user == 1 %}checked{% endif %}><label class="form-check-label">صلاحية إضافة مستخدم</label></div></div>
-
-                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_inbox_{ dept.id }}" value="1" {% if dept.can_page_inbox == 1 %}checked{% endif %}><label class="form-check-label">صندوق الوارد</label></div></div>
-                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_outbox_{ dept.id }}" value="1" {% if dept.can_page_outbox == 1 %}checked{% endif %}><label class="form-check-label">الخطابات الصادرة</label></div></div>
-                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_achievements_{ dept.id }}" value="1" {% if dept.can_page_achievements == 1 %}checked{% endif %}><label class="form-check-label">إنجازات الشهر</label></div></div>
-                                <div class="col-md-2 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_archive_{ dept.id }}" value="1" {% if dept.can_page_archive == 1 %}checked{% endif %}><label class="form-check-label">أرشيف الإدارة</label></div></div>
-                                <div class="col-md-4 mt-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="can_page_quick_upload_{ dept.id }}" value="1" {% if dept.can_page_quick_upload == 1 %}checked{% endif %}><label class="form-check-label">صفحة الرفع والتوثيق الفوري</label></div></div>
-                            </div>
-                        </form>
+                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">إدارة صلاحيات الإدارات والصفحات</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle fs-8">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>اسم الإدارة / القسم</th>
+                                    <th class="text-center">حفظ الأرشيف</th>
+                                    <th class="text-center">صلاحية الحذف</th>
+                                    <th class="text-center">إضافة مستخدم</th>
+                                    <th class="text-center">الوارد</th>
+                                    <th class="text-center">الصادرة</th>
+                                    <th class="text-center">الإنجازات</th>
+                                    <th class="text-center">الأرشيف</th>
+                                    <th class="text-center">الرفع الفوري</th>
+                                    <th class="text-center">إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dept in departments %}
+                                <tr>
+                                    <form action="/admin/permissions" method="post">
+                                        <input type="hidden" name="dept_id" value="{{ dept.id }}">
+                                        <td class="fw-bold text-dark text-nowrap">{{ dept.name }}</td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ dept.id }}" {{ 'checked' if dept.can_view_all_archive == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" {{ 'checked' if dept.can_delete == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_add_user_{{ dept.id }}" {{ 'checked' if dept.can_add_user == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ dept.id }}" {{ 'checked' if dept.get('can_page_inbox', 1) == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ dept.id }}" {{ 'checked' if dept.get('can_page_outbox', 1) == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ dept.id }}" {{ 'checked' if dept.get('can_page_achievements', 1) == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_page_archive_{{ dept.id }}" {{ 'checked' if dept.get('can_page_archive', 1) == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center">
+                                            <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ dept.id }}" {{ 'checked' if dept.get('can_page_quick_upload', 1) == 1 else '' }}>
+                                        </td>
+                                        <td class="text-center text-nowrap">
+                                            <button type="submit" class="btn btn-sm btn-success py-0 px-2">حفظ</button>
+                                            <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm('هل أنت متأكد من حذف حساب هذه الإدارة نهائياً؟');">حذف</a>
+                                        </td>
+                                    </form>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    {% endfor %}
                 </div>
             </main>
         </div>
@@ -1891,4 +1921,4 @@ def admin_permissions():
     return render_template_string(html_code, departments=departments, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
