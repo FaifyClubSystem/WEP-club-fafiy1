@@ -1134,7 +1134,7 @@ DASHBOARD_HTML = '''
                         {% endif %}
 
                     {% else %}
-                        <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد سجلات مسجلة حالياً.</p></div>
+                        <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد خطابات حالياً.</p></div>
                     {% endif %}
                 </div>
             </div>
