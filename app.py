@@ -844,27 +844,7 @@ DASHBOARD_HTML = '''
             border-bottom: 1px solid var(--fifa-green-primary);
             background: #fdfdfd;
         }
-        .resizable-image-box {
-            width: 120px;
-            height: 40px;
-            resize: both;
-            overflow: hidden;
-            border: 1px dashed #c8d6cd;
-            border-radius: 4px;
-            display: inline-block;
-            background: #ffffff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            padding: 2px;
-            vertical-align: middle;
-        }
 
-        .resizable-image-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: fill;
-            display: block;
-            border-radius: 2px;
-        }
     </style>
 </head>
 <body>
@@ -985,10 +965,7 @@ DASHBOARD_HTML = '''
 
                         <div class="vr mx-1"></div>
 
-                        <!-- أداة إضافة الصورة داخل مربع قابل للسحب والتمدد من جميع الاتجاهات -->
-                        <div class="resizable-image-box" title="مربع الصورة (قابل للسحب من الزوايا)">
-                            <img src="رابط_الصورة_أو_مسارها" alt="صورة الخطاب">
-                        </div>
+
                     </div>
 
                     <div class="word-paper" id="officialPaper">
