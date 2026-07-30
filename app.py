@@ -982,7 +982,7 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="word-paper-left">
                                 <div class="word-paper-left-inner">
-                                    الرقم : <input type="text" id="paperLetterNumInput" class="paper-editable-input" value="—" style="width: 100px;"><br>
+                                    الرقم : <input type="text" id="paperLetterNumInput" class="" value="" style="width: 100px;"><br>
                                     التاريخ : <input type="text" id="paperLetterDateInput" class="paper-editable-input" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
                                     المشفوعات : <input type="text" id="paperLetterAttachInput" class="paper-editable-input" value="-" style="width: 100px;">
                                 </div>
