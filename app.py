@@ -976,12 +976,11 @@ DASHBOARD_HTML = '''
                         <input type="file" id="letterImageUploadInput" accept="image/*" style="display: none;" onchange="handleLetterImageUpload(this)">
                     </div>
 
-                    <div class="word-paper" id="officialPaper">
-                        <!-- مربع الصورة القابل للسحب والتمدد داخل الورقة -->
-                        <div id="draggableResizableImageContainer">
-                            <button type="button" class="remove-img-btn" onclick="removeLetterImage()" title="حذف الصورة">&times;</button>
-                            <img id="letterCustomImage" src="" alt="صورة الخطاب المرفقة">
-                        </div>
+                    <!-- مربع الصورة القابل للسحب والتمدد من جميع الاتجاهات -->
+                    <div class="resizable-image-box" title="اسحب من الحواف أو الزوايا لتغيير الطول والعرض">
+                    <img id="letterImagePreview" src="" alt="شعار الخطاب" style="display: none;">
+                    <span id="imagePlaceholderText" style="font-size: 11px; color: #888; display: block; text-align: center; padding-top: 10px;">صورة الخطاب</span>
+                  </div>
 
                         <div class="word-paper-header">
                             <div class="word-paper-right">
