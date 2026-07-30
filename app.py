@@ -630,7 +630,7 @@ DASHBOARD_HTML = '''
     <title>{{ page_title }} - نظام أرشفة نادي فيفا</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Almarai:wght@300;400;700;800&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;700&family=Changa:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
@@ -669,10 +669,40 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= ورقة خطاب Word رسمية مطابقة بالتحديد للنماذج الرسمية ================= */
+        /* ================= ورقة خطاب Word رسمية مع أدوات التحكّم بالخط ================= */
+        .paper-toolbar {
+            background: #ffffff;
+            border: 1px solid #c8d6cd;
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            padding: 8px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .paper-toolbar button, .paper-toolbar select, .paper-toolbar input[type="color"] {
+            border: 1px solid #d5e2d8;
+            background: #f8faf9;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #123826;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .paper-toolbar button:hover {
+            background: #123826;
+            color: #ffffff;
+        }
         .word-paper-container {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
             margin-bottom: 2rem;
         }
         .word-paper {
@@ -683,6 +713,7 @@ DASHBOARD_HTML = '''
             padding: 3rem 3.5rem;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             border: 1px solid #c8d6cd;
+            border-radius: 0 0 10px 10px;
             position: relative;
             font-family: 'Amiri', 'Traditional Arabic', serif;
             color: #000;
@@ -752,13 +783,22 @@ DASHBOARD_HTML = '''
             font-weight: bold;
             margin-bottom: 1.5rem;
         }
+        /* منطقة نص الخطاب القابلة للكتابة والتكبير والتصغير */
         .word-paper-body {
             font-size: 1.15rem;
             text-align: justify;
             text-justify: inter-word;
             margin-bottom: 2rem;
-            white-space: pre-line;
             min-height: 250px;
+            outline: none;
+            padding: 8px;
+            border: 1px dashed transparent;
+            border-radius: 6px;
+            transition: border 0.2s;
+        }
+        .word-paper-body:hover, .word-paper-body:focus {
+            border-color: #c5a059;
+            background-color: #fafcfb;
         }
         .word-paper-footer-closing {
             text-align: center;
@@ -889,8 +929,40 @@ DASHBOARD_HTML = '''
                 </div>
 
                 {% if current_page == 'outbox' or current_page == 'inbox' %}
-                <!-- ============ ورقة الخطاب الرسمية المباشرة (مطابقة 100% للتصميم المطلوب) ============ -->
+                <!-- ============ ورقة الخطاب الرسمية المباشرة مع شريط التنسيق ============ -->
                 <div class="word-paper-container">
+                    
+                    <!-- شريط أدوات التنسيق وتكبير/تصغير الخط للنص المحدد -->
+                    <div class="paper-toolbar w-100">
+                        <span class="fw-bold fs-8 text-muted me-1"><i class='bx bx-font'></i> تنسيق الخط المحدد:</span>
+                        <button type="button" onclick="changeFontSize(1)" title="تكبير النص المحدد"><i class='bx bx-font-plus fs-6'></i> A+</button>
+                        <button type="button" onclick="changeFontSize(-1)" title="تصغير النص المحدد"><i class='bx bx-font-minus fs-6'></i> A-</button>
+                        <span id="currentFontSizeLabel" class="badge bg-light text-dark border fs-8">18px</span>
+                        
+                        <div class="vr mx-1"></div>
+
+                        <select id="fontFamilySelect" onchange="changeFontFamily(this.value)" title="نوع الخط">
+                            <option value="'Amiri', serif">خط الأميري النسخي</option>
+                            <option value="'Almarai', sans-serif">خط المراعي العادي</option>
+                            <option value="'Aref Ruqaa', serif">خط الرقعة</option>
+                            <option value="'Cairo', sans-serif">خط كايرو</option>
+                            <option value="'Changa', sans-serif">خط شانغا</option>
+                        </select>
+
+                        <div class="vr mx-1"></div>
+
+                        <button type="button" onclick="formatDoc('bold')" title="تغميق (Bold)"><i class='bx bx-bold fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('underline')" title="تحته خط"><i class='bx bx-underline fs-6'></i></button>
+                        <input type="color" id="textColorPicker" onchange="formatDoc('foreColor', this.value)" title="لون الخط" style="width: 32px; height: 28px; padding: 2px;">
+
+                        <div class="vr mx-1"></div>
+
+                        <button type="button" onclick="formatDoc('justifyRight')" title="محاذاة لليمين"><i class='bx bx-align-right fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('justifyCenter')" title="محاذاة للوسط"><i class='bx bx-align-middle fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('justifyLeft')" title="محاذاة لليصار"><i class='bx bx-align-left fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('justifyFull')" title="ضبط المحاذاة"><i class='bx bx-align-justify fs-6'></i></button>
+                    </div>
+
                     <div class="word-paper" id="officialPaper">
                         <div class="word-paper-header">
                             <div class="word-paper-right">
@@ -919,7 +991,8 @@ DASHBOARD_HTML = '''
                             السلام عليكم ورحمة الله وبركاته
                         </div>
 
-                        <div class="word-paper-body" id="paperBodyText">
+                        <!-- نص الخطاب المباشر القابل للتعديل والتكبير والتصغير للكتابة المباشرة -->
+                        <div class="word-paper-body" id="paperBodyText" contenteditable="true" oninput="syncTextareaWithPaper()">
 إشارة إلى خطابكم الكريم بشأن الملاحظات والتوصيات المعتمدة، نود الإفادة بأنه تم الاطلاع على كافة التفاصيل والتعامل معها وفق الأنظمة واللوائح المعتمدة.
 
 شاكرين لكم حسن تعاونكم الدائم معنا.
@@ -960,7 +1033,7 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold fs-7">عنوان الخطاب (الموضوع):</label>
-                                <input type="text" name="title" id="letterTitleInput" class="form-control fs-7" required placeholder="أدخل عنوان الخطاب..." oninput="syncTitle(this.value)">
+                                <input type="text" name="title" id="letterTitleInput" class="form-control fs-7" required placeholder="أدخل عنوان الخطاب...">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold fs-7">الأهمية:</label>
@@ -975,8 +1048,8 @@ DASHBOARD_HTML = '''
                                 <input type="file" name="file" class="form-control fs-7">
                             </div>
                             <div class="col-12">
-                                <label class="form-label fw-bold fs-7">صيغة ومحتوى الخطاب (تعديل مباشر للورقة أعلاه):</label>
-                                <textarea name="content" id="letterContentInput" class="form-control fs-7" rows="5" placeholder="اكتب صيغة الخطاب هنا..." oninput="syncContent(this.value)"></textarea>
+                                <label class="form-label fw-bold fs-7">صيغة ومحتوى الخطاب (مرتبط بالورقة أعلاه):</label>
+                                <textarea name="content" id="letterContentInput" class="form-control fs-7" rows="5" placeholder="اكتب صيغة الخطاب هنا أو اكتبها مباشرة في الورقة أعلاه..." oninput="syncPaperWithTextarea(this.value)"></textarea>
                             </div>
                             <div class="col-12 text-end mt-3">
                                 <button type="submit" class="btn btn-fifa-primary px-5 py-2 fw-bold shadow">
@@ -1094,6 +1167,93 @@ DASHBOARD_HTML = '''
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // دالة تنفيذ تنسيقات النص العامة
+        function formatDoc(cmd, value = null) {
+            document.execCommand(cmd, false, value);
+            syncTextareaWithPaper();
+        }
+
+        // دالة تكبير وتصغير حجم الخط للنص المحدد فقط
+        function changeFontSize(step) {
+            var selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            var range = selection.getRangeAt(0);
+            var paperBody = document.getElementById('paperBodyText');
+
+            if (!paperBody.contains(range.commonAncestorContainer)) {
+                alert('يرجى تحديد النص المراد تكبيره أو تصغيره داخل ورقة الخطاب أولاً.');
+                return;
+            }
+
+            if (range.collapsed) {
+                // إذا لم يحدد نصاً معيناً، يطبق التغيير على حاوية الخطاب بالكامل
+                var currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
+                var newSize = currentSize + (step * 2);
+                if (newSize >= 10 && newSize <= 50) {
+                    paperBody.style.fontSize = newSize + 'px';
+                    document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
+                }
+            } else {
+                // تكبير/تصغير النص المحدد فقط عبر عنصر span
+                var span = document.createElement('span');
+                var selectedElement = range.commonAncestorContainer.parentElement;
+                
+                var currentSize = 18;
+                if (selectedElement && selectedElement !== paperBody && selectedElement.style.fontSize) {
+                    currentSize = parseInt(selectedElement.style.fontSize);
+                } else {
+                    currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
+                }
+
+                var newSize = currentSize + (step * 2);
+                if (newSize < 10) newSize = 10;
+                if (newSize > 50) newSize = 50;
+
+                span.style.fontSize = newSize + 'px';
+                span.appendChild(range.extractContents());
+                range.insertNode(span);
+                
+                document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
+            }
+            syncTextareaWithPaper();
+        }
+
+        // دالة تغيير نوع الخط للنص المحدد
+        function changeFontFamily(fontFamily) {
+            var selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            var range = selection.getRangeAt(0);
+            var paperBody = document.getElementById('paperBodyText');
+
+            if (range.collapsed) {
+                paperBody.style.fontFamily = fontFamily;
+            } else {
+                var span = document.createElement('span');
+                span.style.fontFamily = fontFamily;
+                span.appendChild(range.extractContents());
+                range.insertNode(span);
+            }
+            syncTextareaWithPaper();
+        }
+
+        // المزامنة بين نص الورقة ونموذج الإرسال بالأسفل
+        function syncTextareaWithPaper() {
+            var paperBody = document.getElementById('paperBodyText');
+            var textarea = document.getElementById('letterContentInput');
+            if (paperBody && textarea) {
+                textarea.value = paperBody.innerText;
+            }
+        }
+
+        function syncPaperWithTextarea(val) {
+            var paperBody = document.getElementById('paperBodyText');
+            if (paperBody) {
+                paperBody.innerText = val.trim() !== '' ? val : "أدخل نص الخطاب...";
+            }
+        }
+
         function previewFile(url, title) {
             document.getElementById('previewFileTitle').innerText = 'معاينة: ' + title;
             document.getElementById('previewFrame').src = url;
@@ -1121,13 +1281,6 @@ DASHBOARD_HTML = '''
             }
         }
 
-        function syncContent(text) {
-            var paperBody = document.getElementById('paperBodyText');
-            if (paperBody) {
-                paperBody.innerText = text.trim() !== '' ? text : "أدخل نص الخطاب...";
-            }
-        }
-
         function loadLetterToEditor(id, title, senderId, priority) {
             var textElem = document.getElementById('letter-text-' + id);
             var content = textElem ? textElem.innerText : '';
@@ -1135,7 +1288,7 @@ DASHBOARD_HTML = '''
             document.getElementById('letterTitleInput').value = title;
             document.getElementById('letterContentInput').value = content;
             document.getElementById('letterPriority').value = priority;
-            syncContent(content);
+            syncPaperWithTextarea(content);
 
             var paperBody = document.getElementById('officialPaper');
             if (paperBody) {
@@ -1174,10 +1327,7 @@ DASHBOARD_HTML = '''
         }
 
         window.addEventListener('DOMContentLoaded', function() {
-            var inputContent = document.getElementById('letterContentInput');
-            if (inputContent && inputContent.value.trim() !== '') {
-                syncContent(inputContent.value);
-            }
+            syncTextareaWithPaper();
         });
     </script>
 </body>
@@ -1966,57 +2116,56 @@ def admin_dashboard():
 
             <main class="main-content">
                 <div class="container-fluid p-0">
-                    <h4 class="fw-bold mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-cog ms-2' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة بالنظام</h4>
+                    <h4 class="fw-bold mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-cog ms-2' style="color: var(--fifa-gold);"></i>لوحة التحكم والإدارة الشاملة</h4>
                     
                     <div class="modern-card p-4 mb-4">
-                        <h6 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">إضافة بيان / معاملة جديدة مباشرة</h6>
+                        <h6 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">إضافة ملف / معاملة مباشرة للنظام</h6>
                         <form action="/admin/dashboard" method="post" enctype="multipart/form-data">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <input type="text" name="title" class="form-control fs-7" placeholder="عنوان المعاملة..." required>
+                                    <label class="form-label fw-bold fs-7">العنوان:</label>
+                                    <input type="text" name="title" class="form-control fs-7" required placeholder="أدخل العنوان...">
                                 </div>
                                 <div class="col-md-6">
+                                    <label class="form-label fw-bold fs-7">المرفق (اختياري):</label>
                                     <input type="file" name="file" class="form-control fs-7">
                                 </div>
                                 <div class="col-12">
-                                    <textarea name="content" class="form-control fs-7" rows="2" placeholder="المحتوى / الملاحظات..."></textarea>
+                                    <label class="form-label fw-bold fs-7">التفاصيل / المحتوى:</label>
+                                    <textarea name="content" class="form-control fs-7" rows="2" placeholder="أدخل التفاصيل..."></textarea>
                                 </div>
                                 <div class="col-12 text-end">
-                                    <button type="submit" class="btn btn-fifa-gold px-4 py-2 fs-7">حفظ وإضافة</button>
+                                    <button type="submit" class="btn btn-fifa-gold px-4 py-2 fs-7">حفظ المعاملة</button>
                                 </div>
                             </div>
                         </form>
                     </div>
 
                     <div class="modern-card p-3">
-                        <h6 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">سجل المعاملات الكلي</h6>
+                        <h6 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">كافة المعاملات المسجلة في قاعدة البيانات</h6>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle fs-7">
-                                <thead>
+                                <thead class="table-light">
                                     <tr>
                                         <th>#</th>
                                         <th>العنوان</th>
-                                        <th>التاريخ</th>
-                                        <th>الملف</th>
-                                        <th>إجراءات</th>
+                                        <th>المحتوى</th>
+                                        <th>تاريخ الإنشاء</th>
+                                        <th>الإجراءات</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for item in items %}
                                     <tr>
                                         <td>{{ item.id }}</td>
-                                        <td>{{ item.title }}</td>
+                                        <td class="fw-bold">{{ item.title }}</td>
+                                        <td>{{ item.content[:50] if item.content else '-' }}...</td>
                                         <td>{{ item.created_at }}</td>
                                         <td>
                                             {% if item.file_data %}
                                                 <button type="button" class="btn btn-sm btn-info text-white py-0 px-2 fs-8" onclick="previewFile('/view_letter_file/{{ item.id }}', '{{ item.title }}')">معاينة</button>
-                                                <a href="/download_letter_file/{{ item.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تحميل</a>
-                                            {% else %}
-                                                <span class="text-muted fs-8">لا يوجد</span>
                                             {% endif %}
-                                        </td>
-                                        <td>
-                                            <a href="/delete_letter/{{ item.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف؟');">حذف</a>
+                                            <a href="/delete_letter/{{ item.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف نهائي؟');">حذف</a>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -2024,6 +2173,7 @@ def admin_dashboard():
                             </table>
                         </div>
                     </div>
+
                 </div>
             </main>
         </div>
@@ -2060,253 +2210,6 @@ def admin_dashboard():
     </html>
     '''
     return render_template_string(html_code, items=items, is_admin=is_admin, current_dept=current_dept)
-
-@app.route('/admin/permissions', methods=['GET', 'POST'])
-def admin_permissions():
-    if 'dept_id' not in session:
-        return redirect(url_for('login'))
-        
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
-    current_dept = cursor.fetchone()
-    is_admin = is_admin_user(session.get('dept_name'))
-    
-    if not is_admin:
-        cursor.close()
-        conn.close()
-        return '''<script>alert("عذراً، هذه الصفحة مخصصة فقط للمسؤولين."); window.location.href="/dashboard";</script>'''
-
-    if request.method == 'POST':
-        target_dept_id = request.form.get('dept_id')
-        new_password = request.form.get('new_password')
-        
-        can_delete = 1 if request.form.get('can_delete') else 0
-        can_view_all_archive = 1 if request.form.get('can_view_all_archive') else 0
-        can_view_all_achievements = 1 if request.form.get('can_view_all_achievements') else 0
-        can_add_user = 1 if request.form.get('can_add_user') else 0
-        
-        can_page_inbox = 1 if request.form.get('can_page_inbox') else 0
-        can_page_outbox = 1 if request.form.get('can_page_outbox') else 0
-        can_page_achievements = 1 if request.form.get('can_page_achievements') else 0
-        can_page_archive = 1 if request.form.get('can_page_archive') else 0
-        can_page_quick_upload = 1 if request.form.get('can_page_quick_upload') else 0
-        
-        if new_password and new_password.strip() != '':
-            cursor.execute('''
-                UPDATE departments 
-                SET password = %s, can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
-                WHERE id = %s
-            ''', (new_password.strip(), can_delete, can_view_all_archive, can_view_all_achievements, can_add_user,
-                  can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, target_dept_id))
-        else:
-            cursor.execute('''
-                UPDATE departments 
-                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
-                WHERE id = %s
-            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user,
-                  can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, target_dept_id))
-            
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return '''<script>alert("تم تحديث الصلاحيات وكلمة المرور بنجاح!"); window.location.href="/admin/permissions";</script>'''
-
-    cursor.execute('SELECT * FROM departments ORDER BY id ASC')
-    depts = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    html_code = '''
-    <!DOCTYPE html>
-    <html dir="rtl" lang="ar">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>إدارة الصلاحيات - نادي فيفا</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
-        <style>
-            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
-            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
-            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
-            .nav-logo { height: 42px; width: auto; object-fit: contain; }
-            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
-            
-            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
-            @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
-                .sidebar.show-sidebar { right: 0; }
-            }
-            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
-            .mobile-overlay.active { display: block; }
-
-            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; font-size: 0.95rem; }
-            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
-            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .content-body { flex: 1; padding: 1.25rem; }
-            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
-            .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; font-weight: 700; border: none; }
-        </style>
-    </head>
-    <body>
-        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
-        <nav class="navbar top-navbar sticky-top">
-            <div class="container-fluid">
-                <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
-                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
-                    </button>
-                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
-                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
-                    </a>
-                </div>
-            </div>
-        </nav>
-
-        <div class="main-wrapper">
-            <aside class="sidebar" id="sidebarMenu">
-                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
-                    <span class="fw-bold text-white">قائمة التنقل</span>
-                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
-                </div>
-                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
-                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
-                {% endif %}
-                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
-                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
-                {% endif %}
-                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
-                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
-                {% endif %}
-                {% if current_dept['can_page_archive'] == 1 or is_admin %}
-                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
-                {% endif %}
-                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
-                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
-                {% endif %}
-                {% if is_admin %}
-                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
-                <a href="/admin/permissions" class="sidebar-link active"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
-                {% endif %}
-                {% if current_dept['can_add_user'] == 1 or is_admin %}
-                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
-                {% endif %}
-                <div class="border-top border-secondary my-3 opacity-25"></div>
-                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
-            </aside>
-
-            <main class="content-body">
-                <div class="container-fluid p-0">
-                    <h4 class="fw-bold mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>التحكم بصلاحيات الإدارات وكلمات المرور</h4>
-                    
-                    <div class="row">
-                        {% for d in depts %}
-                        <div class="col-lg-6">
-                            <div class="modern-card p-3">
-                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                                    <h6 class="fw-bold m-0" style="color: var(--fifa-green-primary);">{{ d.name }} ({{ d.username }})</h6>
-                                    {% if d.name in ['الرئيس التنفيذي', 'رئيس تنفيذي', 'CEO', 'مدير تقنية المعلومات', 'مدير تقنية معلومات', 'تقنية المعلومات', 'IT Manager', 'IT'] %}
-                                        <span class="badge bg-danger">مسؤول النظام</span>
-                                    {% endif %}
-                                </div>
-                                <form action="/admin/permissions" method="post">
-                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label fs-8 fw-bold text-muted">تغيير كلمة المرور (اتركه فارغاً للإبقاء):</label>
-                                        <input type="password" name="new_password" class="form-control fs-8" placeholder="كلمة مرور جديدة...">
-                                    </div>
-
-                                    <div class="fw-bold fs-8 text-dark mb-2 border-bottom pb-1">صلاحيات رؤية الصفحات في القائمة:</div>
-                                    <div class="row g-2 mb-3 fs-8">
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_page_inbox" id="p_inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
-                                                <label class="form-check-label" for="p_inbox_{{ d.id }}">الصندوق الوارد</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_page_outbox" id="p_outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
-                                                <label class="form-check-label" for="p_outbox_{{ d.id }}">الخطابات الصادرة</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_page_achievements" id="p_ach_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
-                                                <label class="form-check-label" for="p_ach_{{ d.id }}">إنجازات الشهر</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_page_archive" id="p_arc_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}>
-                                                <label class="form-check-label" for="p_arc_{{ d.id }}">أرشيف الإدارة</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_page_quick_upload" id="p_qup_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
-                                                <label class="form-check-label" for="p_qup_{{ d.id }}">رفع وتوثيق فوري</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="fw-bold fs-8 text-dark mb-2 border-bottom pb-1">الصلاحيات المتقدمة والإجرائية:</div>
-                                    <div class="row g-2 mb-3 fs-8">
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_delete" id="del_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}>
-                                                <label class="form-check-label text-danger fw-bold" for="del_{{ d.id }}">صلاحية الحذف النهائي</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_add_user" id="adduser_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}>
-                                                <label class="form-check-label fw-bold" for="adduser_{{ d.id }}">إضافة إدارات جديدة</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_view_all_archive" id="varc_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
-                                                <label class="form-check-label" for="varc_{{ d.id }}">مشاهدة أرشيف كل الإدارات</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="can_view_all_achievements" id="vach_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
-                                                <label class="form-check-label" for="vach_{{ d.id }}">مشاهدة إنجازات كل الإدارات</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="text-end">
-                                        <button type="submit" class="btn btn-fifa-primary btn-sm px-3 fs-8">تحديث الصلاحيات</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </main>
-        </div>
-
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-        <script>
-            function toggleSidebar() {
-                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
-                document.getElementById('mobileOverlay').classList.toggle('active');
-            }
-        </script>
-    </body>
-    </html>
-    '''
-    return render_template_string(html_code, depts=depts, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
     app.run(debug=True)
