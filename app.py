@@ -669,7 +669,7 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= ورقة خطاب Word رسمية مع أدوات التحكّم بالخط ================= */
+        /* ================= ورقة خطاب Word رسمية مع أدوات التحكّم بالخط والصورة القابلة للسحب ================= */
         .paper-toolbar {
             background: #ffffff;
             border: 1px solid #c8d6cd;
@@ -684,7 +684,7 @@ DASHBOARD_HTML = '''
             margin: 0 auto;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
-        .paper-toolbar button, .paper-toolbar select, .paper-toolbar input[type="color"] {
+        .paper-toolbar button, .paper-toolbar select, .paper-toolbar input[type="color"], .paper-toolbar label {
             border: 1px solid #d5e2d8;
             background: #f8faf9;
             border-radius: 6px;
@@ -694,8 +694,9 @@ DASHBOARD_HTML = '''
             color: #123826;
             cursor: pointer;
             transition: all 0.2s;
+            margin-bottom: 0;
         }
-        .paper-toolbar button:hover {
+        .paper-toolbar button:hover, .paper-toolbar label:hover {
             background: #123826;
             color: #ffffff;
         }
@@ -748,14 +749,6 @@ DASHBOARD_HTML = '''
             object-fit: contain;
             margin-bottom: 2px;
         }
-        .word-paper-center .brand-name-sub {
-            font-weight: 800;
-            font-size: 1.3rem;
-            color: #000;
-            letter-spacing: 1px;
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
-        }
         .word-paper-left {
             text-align: right;
             font-size: 1.05rem;
@@ -769,19 +762,6 @@ DASHBOARD_HTML = '''
         .word-paper-left-inner {
             text-align: right;
             min-width: 180px;
-        }
-        .word-paper-title {
-            text-align: center;
-            font-size: 1.35rem;
-            font-weight: bold;
-            margin-top: 1rem;
-            margin-bottom: 0.5rem;
-        }
-        .word-paper-greeting {
-            text-align: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 1.5rem;
         }
         /* منطقة نص الخطاب القابلة للكتابة والتكبير والتصغير */
         .word-paper-body {
@@ -799,18 +779,6 @@ DASHBOARD_HTML = '''
         .word-paper-body:hover, .word-paper-body:focus {
             border-color: #c5a059;
             background-color: #fafcfb;
-        }
-        .word-paper-footer-closing {
-            text-align: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-bottom: 3rem;
-        }
-        .word-paper-signature {
-            text-align: left;
-            margin-left: 2rem;
-            font-size: 1.15rem;
-            font-weight: bold;
         }
         .word-paper-contacts {
             position: absolute;
@@ -844,26 +812,43 @@ DASHBOARD_HTML = '''
             border-bottom: 1px solid var(--fifa-green-primary);
             background: #fdfdfd;
         }
-        .resizable-image-box {
-            width: 120px;
-            height: 40px;
+        
+        /* مربع الصورة القابل للتمدد والسحب داخل ورقة الخطاب */
+        #draggableResizableImageContainer {
+            position: absolute;
+            top: 200px;
+            left: 100px;
+            width: 180px;
+            height: 120px;
+            min-width: 60px;
+            min-height: 60px;
             resize: both;
             overflow: hidden;
-            border: 1px dashed #c8d6cd;
-            border-radius: 4px;
-            display: inline-block;
-            background: #ffffff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            padding: 2px;
-            vertical-align: middle;
+            border: 2px dashed #c5a059;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 100;
+            display: none;
+            cursor: move;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
-
-        .resizable-image-box img {
+        #draggableResizableImageContainer img {
             width: 100%;
             height: 100%;
             object-fit: fill;
-            display: block;
-            border-radius: 2px;
+            pointer-events: none;
+        }
+        .remove-img-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: red;
+            color: white;
+            border: none;
+            font-size: 10px;
+            padding: 1px 4px;
+            cursor: pointer;
+            z-index: 101;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -950,12 +935,12 @@ DASHBOARD_HTML = '''
                 </div>
 
                 {% if current_page == 'outbox' or current_page == 'inbox' %}
-                <!-- ============ ورقة الخطاب الرسمية المباشرة مع شريط التنسيق ============ -->
+                <!-- ============ ورقة الخطاب الرسمية المباشرة مع شريط التنسيق وزر رفع الصورة ============ -->
                 <div class="word-paper-container">
                     
-                    <!-- شريط أدوات التنسيق وتكبير/تصغير الخط للنص المحدد -->
+                    <!-- شريط أدوات التنسيق وتكبير/تصغير الخط وزر رفع الصورة -->
                     <div class="paper-toolbar w-100">
-                        <span class="fw-bold fs-8 text-muted me-1"><i class='bx bx-font'></i> تنسيق الخط المحدد:</span>
+                        <span class="fw-bold fs-8 text-muted me-1"><i class='bx bx-font'></i> تنسيق الخط:</span>
                         <button type="button" onclick="changeFontSize(1)" title="تكبير النص المحدد"><i class='bx bx-font-plus fs-6'></i> A+</button>
                         <button type="button" onclick="changeFontSize(-1)" title="تصغير النص المحدد"><i class='bx bx-font-minus fs-6'></i> A-</button>
                         <span id="currentFontSizeLabel" class="badge bg-light text-dark border fs-8">18px</span>
@@ -985,13 +970,20 @@ DASHBOARD_HTML = '''
 
                         <div class="vr mx-1"></div>
 
-                        <!-- أداة إضافة الصورة داخل مربع قابل للسحب والتمدد من جميع الاتجاهات -->
-                        <div class="resizable-image-box" title="مربع الصورة (قابل للسحب من الزوايا)">
-                            <img src="رابط_الصورة_أو_مسارها" alt="صورة الخطاب">
-                        </div>
+                        <!-- زر رفع صورة من الجهاز وإضافتها لورقة الخطاب -->
+                        <label for="letterImageUploadInput" title="رفع صورة من الجهاز للخطاب" class="btn btn-sm btn-outline-success py-1 px-2 mb-0 d-flex align-items-center gap-1" style="cursor: pointer; background: #eaf3ec;">
+                            <i class='bx bx-image-add fs-5'></i> رفع صورة
+                        </label>
+                        <input type="file" id="letterImageUploadInput" accept="image/*" style="display: none;" onchange="handleLetterImageUpload(this)">
                     </div>
 
                     <div class="word-paper" id="officialPaper">
+                        <!-- مربع الصورة القابل للسحب والتمدد داخل الورقة -->
+                        <div id="draggableResizableImageContainer">
+                            <button type="button" class="remove-img-btn" onclick="removeLetterImage()" title="حذف الصورة">&times;</button>
+                            <img id="letterCustomImage" src="" alt="صورة الخطاب المرفقة">
+                        </div>
+
                         <div class="word-paper-header">
                             <div class="word-paper-right">
                                 المملكة العربية السعودية<br>
@@ -1001,7 +993,6 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="word-paper-center">
                                 <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
-                                
                             </div>
                             <div class="word-paper-left">
                                 <div class="word-paper-left-inner">
@@ -1012,16 +1003,10 @@ DASHBOARD_HTML = '''
                             </div>
                         </div>
 
-                    
-
                         <!-- نص الخطاب المباشر القابل للتعديل والتكبير والتصغير للكتابة المباشرة -->
                         <div class="word-paper-body" id="paperBodyText" contenteditable="true" oninput="syncTextareaWithPaper()">
 
                         </div>
-
-                       
-
-                        
 
                         <div class="word-paper-contacts">
                             <div>fifaclub1436@gmail.com <i class='bx bx-envelope ms-1'></i></div>
@@ -1201,7 +1186,6 @@ DASHBOARD_HTML = '''
             }
 
             if (range.collapsed) {
-                // إذا لم يحدد نصاً معيناً، يطبق التغيير على حاوية الخطاب بالكامل
                 var currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
                 var newSize = currentSize + (step * 2);
                 if (newSize >= 10 && newSize <= 50) {
@@ -1209,7 +1193,6 @@ DASHBOARD_HTML = '''
                     document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
                 }
             } else {
-                // تكبير/تصغير النص المحدد فقط عبر عنصر span
                 var span = document.createElement('span');
                 var selectedElement = range.commonAncestorContainer.parentElement;
                 
@@ -1251,6 +1234,67 @@ DASHBOARD_HTML = '''
             }
             syncTextareaWithPaper();
         }
+
+        // معالجة رفع الصورة وعرضها داخل مربع قابل للتمدد والسحب
+        function handleLetterImageUpload(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var imgElement = document.getElementById('letterCustomImage');
+                    var container = document.getElementById('draggableResizableImageContainer');
+                    imgElement.src = e.target.result;
+                    container.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function removeLetterImage() {
+            var container = document.getElementById('draggableResizableImageContainer');
+            var imgElement = document.getElementById('letterCustomImage');
+            imgElement.src = '';
+            container.style.display = 'none';
+            document.getElementById('letterImageUploadInput').value = '';
+        }
+
+        // تفعيل خاصية السحب والإفلات (Drag & Drop) لمربع الصورة داخل ورقة الخطاب
+        document.addEventListener('DOMContentLoaded', function() {
+            var box = document.getElementById('draggableResizableImageContainer');
+            var paper = document.getElementById('officialPaper');
+            if (box && paper) {
+                var isDragging = false;
+                var startX, startY, initialLeft, initialTop;
+
+                box.addEventListener('mousedown', function(e) {
+                    if (e.target.classList.contains('remove-img-btn')) return;
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    
+                    var rect = box.getBoundingClientRect();
+                    var paperRect = paper.getBoundingClientRect();
+                    
+                    initialLeft = rect.left - paperRect.left;
+                    initialTop = rect.top - paperRect.top;
+                    
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (!isDragging) return;
+                    var dx = e.clientX - startX;
+                    var dy = e.clientY - startY;
+                    
+                    box.style.left = (initialLeft + dx) + 'px';
+                    box.style.top = (initialTop + dy) + 'px';
+                });
+
+                document.addEventListener('mouseup', function() {
+                    isDragging = false;
+                });
+            }
+            syncTextareaWithPaper();
+        });
 
         // المزامنة بين نص الورقة ونموذج الإرسال بالأسفل
         function syncTextareaWithPaper() {
@@ -1339,10 +1383,6 @@ DASHBOARD_HTML = '''
                 }
             }
         }
-
-        window.addEventListener('DOMContentLoaded', function() {
-            syncTextareaWithPaper();
-        });
     </script>
 </body>
 </html>
@@ -2037,53 +2077,101 @@ def admin_dashboard():
         <style>
             :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
             body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; }
-            .stat-card { background: #fff; border-radius: 12px; padding: 1.5rem; border: 1px solid #d5e2d8; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .content-body { flex: 1; padding: 1.5rem; }
+            .stat-card { background: #fff; border-radius: 12px; border: 1px solid #d5e2d8; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         </style>
     </head>
     <body>
-        <div class="container py-5">
-            <h3 class="fw-bold mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-cog ms-2' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</h3>
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <i class='bx bxs-group fs-1 text-success mb-2'></i>
-                        <h5 class="fw-bold text-muted">إجمالي الإدارات</h5>
-                        <h2 class="fw-bold">{{ dept_count }}</h2>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <i class='bx bxs-file-archive fs-1 text-primary mb-2'></i>
-                        <h5 class="fw-bold text-muted">إجمالي الخطابات والملفات</h5>
-                        <h2 class="fw-bold">{{ letter_count }}</h2>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <i class='bx bxs-trophy fs-1 text-warning mb-2'></i>
-                        <h5 class="fw-bold text-muted">إنجازات الشهر</h5>
-                        <h2 class="fw-bold">{{ ach_count }}</h2>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-card text-center">
-                        <i class='bx bxs-certification fs-1 text-info mb-2'></i>
-                        <h5 class="fw-bold text-muted">شهادات الدورات</h5>
-                        <h2 class="fw-bold">{{ cert_count }}</h2>
-                    </div>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
+                    </a>
                 </div>
             </div>
-            <div class="d-flex gap-2">
-                <a href="/admin/permissions" class="btn btn-warning fw-bold px-4"><i class='bx bxs-shield ms-1'></i>إدارة الصلاحيات</a>
-                <a href="/dashboard" class="btn btn-secondary fw-bold px-4"><i class='bx bx-right-arrow-alt ms-1'></i>العودة للنظام</a>
-            </div>
+        </nav>
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                <a href="/admin/dashboard" class="sidebar-link active" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+            <main class="content-body">
+                <h4 class="fw-bold mb-4" style="color: var(--fifa-green-primary);">لوحة الإحصائيات الشاملة</h4>
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <i class='bx bxs-building-house fs-1' style="color: var(--fifa-gold);"></i>
+                            <h3 class="fw-bold mt-2">{{ dept_count }}</h3>
+                            <p class="text-muted mb-0 fs-7">إجمالي الإدارات</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <i class='bx bxs-envelope fs-1' style="color: var(--fifa-green-primary);"></i>
+                            <h3 class="fw-bold mt-2">{{ letter_count }}</h3>
+                            <p class="text-muted mb-0 fs-7">إجمالي الخطابات والمعاملات</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <i class='bx bxs-trophy fs-1' style="color: var(--fifa-gold);"></i>
+                            <h3 class="fw-bold mt-2">{{ ach_count }}</h3>
+                            <p class="text-muted mb-0 fs-7">إجمالي الإنجازات المرفوعة</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card text-center">
+                            <i class='bx bxs-certification fs-1' style="color: #123826;"></i>
+                            <h3 class="fw-bold mt-2">{{ cert_count }}</h3>
+                            <p class="text-muted mb-0 fs-7">إجمالي شهادات الدورات</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
     </body>
     </html>
     '''
     return render_template_string(html_code, dept_count=dept_count, letter_count=letter_count, ach_count=ach_count, cert_count=cert_count)
 
-# --- إدارة الصلاحيات ---
 @app.route('/admin/permissions', methods=['GET', 'POST'])
 def admin_permissions():
     if 'dept_id' not in session:
@@ -2091,44 +2179,35 @@ def admin_permissions():
         
     is_admin = is_admin_user(session.get('dept_name'))
     if not is_admin:
-        return '''<script>alert("عذراً، صفحة إدارة الصلاحيات مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+        return '''<script>alert("عذراً، هذه الصفحة مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     if request.method == 'POST':
         dept_id = request.form.get('dept_id')
+        can_access_archive = 1 if request.form.get('can_access_archive') else 0
         can_delete = 1 if request.form.get('can_delete') else 0
         can_view_all_archive = 1 if request.form.get('can_view_all_archive') else 0
         can_view_all_achievements = 1 if request.form.get('can_view_all_achievements') else 0
         can_add_user = 1 if request.form.get('can_add_user') else 0
+        
         can_page_inbox = 1 if request.form.get('can_page_inbox') else 0
         can_page_outbox = 1 if request.form.get('can_page_outbox') else 0
         can_page_achievements = 1 if request.form.get('can_page_achievements') else 0
         can_page_archive = 1 if request.form.get('can_page_archive') else 0
         can_page_quick_upload = 1 if request.form.get('can_page_quick_upload') else 0
-        new_password = request.form.get('new_password')
 
-        if new_password and new_password.strip() != '':
-            cursor.execute('''
-                UPDATE departments 
-                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s,
-                    password = %s
-                WHERE id = %s
-            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, new_password.strip(), dept_id))
-        else:
-            cursor.execute('''
-                UPDATE departments 
-                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
-                WHERE id = %s
-            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
-
+        cursor.execute('''
+            UPDATE departments 
+            SET can_access_archive = %s, can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
+                can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
+            WHERE id = %s
+        ''', (can_access_archive, can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
         conn.commit()
         cursor.close()
         conn.close()
-        return '''<script>alert("تم تحديث الصلاحيات وبيانات الإدارة بنجاح!"); window.location.href="/admin/permissions";</script>'''
+        return '''<script>alert("تم تحديث صلاحيات الإدارة بنجاح!"); window.location.href="/admin/permissions";</script>'''
 
     cursor.execute('SELECT * FROM departments ORDER BY id ASC')
     departments = cursor.fetchall()
@@ -2147,110 +2226,152 @@ def admin_permissions():
         <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
         <style>
             :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
-            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; padding: 20px 10px; }
-            .perm-card { background: #ffffff; border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 1.5rem; overflow: hidden; }
-            .perm-header { background-color: var(--fifa-green-primary); color: #fff; padding: 1rem; font-weight: bold; font-size: 1.1rem; }
-            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .content-body { flex: 1; padding: 1.5rem; }
+            .perm-card { background: #fff; border-radius: 12px; border: 1px solid #d5e2d8; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 1.5rem; }
+            .form-check-input:checked { background-color: var(--fifa-green-primary); border-color: var(--fifa-green-primary); }
         </style>
     </head>
     <body>
-        <div class="container">
-            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-                <h4 class="fw-bold m-0" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة إدارة صلاحيات الإدارات والشبكة</h4>
-                <a href="/dashboard" class="btn btn-outline-success fw-bold fs-7"><i class='bx bx-right-arrow-alt ms-1'></i>العودة للنظام</a>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
+                    </a>
+                </div>
             </div>
-
-            <div class="row">
-                {% for d in departments %}
-                <div class="col-lg-6">
-                    <div class="perm-card">
-                        <div class="perm-header d-flex justify-content-between align-items-center">
-                            <span><i class='bx bxs-building ms-2'></i>{{ d.name }}</span>
-                            <span class="badge bg-warning text-dark fs-8">{{ d.username }}</span>
-                        </div>
-                        <div class="p-3">
+        </nav>
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link active"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+            <main class="content-body">
+                <h4 class="fw-bold mb-4" style="color: var(--fifa-green-primary);">إدارة صلاحيات الإدارات والأقسام</h4>
+                <div class="row">
+                    {% for dept in departments %}
+                    <div class="col-lg-12">
+                        <div class="perm-card">
                             <form action="/admin/permissions" method="post">
-                                <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                <input type="hidden" name="dept_id" value="{{ dept.id }}">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3 border-bottom pb-3">
+                                    <div>
+                                        <h5 class="fw-bold m-0" style="color: var(--fifa-green-primary);">{{ dept.name }}</h5>
+                                        <small class="text-muted">اسم المستخدم: {{ dept.username }}</small>
+                                    </div>
+                                    <button type="submit" class="btn btn-success fw-bold px-4">حفظ التغييرات</button>
+                                </div>
                                 
-                                <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-check-shield ms-1'></i>الصلاحيات العامة:</h6>
+                                <h6 class="fw-bold text-muted fs-7 mb-2">صلاحيات الصفحات والأزرار:</h6>
                                 <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_delete" {{ 'checked' if d.can_delete == 1 else '' }}>
-                                            <label class="form-check-label">صلاحية الحذف</label>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_page_inbox" value="1" {{ 'checked' if dept.can_page_inbox == 1 else '' }} id="inbox_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="inbox_{{ dept.id }}">الصندوق الوارد</label>
                                         </div>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_add_user" {{ 'checked' if d.can_add_user == 1 else '' }}>
-                                            <label class="form-check-label">إضافة إدارات جديدة</label>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_page_outbox" value="1" {{ 'checked' if dept.can_page_outbox == 1 else '' }} id="outbox_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="outbox_{{ dept.id }}">الخطابات الصادرة</label>
                                         </div>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_view_all_archive" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
-                                            <label class="form-check-label">رؤية كامل أرشيف للنادي</label>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_page_achievements" value="1" {{ 'checked' if dept.can_page_achievements == 1 else '' }} id="ach_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="ach_{{ dept.id }}">إنجازات الشهر</label>
                                         </div>
                                     </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_view_all_achievements" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
-                                            <label class="form-check-label">رؤية إنجازات كافة الإدارات</label>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_page_archive" value="1" {{ 'checked' if dept.can_page_archive == 1 else '' }} id="arch_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="arch_{{ dept.id }}">أرشيف الإدارة</label>
                                         </div>
                                     </div>
-                                </div>
-
-                                <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-layout ms-1'></i>صلاحيات فتح الصفحات:</h6>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_page_inbox" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
-                                            <label class="form-check-label">الصندوق الوارد</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_page_outbox" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
-                                            <label class="form-check-label">الخطابات الصادرة</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_page_achievements" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
-                                            <label class="form-check-label">إنجازات الشهر</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_page_archive" {{ 'checked' if d.can_page_archive == 1 else '' }}>
-                                            <label class="form-check-label">أرشيف الإدارة</label>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="form-check form-switch fs-7">
-                                            <input class="form-check-input" type="checkbox" name="can_page_quick_upload" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
-                                            <label class="form-check-label">رفع وتوثيق فوري</label>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_page_quick_upload" value="1" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }} id="quick_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="quick_{{ dept.id }}">رفع وتوثيق فوري</label>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">تغيير كلمة المرور (اتركه فارغاً للإبقاء):</label>
-                                    <input type="password" name="new_password" class="form-control fs-8" placeholder="كلمة مرور جديدة...">
+                                <h6 class="fw-bold text-muted fs-7 mb-2">الصلاحيات والتحكم المتقدم:</h6>
+                                <div class="row g-2">
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_delete" value="1" {{ 'checked' if dept.can_delete == 1 else '' }} id="del_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="del_{{ dept.id }}">صلاحية الحذف</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_view_all_archive" value="1" {{ 'checked' if dept.can_view_all_archive == 1 else '' }} id="v_all_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="v_all_{{ dept.id }}">عرض أرشيف كل الإدارات</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_view_all_achievements" value="1" {{ 'checked' if dept.can_view_all_achievements == 1 else '' }} id="v_ach_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="v_ach_{{ dept.id }}">عرض إنجازات كل الإدارات</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="can_add_user" value="1" {{ 'checked' if dept.can_add_user == 1 else '' }} id="add_u_{{ dept.id }}">
+                                            <label class="form-check-label fs-7" for="add_u_{{ dept.id }}">صلاحية إضافة إدارة جديدة</label>
+                                        </div>
+                                    </div>
                                 </div>
-
-                                <button type="submit" class="btn btn-fifa-gold w-100 fs-7 shadow-sm py-2">تحديث صلاحيات {{ d.name }}</button>
                             </form>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
-            </div>
+            </main>
         </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
     </body>
     </html>
     '''
-    return render_template_string(html_code, departments=departments)
+    return render_template_string(html_code)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(debug=True, port=5000)
