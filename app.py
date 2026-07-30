@@ -87,7 +87,6 @@ def init_db():
         )
     ''')
 
-    # جدول جديد لشهادات الدورات
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS course_certificates (
             id SERIAL PRIMARY KEY,
@@ -377,7 +376,6 @@ def clear_monthly_files(dept_id):
         conn.close()
         return '''<script>alert("غير مسموح لك بتفريغ ملفات هذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
-    # تفريغ الإنجازات
     cursor.execute('SELECT * FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
     achievements = cursor.fetchall()
     
@@ -397,7 +395,6 @@ def clear_monthly_files(dept_id):
             dept_id
         ))
 
-    # تفريغ شهادات الدورات
     cursor.execute('SELECT * FROM course_certificates WHERE dept_id = %s', (dept_id,))
     certs = cursor.fetchall()
     for cert in certs:
@@ -672,7 +669,7 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= ورقة خطاب Word رسمية تفاعلية للنادي ================= */
+        /* ================= ورقة خطاب Word رسمية مطابقة بالتحديد للنماذج الرسمية ================= */
         .word-paper-container {
             display: flex;
             justify-content: center;
@@ -696,29 +693,51 @@ DASHBOARD_HTML = '''
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
             line-height: 1.4;
         }
         .word-paper-right {
             text-align: right;
-            font-size: 1.1rem;
+            font-size: 1.15rem;
             font-weight: bold;
             color: #000;
+            flex: 1;
         }
         .word-paper-center {
             text-align: center;
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         .word-paper-center img {
-            max-height: 80px;
-            margin-bottom: 5px;
+            max-height: 85px;
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 2px;
+        }
+        .word-paper-center .brand-name-sub {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #000;
+            letter-spacing: 1px;
+            font-family: Arial, sans-serif;
+            text-transform: uppercase;
         }
         .word-paper-left {
             text-align: right;
             font-size: 1.05rem;
             font-weight: bold;
             color: #000;
-            min-width: 170px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .word-paper-left-inner {
+            text-align: right;
+            min-width: 180px;
         }
         .word-paper-title {
             text-align: center;
@@ -756,18 +775,20 @@ DASHBOARD_HTML = '''
         .word-paper-contacts {
             position: absolute;
             bottom: 2.5rem;
-            right: 3.5rem;
+            left: 3.5rem;
             font-size: 0.95rem;
-            color: #333;
+            color: #000;
             direction: ltr;
-            text-align: right;
+            text-align: left;
             font-family: sans-serif;
+            font-weight: bold;
         }
         .word-paper-contacts div {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: flex-start;
             gap: 6px;
+            margin-top: 2px;
         }
         .paper-editable-input {
             border: none;
@@ -868,7 +889,7 @@ DASHBOARD_HTML = '''
                 </div>
 
                 {% if current_page == 'outbox' or current_page == 'inbox' %}
-                <!-- ============ ورقة الخطاب الرسمية المباشرة (ورد) ============ -->
+                <!-- ============ ورقة الخطاب الرسمية المباشرة (مطابقة 100% للتصميم المطلوب) ============ -->
                 <div class="word-paper-container">
                     <div class="word-paper" id="officialPaper">
                         <div class="word-paper-header">
@@ -880,12 +901,14 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="word-paper-center">
                                 <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
-                                <div class="fw-bold text-success fs-5">FAIFA</div>
+                                <div class="brand-name-sub">FAIFA</div>
                             </div>
                             <div class="word-paper-left">
-                                الرقم: <input type="text" id="paperLetterNumInput" class="paper-editable-input" value="—" style="width: 100px;"><br>
-                                التاريخ : <input type="text" id="paperLetterDateInput" class="paper-editable-input" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
-                                المشفوعات : <input type="text" id="paperLetterAttachInput" class="paper-editable-input" value="-" style="width: 100px;">
+                                <div class="word-paper-left-inner">
+                                    الرقم : <input type="text" id="paperLetterNumInput" class="paper-editable-input" value="—" style="width: 100px;"><br>
+                                    التاريخ : <input type="text" id="paperLetterDateInput" class="paper-editable-input" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
+                                    المشفوعات : <input type="text" id="paperLetterAttachInput" class="paper-editable-input" value="-" style="width: 100px;">
+                                </div>
                             </div>
                         </div>
 
@@ -1702,7 +1725,6 @@ def monthly_achievements():
                                 </div>
                                 <div class="p-3">
                                     
-                                    <!-- 1. قسم الإنجازات الشهري -->
                                     <div class="sub-section-title"><i class='bx bxs-award ms-1'></i> ملفات الإنجازات الشهرية</div>
                                     <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
                                         {% set ns = namespace(found=false) %}
@@ -1738,7 +1760,6 @@ def monthly_achievements():
                                     </form>
                                     {% endif %}
 
-                                    <!-- 2. قسم شهادات الدورات التدريبية -->
                                     <div class="sub-section-title"><i class='bx bxs-certification ms-1'></i> شهادات الدورات التدريبية</div>
                                     <div class="list-group mb-3 fs-7" id="dept-certs-{{ d.id }}">
                                         {% set ns_c = namespace(found=false) %}
@@ -1944,64 +1965,69 @@ def admin_dashboard():
             </aside>
 
             <main class="main-content">
-                <div class="modern-card p-3 p-md-4 mb-4">
-                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">رفع ملف جديد للقاعدة</h5>
-                    <form action="/admin/dashboard" method="post" enctype="multipart/form-data">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7">عنوان العنصر / الملف</label>
-                            <input type="text" name="title" class="form-control fs-7" required placeholder="أدخل اسم أو عنوان الملف">
+                <div class="container-fluid p-0">
+                    <h4 class="fw-bold mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-cog ms-2' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة بالنظام</h4>
+                    
+                    <div class="modern-card p-4 mb-4">
+                        <h6 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">إضافة بيان / معاملة جديدة مباشرة</h6>
+                        <form action="/admin/dashboard" method="post" enctype="multipart/form-data">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <input type="text" name="title" class="form-control fs-7" placeholder="عنوان المعاملة..." required>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="file" name="file" class="form-control fs-7">
+                                </div>
+                                <div class="col-12">
+                                    <textarea name="content" class="form-control fs-7" rows="2" placeholder="المحتوى / الملاحظات..."></textarea>
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button type="submit" class="btn btn-fifa-gold px-4 py-2 fs-7">حفظ وإضافة</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="modern-card p-3">
+                        <h6 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">سجل المعاملات الكلي</h6>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle fs-7">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>العنوان</th>
+                                        <th>التاريخ</th>
+                                        <th>الملف</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>{{ item.id }}</td>
+                                        <td>{{ item.title }}</td>
+                                        <td>{{ item.created_at }}</td>
+                                        <td>
+                                            {% if item.file_data %}
+                                                <button type="button" class="btn btn-sm btn-info text-white py-0 px-2 fs-8" onclick="previewFile('/view_letter_file/{{ item.id }}', '{{ item.title }}')">معاينة</button>
+                                                <a href="/download_letter_file/{{ item.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تحميل</a>
+                                            {% else %}
+                                                <span class="text-muted fs-8">لا يوجد</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="/delete_letter/{{ item.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف؟');">حذف</a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7">اختر الملف المرفق</label>
-                            <input type="file" name="file" class="form-control fs-7" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold fs-7">الوصف أو التفاصيل (اختياري)</label>
-                            <textarea name="content" class="form-control fs-7" rows="3" placeholder="أدخل تفاصيل إضافية..."></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-fifa-gold fs-7 py-2 px-4">رفع الملف وحفظه</button>
-                    </form>
-                </div>
-                <div class="modern-card p-3">
-                    <h5 class="fw-bold fs-6 mb-3 px-2">قائمة العناصر والملفات المسجلة</h5>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 fs-7">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>العنوان</th>
-                                    <th>الملف المرفق</th>
-                                    <th>التاريخ</th>
-                                    <th class="text-center">الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in items %}
-                                <tr>
-                                    <td>{{ loop.index }}</td>
-                                    <td class="fw-bold text-dark">{{ item.title }}</td>
-                                    <td>
-                                        {% if item.file_data %}
-                                            <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ item.id }}', '{{ item.title }}')">معاينة</button>
-                                            <a href="/download_letter_file/{{ item.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-8">تنزيل</a>
-                                        {% else %}
-                                            <span class="text-muted fs-8">لا يوجد ملف</span>
-                                        {% endif %}
-                                    </td>
-                                    <td><span class="text-muted fs-8">{{ item.created_at }}</span></td>
-                                    <td class="text-center">
-                                        <a href="/delete_letter/{{ item.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('حذف الملف؟');">حذف</a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </main>
         </div>
 
-        <!-- نافذة معاينة الملفات الموحدة Modal -->
         <div class="modal fade" id="previewFileModal" tabindex="-1" aria-hidden="true">
           <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
@@ -2035,79 +2061,67 @@ def admin_dashboard():
     '''
     return render_template_string(html_code, items=items, is_admin=is_admin, current_dept=current_dept)
 
-@app.route('/admin/delete_department/<int:dept_id>')
-def delete_department(dept_id):
-    if 'dept_id' not in session:
-        return redirect(url_for('login'))
-        
-    if not is_admin_user(session.get('dept_name')):
-        return '''<script>alert("عذراً، هذه الصفحة مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
-
-    if session['dept_id'] == dept_id:
-        return '''<script>alert("لا يمكنك حذف حساب الإدارة الخاص بك حالياً أثناء تسجيل الدخول به."); window.location.href="/admin/permissions";</script>'''
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute('DELETE FROM departments WHERE id = %s', (dept_id,))
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        cursor.close()
-        conn.close()
-        return f'''<script>alert("حدث خطأ أثناء حذف الحساب: {str(e)}"); window.location.href="/admin/permissions";</script>'''
-
-    cursor.close()
-    conn.close()
-    return '''<script>alert("تم حذف المستخدم/الإدارة بنجاح!"); window.location.href="/admin/permissions";</script>'''
-
 @app.route('/admin/permissions', methods=['GET', 'POST'])
 def admin_permissions():
     if 'dept_id' not in session:
         return redirect(url_for('login'))
         
-    is_admin = is_admin_user(session.get('dept_name'))
-    if not is_admin:
-        return '''<script>alert("عذراً، هذه الصفحة مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
-
     conn = get_db_connection()
     cursor = conn.cursor()
-    
     cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
     current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، هذه الصفحة مخصصة فقط للمسؤولين."); window.location.href="/dashboard";</script>'''
 
     if request.method == 'POST':
-        dept_id = request.form.get('dept_id')
-        can_view_all = 1 if f'can_view_all_archive_{dept_id}' in request.form else 0
-        can_delete = 1 if f'can_delete_{dept_id}' in request.form else 0
-        can_view_all_ach = 1 if f'can_view_all_achievements_{dept_id}' in request.form else 0
-        can_add_user = 1 if f'can_add_user_{dept_id}' in request.form else 0
+        target_dept_id = request.form.get('dept_id')
+        new_password = request.form.get('new_password')
         
-        can_page_inbox = 1 if f'can_page_inbox_{dept_id}' in request.form else 0
-        can_page_outbox = 1 if f'can_page_outbox_{dept_id}' in request.form else 0
-        can_page_achievements = 1 if f'can_page_achievements_{dept_id}' in request.form else 0
-        can_page_archive = 1 if f'can_page_archive_{dept_id}' in request.form else 0
-        can_page_quick_upload = 1 if f'can_page_quick_upload_{dept_id}' in request.form else 0
-
-        cursor.execute('''
-            UPDATE departments 
-            SET can_view_all_archive = %s, can_delete = %s, can_view_all_achievements = %s, can_add_user = %s,
-                can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
-            WHERE id = %s
-        ''', (can_view_all, can_delete, can_view_all_ach, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
+        can_delete = 1 if request.form.get('can_delete') else 0
+        can_view_all_archive = 1 if request.form.get('can_view_all_archive') else 0
+        can_view_all_achievements = 1 if request.form.get('can_view_all_achievements') else 0
+        can_add_user = 1 if request.form.get('can_add_user') else 0
+        
+        can_page_inbox = 1 if request.form.get('can_page_inbox') else 0
+        can_page_outbox = 1 if request.form.get('can_page_outbox') else 0
+        can_page_achievements = 1 if request.form.get('can_page_achievements') else 0
+        can_page_archive = 1 if request.form.get('can_page_archive') else 0
+        can_page_quick_upload = 1 if request.form.get('can_page_quick_upload') else 0
+        
+        if new_password and new_password.strip() != '':
+            cursor.execute('''
+                UPDATE departments 
+                SET password = %s, can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
+                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
+                WHERE id = %s
+            ''', (new_password.strip(), can_delete, can_view_all_archive, can_view_all_achievements, can_add_user,
+                  can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, target_dept_id))
+        else:
+            cursor.execute('''
+                UPDATE departments 
+                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
+                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
+                WHERE id = %s
+            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user,
+                  can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, target_dept_id))
+            
         conn.commit()
         cursor.close()
         conn.close()
-        return '''<script>alert("تم تحديث الصلاحيات بنجاح!"); window.location.href="/admin/permissions";</script>'''
+        return '''<script>alert("تم تحديث الصلاحيات وكلمة المرور بنجاح!"); window.location.href="/admin/permissions";</script>'''
 
     cursor.execute('SELECT * FROM departments ORDER BY id ASC')
-    departments = cursor.fetchall()
+    depts = cursor.fetchall()
     cursor.close()
     conn.close()
 
     html_code = '''
     <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
+    <html dir="rtl" lang="ar">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2133,8 +2147,9 @@ def admin_permissions():
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; font-size: 0.95rem; }
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
-            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
+            .content-body { flex: 1; padding: 1.25rem; }
+            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
+            .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; font-weight: 700; border: none; }
         </style>
     </head>
     <body>
@@ -2185,55 +2200,102 @@ def admin_permissions():
                 <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
             </aside>
 
-            <main class="main-content">
-                <div class="modern-card p-3 p-md-4">
-                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">إدارة صلاحيات الإدارات والمنسقين</h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover align-middle fs-7">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>اسم الإدارة</th>
-                                    <th>اسم المستخدم</th>
-                                    <th>الوصول للصفحات</th>
-                                    <th>صلاحيات عامة</th>
-                                    <th>حفظ والتعديل</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for d in departments %}
-                                <tr>
-                                    <form action="/admin/permissions" method="post">
-                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                        <td>{{ d.id }}</td>
-                                        <td class="fw-bold">{{ d.name }}</td>
-                                        <td><code>{{ d.username }}</code></td>
-                                        <td>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}><label class="form-check-label">الوارد</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}><label class="form-check-label">الصادر</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_achievements_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}><label class="form-check-label">الإنجازات والشهادات</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_archive_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}><label class="form-check-label">الأرشيف</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}><label class="form-check-label">الرفع الفوري</label></div>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}><label class="form-check-label">مشاهدة كل الأرشيف</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}><label class="form-check-label">مشاهدة إنجازات باقي الإدارات</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_delete_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}><label class="form-check-label">صلاحية الحذف</label></div>
-                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_add_user_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}><label class="form-check-label">إضافة مستخدمين</label></div>
-                                        </td>
-                                        <td>
-                                            <button type="submit" class="btn btn-sm btn-success w-100 mb-1 fs-8">حفظ</button>
-                                            <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger w-100 fs-8" onclick="return confirm('تأكيد حذف الحساب نهائياً؟');">حذف</a>
-                                        </td>
-                                    </form>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+            <main class="content-body">
+                <div class="container-fluid p-0">
+                    <h4 class="fw-bold mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>التحكم بصلاحيات الإدارات وكلمات المرور</h4>
+                    
+                    <div class="row">
+                        {% for d in depts %}
+                        <div class="col-lg-6">
+                            <div class="modern-card p-3">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                                    <h6 class="fw-bold m-0" style="color: var(--fifa-green-primary);">{{ d.name }} ({{ d.username }})</h6>
+                                    {% if d.name in ['الرئيس التنفيذي', 'رئيس تنفيذي', 'CEO', 'مدير تقنية المعلومات', 'مدير تقنية معلومات', 'تقنية المعلومات', 'IT Manager', 'IT'] %}
+                                        <span class="badge bg-danger">مسؤول النظام</span>
+                                    {% endif %}
+                                </div>
+                                <form action="/admin/permissions" method="post">
+                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label fs-8 fw-bold text-muted">تغيير كلمة المرور (اتركه فارغاً للإبقاء):</label>
+                                        <input type="password" name="new_password" class="form-control fs-8" placeholder="كلمة مرور جديدة...">
+                                    </div>
+
+                                    <div class="fw-bold fs-8 text-dark mb-2 border-bottom pb-1">صلاحيات رؤية الصفحات في القائمة:</div>
+                                    <div class="row g-2 mb-3 fs-8">
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_page_inbox" id="p_inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
+                                                <label class="form-check-label" for="p_inbox_{{ d.id }}">الصندوق الوارد</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_page_outbox" id="p_outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
+                                                <label class="form-check-label" for="p_outbox_{{ d.id }}">الخطابات الصادرة</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_page_achievements" id="p_ach_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
+                                                <label class="form-check-label" for="p_ach_{{ d.id }}">إنجازات الشهر</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_page_archive" id="p_arc_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}>
+                                                <label class="form-check-label" for="p_arc_{{ d.id }}">أرشيف الإدارة</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_page_quick_upload" id="p_qup_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
+                                                <label class="form-check-label" for="p_qup_{{ d.id }}">رفع وتوثيق فوري</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="fw-bold fs-8 text-dark mb-2 border-bottom pb-1">الصلاحيات المتقدمة والإجرائية:</div>
+                                    <div class="row g-2 mb-3 fs-8">
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_delete" id="del_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}>
+                                                <label class="form-check-label text-danger fw-bold" for="del_{{ d.id }}">صلاحية الحذف النهائي</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_add_user" id="adduser_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}>
+                                                <label class="form-check-label fw-bold" for="adduser_{{ d.id }}">إضافة إدارات جديدة</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_view_all_archive" id="varc_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
+                                                <label class="form-check-label" for="varc_{{ d.id }}">مشاهدة أرشيف كل الإدارات</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="can_view_all_achievements" id="vach_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
+                                                <label class="form-check-label" for="vach_{{ d.id }}">مشاهدة إنجازات كل الإدارات</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-fifa-primary btn-sm px-3 fs-8">تحديث الصلاحيات</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </main>
         </div>
+
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             function toggleSidebar() {
@@ -2244,7 +2306,7 @@ def admin_permissions():
     </body>
     </html>
     '''
-    return render_template_string(html_code, departments=departments, is_admin=is_admin, current_dept=current_dept)
+    return render_template_string(html_code, depts=depts, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
     app.run(debug=True)
