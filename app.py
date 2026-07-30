@@ -621,130 +621,6 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- صفحة إدارة الصلاحيات (حل مشكلة 404 Not Found) ---
-@app.route('/admin/permissions', methods=['GET', 'POST'])
-def admin_permissions():
-    if 'dept_id' not in session:
-        return redirect(url_for('login'))
-        
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
-    current_dept = cursor.fetchone()
-    is_admin = is_admin_user(session.get('dept_name'))
-
-    if not is_admin:
-        cursor.close()
-        conn.close()
-        return '''<script>alert("عذراً، هذه الصفحة مخصصة لمدير النظام فقط."); window.location.href="/dashboard";</script>'''
-
-    if request.method == 'POST':
-        dept_id = request.form.get('dept_id')
-        can_delete = 1 if request.form.get('can_delete') else 0
-        can_view_all_archive = 1 if request.form.get('can_view_all_archive') else 0
-        can_view_all_achievements = 1 if request.form.get('can_view_all_achievements') else 0
-        can_add_user = 1 if request.form.get('can_add_user') else 0
-        can_page_inbox = 1 if request.form.get('can_page_inbox') else 0
-        can_page_outbox = 1 if request.form.get('can_page_outbox') else 0
-        can_page_achievements = 1 if request.form.get('can_page_achievements') else 0
-        can_page_archive = 1 if request.form.get('can_page_archive') else 0
-        can_page_quick_upload = 1 if request.form.get('can_page_quick_upload') else 0
-
-        cursor.execute('''
-            UPDATE departments 
-            SET can_delete = %s,
-                can_view_all_archive = %s,
-                can_view_all_achievements = %s,
-                can_add_user = %s,
-                can_page_inbox = %s,
-                can_page_outbox = %s,
-                can_page_achievements = %s,
-                can_page_archive = %s,
-                can_page_quick_upload = %s
-            WHERE id = %s
-        ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return '''<script>alert("تم تحديث الصلاحيات بنجاح!"); window.location.href="/admin/permissions";</script>'''
-
-    cursor.execute('SELECT * FROM departments ORDER BY id ASC')
-    all_depts = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    html_code = '''
-    <!DOCTYPE html>
-    <html dir="rtl" lang="ar">
-    <head>
-        <meta charset="UTF-8">
-        <title>إدارة الصلاحيات - نادي فيفا</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
-        <style>
-            body { font-family: 'Almarai', sans-serif; background-color: #eaf3ec; padding: 20px; }
-            .card { border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-            .header-bg { background-color: #123826; color: white; border-radius: 12px 12px 0 0; padding: 15px 20px; }
-        </style>
-    </head>
-    <body>
-        <div class="container-fluid">
-            <div class="card">
-                <div class="header-bg d-flex justify-content-between align-items-center">
-                    <h5 class="m-0 fw-bold"><i class='bx bxs-shield ms-2' style="color: #c5a059;"></i>إدارة صلاحيات الوصول للنظام</h5>
-                    <a href="/dashboard" class="btn btn-sm btn-outline-light">العودة للوحة التحكم</a>
-                </div>
-                <div class="card-body p-4">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover align-middle">
-                            <thead class="table-light">
-                                <tr class="text-center fs-7">
-                                    <th>اسم الإدارة</th>
-                                    <th>حذف</th>
-                                    <th>أرشيف شامل</th>
-                                    <th>إنجازات شاملة</th>
-                                    <th>إضافة مستخدم</th>
-                                    <th>وارد</th>
-                                    <th>صادر</th>
-                                    <th>إنجازات</th>
-                                    <th>أرشيف</th>
-                                    <th>رفع فوري</th>
-                                    <th>حفظ التغييرات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for d in all_depts %}
-                                <tr>
-                                    <form action="/admin/permissions" method="post">
-                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                        <td class="fw-bold fs-7">{{ d.name }}</td>
-                                        <td class="text-center"><input type="checkbox" name="can_delete" {{ 'checked' if d.can_delete == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_view_all_archive" {{ 'checked' if d.can_view_all_archive == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_view_all_achievements" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_add_user" {{ 'checked' if d.can_add_user == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_inbox" {{ 'checked' if d.can_page_inbox == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_outbox" {{ 'checked' if d.can_page_outbox == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_achievements" {{ 'checked' if d.can_page_achievements == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_archive" {{ 'checked' if d.can_page_archive == 1 else '' }}></td>
-                                        <td class="text-center"><input type="checkbox" name="can_page_quick_upload" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}></td>
-                                        <td class="text-center">
-                                            <button type="submit" class="btn btn-sm btn-success px-3 fs-8">حفظ</button>
-                                        </td>
-                                    </form>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-    '''
-    return render_template_string(html_code, all_depts=all_depts)
-
 DASHBOARD_HTML = '''
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -754,7 +630,7 @@ DASHBOARD_HTML = '''
     <title>{{ page_title }} - نظام أرشفة نادي فيفا</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Almarai:wght@300;400;700;800&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Almarai:wght@300;400;700;800&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;700&family=Changa:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
@@ -793,7 +669,36 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= ورقة خطاب رسمية نظيفة ومبسطة ================= */
+        /* ================= ورقة خطاب Word رسمية مع أدوات التحكّم بالخط ================= */
+        .paper-toolbar {
+            background: #ffffff;
+            border: 1px solid #c8d6cd;
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            padding: 8px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .paper-toolbar button, .paper-toolbar select, .paper-toolbar input[type="color"] {
+            border: 1px solid #d5e2d8;
+            background: #f8faf9;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #123826;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .paper-toolbar button:hover {
+            background: #123826;
+            color: #ffffff;
+        }
         .word-paper-container {
             display: flex;
             flex-direction: column;
@@ -804,13 +709,13 @@ DASHBOARD_HTML = '''
             background: #ffffff;
             width: 100%;
             max-width: 800px;
-            min-height: 950px;
+            min-height: 1050px;
             padding: 3rem 3.5rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             border: 1px solid #c8d6cd;
-            border-radius: 10px;
+            border-radius: 0 0 10px 10px;
             position: relative;
-            font-family: 'Amiri', serif;
+            font-family: 'Amiri', 'Traditional Arabic', serif;
             color: #000;
             line-height: 1.8;
             box-sizing: border-box;
@@ -841,6 +746,15 @@ DASHBOARD_HTML = '''
             max-height: 85px;
             width: auto;
             object-fit: contain;
+            margin-bottom: 2px;
+        }
+        .word-paper-center .brand-name-sub {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #000;
+            letter-spacing: 1px;
+            font-family: Arial, sans-serif;
+            text-transform: uppercase;
         }
         .word-paper-left {
             text-align: right;
@@ -851,6 +765,10 @@ DASHBOARD_HTML = '''
             display: flex;
             flex-direction: column;
             align-items: flex-end;
+        }
+        .word-paper-left-inner {
+            text-align: right;
+            min-width: 180px;
         }
         .word-paper-title {
             text-align: center;
@@ -865,14 +783,22 @@ DASHBOARD_HTML = '''
             font-weight: bold;
             margin-bottom: 1.5rem;
         }
+        /* منطقة نص الخطاب القابلة للكتابة والتكبير والتصغير */
         .word-paper-body {
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             text-align: justify;
             text-justify: inter-word;
             margin-bottom: 2rem;
             min-height: 250px;
             outline: none;
             padding: 8px;
+            border: 1px dashed transparent;
+            border-radius: 6px;
+            transition: border 0.2s;
+        }
+        .word-paper-body:hover, .word-paper-body:focus {
+            border-color: #c5a059;
+            background-color: #fafcfb;
         }
         .word-paper-footer-closing {
             text-align: center;
@@ -886,6 +812,24 @@ DASHBOARD_HTML = '''
             font-size: 1.15rem;
             font-weight: bold;
         }
+        .word-paper-contacts {
+            position: absolute;
+            bottom: 2.5rem;
+            left: 3.5rem;
+            font-size: 0.95rem;
+            color: #000;
+            direction: ltr;
+            text-align: left;
+            font-family: sans-serif;
+            font-weight: bold;
+        }
+        .word-paper-contacts div {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 6px;
+            margin-top: 2px;
+        }
         .paper-editable-input {
             border: none;
             border-bottom: 1px dashed #aaa;
@@ -898,6 +842,7 @@ DASHBOARD_HTML = '''
         .paper-editable-input:focus {
             outline: none;
             border-bottom: 1px solid var(--fifa-green-primary);
+            background: #fdfdfd;
         }
     </style>
 </head>
@@ -962,6 +907,7 @@ DASHBOARD_HTML = '''
             <a href="/quick_upload" class="sidebar-link {{ 'active' if current_page == 'quick_upload' else '' }}"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
             {% endif %}
             {% if is_admin %}
+            <a href="/admin/dashboard" class="sidebar-link {{ 'active' if current_page == 'admin_dashboard' else '' }}" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
             <a href="/admin/permissions" class="sidebar-link {{ 'active' if current_page == 'permissions' else '' }}"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
             {% endif %}
             {% if can_add_user == 1 or is_admin %}
@@ -983,22 +929,58 @@ DASHBOARD_HTML = '''
                 </div>
 
                 {% if current_page == 'outbox' or current_page == 'inbox' %}
-                <!-- ============ ورقة الخطاب الرسمية المبسطة ============ -->
+                <!-- ============ ورقة الخطاب الرسمية المباشرة مع شريط التنسيق ============ -->
                 <div class="word-paper-container">
+                    
+                    <!-- شريط أدوات التنسيق وتكبير/تصغير الخط للنص المحدد -->
+                    <div class="paper-toolbar w-100">
+                        <span class="fw-bold fs-8 text-muted me-1"><i class='bx bx-font'></i> تنسيق الخط المحدد:</span>
+                        <button type="button" onclick="changeFontSize(1)" title="تكبير النص المحدد"><i class='bx bx-font-plus fs-6'></i> A+</button>
+                        <button type="button" onclick="changeFontSize(-1)" title="تصغير النص المحدد"><i class='bx bx-font-minus fs-6'></i> A-</button>
+                        <span id="currentFontSizeLabel" class="badge bg-light text-dark border fs-8">18px</span>
+                        
+                        <div class="vr mx-1"></div>
+
+                        <select id="fontFamilySelect" onchange="changeFontFamily(this.value)" title="نوع الخط">
+                            <option value="'Amiri', serif">خط الأميري النسخي</option>
+                            <option value="'Almarai', sans-serif">خط المراعي العادي</option>
+                            <option value="'Aref Ruqaa', serif">خط الرقعة</option>
+                            <option value="'Cairo', sans-serif">خط كايرو</option>
+                            <option value="'Changa', sans-serif">خط شانغا</option>
+                        </select>
+
+                        <div class="vr mx-1"></div>
+
+                        <button type="button" onclick="formatDoc('bold')" title="تغميق (Bold)"><i class='bx bx-bold fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('underline')" title="تحته خط"><i class='bx bx-underline fs-6'></i></button>
+                        <input type="color" id="textColorPicker" onchange="formatDoc('foreColor', this.value)" title="لون الخط" style="width: 32px; height: 28px; padding: 2px;">
+
+                        <div class="vr mx-1"></div>
+
+                        <button type="button" onclick="formatDoc('justifyRight')" title="محاذاة لليمين"><i class='bx bx-align-right fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('justifyCenter')" title="محاذاة للوسط"><i class='bx bx-align-middle fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('justifyLeft')" title="محاذاة لليصار"><i class='bx bx-align-left fs-6'></i></button>
+                        <button type="button" onclick="formatDoc('justifyFull')" title="ضبط المحاذاة"><i class='bx bx-align-justify fs-6'></i></button>
+                    </div>
+
                     <div class="word-paper" id="officialPaper">
                         <div class="word-paper-header">
                             <div class="word-paper-right">
                                 المملكة العربية السعودية<br>
                                 وزارة الرياضة<br>
+                                فرع وزارة الرياضة بجازان<br>
                                 نادي فيفا الرياضي
                             </div>
                             <div class="word-paper-center">
-                                <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار النادي" onerror="this.style.display='none'">
+                                <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
+                                <div class="brand-name-sub">FAIFA</div>
                             </div>
                             <div class="word-paper-left">
-                                الرقم: <input type="text" id="paperLetterNumInput" class="paper-editable-input text-center" value="—" style="width: 100px;"><br>
-                                التاريخ: <input type="text" id="paperLetterDateInput" class="paper-editable-input text-center" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
-                                المشفوعات: <input type="text" id="paperLetterAttachInput" class="paper-editable-input text-center" value="-" style="width: 100px;">
+                                <div class="word-paper-left-inner">
+                                    الرقم : <input type="text" id="paperLetterNumInput" class="paper-editable-input" value="—" style="width: 100px;"><br>
+                                    التاريخ : <input type="text" id="paperLetterDateInput" class="paper-editable-input" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
+                                    المشفوعات : <input type="text" id="paperLetterAttachInput" class="paper-editable-input" value="-" style="width: 100px;">
+                                </div>
                             </div>
                         </div>
 
@@ -1009,14 +991,15 @@ DASHBOARD_HTML = '''
                             السلام عليكم ورحمة الله وبركاته
                         </div>
 
+                        <!-- نص الخطاب المباشر القابل للتعديل والتكبير والتصغير للكتابة المباشرة -->
                         <div class="word-paper-body" id="paperBodyText" contenteditable="true" oninput="syncTextareaWithPaper()">
-إشارة إلى موضوع أعلاه، نود الإفادة بأنه تم الاطلاع والتعامل مع كافة التفاصيل وفق الأنظمة واللوائح المعتمدة.
+إشارة إلى خطابكم الكريم بشأن الملاحظات والتوصيات المعتمدة، نود الإفادة بأنه تم الاطلاع على كافة التفاصيل والتعامل معها وفق الأنظمة واللوائح المعتمدة.
 
-شاكرين ومقدرين لكم حسن التعاون.
+شاكرين لكم حسن تعاونكم الدائم معنا.
                         </div>
 
                         <div class="word-paper-footer-closing">
-                            وتقبلوا فائق التحية والتقدير ،،
+                            شاكرين ومقدرين
                         </div>
 
                         <div class="word-paper-signature">
@@ -1025,10 +1008,15 @@ DASHBOARD_HTML = '''
                                 <input type="text" id="paperSignerNameInput" class="paper-editable-input" value="مسؤول الإدارة" style="width: 220px;">
                             </span>
                         </div>
+
+                        <div class="word-paper-contacts">
+                            <div>fifaclub1436@gmail.com <i class='bx bx-envelope ms-1'></i></div>
+                            <div>faifaclub1 <i class='bx bxl-twitter ms-1'></i></div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- ============ نموذج تحديد البيانات والإرسال ============ -->
+                <!-- ============ نموذج أسفل ورقة الخطاب لتحديد البيانات والإرسال ============ -->
                 <div class="modern-card p-4 mb-4">
                     <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-paper-plane ms-1'></i> تفاصيل إرسال المعاملة / الخطاب</h5>
                     <form id="letterSendForm" action="/send_letter" method="post" enctype="multipart/form-data">
@@ -1061,7 +1049,7 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="col-12">
                                 <label class="form-label fw-bold fs-7">صيغة ومحتوى الخطاب (مرتبط بالورقة أعلاه):</label>
-                                <textarea name="content" id="letterContentInput" class="form-control fs-7" rows="4" placeholder="اكتب صيغة الخطاب هنا..." oninput="syncPaperWithTextarea(this.value)"></textarea>
+                                <textarea name="content" id="letterContentInput" class="form-control fs-7" rows="5" placeholder="اكتب صيغة الخطاب هنا أو اكتبها مباشرة في الورقة أعلاه..." oninput="syncPaperWithTextarea(this.value)"></textarea>
                             </div>
                             <div class="col-12 text-end mt-3">
                                 <button type="submit" class="btn btn-fifa-primary px-5 py-2 fw-bold shadow">
@@ -1179,6 +1167,78 @@ DASHBOARD_HTML = '''
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // دالة تنفيذ تنسيقات النص العامة
+        function formatDoc(cmd, value = null) {
+            document.execCommand(cmd, false, value);
+            syncTextareaWithPaper();
+        }
+
+        // دالة تكبير وتصغير حجم الخط للنص المحدد فقط
+        function changeFontSize(step) {
+            var selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            var range = selection.getRangeAt(0);
+            var paperBody = document.getElementById('paperBodyText');
+
+            if (!paperBody.contains(range.commonAncestorContainer)) {
+                alert('يرجى تحديد النص المراد تكبيره أو تصغيره داخل ورقة الخطاب أولاً.');
+                return;
+            }
+
+            if (range.collapsed) {
+                // إذا لم يحدد نصاً معيناً، يطبق التغيير على حاوية الخطاب بالكامل
+                var currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
+                var newSize = currentSize + (step * 2);
+                if (newSize >= 10 && newSize <= 50) {
+                    paperBody.style.fontSize = newSize + 'px';
+                    document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
+                }
+            } else {
+                // تكبير/تصغير النص المحدد فقط عبر عنصر span
+                var span = document.createElement('span');
+                var selectedElement = range.commonAncestorContainer.parentElement;
+                
+                var currentSize = 18;
+                if (selectedElement && selectedElement !== paperBody && selectedElement.style.fontSize) {
+                    currentSize = parseInt(selectedElement.style.fontSize);
+                } else {
+                    currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
+                }
+
+                var newSize = currentSize + (step * 2);
+                if (newSize < 10) newSize = 10;
+                if (newSize > 50) newSize = 50;
+
+                span.style.fontSize = newSize + 'px';
+                span.appendChild(range.extractContents());
+                range.insertNode(span);
+                
+                document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
+            }
+            syncTextareaWithPaper();
+        }
+
+        // دالة تغيير نوع الخط للنص المحدد
+        function changeFontFamily(fontFamily) {
+            var selection = window.getSelection();
+            if (!selection.rangeCount) return;
+
+            var range = selection.getRangeAt(0);
+            var paperBody = document.getElementById('paperBodyText');
+
+            if (range.collapsed) {
+                paperBody.style.fontFamily = fontFamily;
+            } else {
+                var span = document.createElement('span');
+                span.style.fontFamily = fontFamily;
+                span.appendChild(range.extractContents());
+                range.insertNode(span);
+            }
+            syncTextareaWithPaper();
+        }
+
+        // المزامنة بين نص الورقة ونموذج الإرسال بالأسفل
         function syncTextareaWithPaper() {
             var paperBody = document.getElementById('paperBodyText');
             var textarea = document.getElementById('letterContentInput');
@@ -1621,6 +1681,7 @@ def quick_upload():
                 <a href="/quick_upload" class="sidebar-link active"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
                 {% endif %}
                 {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
                 {% if current_dept['can_add_user'] == 1 or is_admin %}
@@ -1784,6 +1845,7 @@ def monthly_achievements():
                 <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
                 {% endif %}
                 {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
                 {% if current_dept['can_add_user'] == 1 or is_admin %}
@@ -1812,6 +1874,7 @@ def monthly_achievements():
                                     </div>
                                 </div>
                                 <div class="p-3">
+                                    
                                     <div class="sub-section-title"><i class='bx bxs-award ms-1'></i> ملفات الإنجازات الشهرية</div>
                                     <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
                                         {% set ns = namespace(found=false) %}
@@ -1925,5 +1988,255 @@ def monthly_achievements():
     '''
     return render_template_string(html_code, depts=depts, achievements=achievements, certificates=certificates, is_admin=is_admin, can_delete=current_dept['can_delete'], current_dept=current_dept, dept_name=session.get('dept_name'), now=datetime.now())
 
+@app.route('/admin/dashboard', methods=['GET', 'POST'])
+def admin_dashboard():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، هذه الصفحة مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) as total FROM departments')
+    dept_count = cursor.fetchone()['total']
+    cursor.execute('SELECT COUNT(*) as total FROM letters')
+    letter_count = cursor.fetchone()['total']
+    cursor.execute('SELECT COUNT(*) as total FROM monthly_achievements')
+    ach_count = cursor.fetchone()['total']
+    cursor.execute('SELECT COUNT(*) as total FROM course_certificates')
+    cert_count = cursor.fetchone()['total']
+    cursor.close()
+    conn.close()
+
+    html_code = '''
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>لوحة التحكم الشاملة - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; }
+            .stat-card { background: #fff; border-radius: 12px; padding: 1.5rem; border: 1px solid #d5e2d8; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+        </style>
+    </head>
+    <body>
+        <div class="container py-5">
+            <h3 class="fw-bold mb-4" style="color: var(--fifa-green-primary);"><i class='bx bxs-cog ms-2' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</h3>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <i class='bx bxs-group fs-1 text-success mb-2'></i>
+                        <h5 class="fw-bold text-muted">إجمالي الإدارات</h5>
+                        <h2 class="fw-bold">{{ dept_count }}</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <i class='bx bxs-file-archive fs-1 text-primary mb-2'></i>
+                        <h5 class="fw-bold text-muted">إجمالي الخطابات والملفات</h5>
+                        <h2 class="fw-bold">{{ letter_count }}</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <i class='bx bxs-trophy fs-1 text-warning mb-2'></i>
+                        <h5 class="fw-bold text-muted">إنجازات الشهر</h5>
+                        <h2 class="fw-bold">{{ ach_count }}</h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stat-card text-center">
+                        <i class='bx bxs-certification fs-1 text-info mb-2'></i>
+                        <h5 class="fw-bold text-muted">شهادات الدورات</h5>
+                        <h2 class="fw-bold">{{ cert_count }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="/admin/permissions" class="btn btn-warning fw-bold px-4"><i class='bx bxs-shield ms-1'></i>إدارة الصلاحيات</a>
+                <a href="/dashboard" class="btn btn-secondary fw-bold px-4"><i class='bx bx-right-arrow-alt ms-1'></i>العودة للنظام</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code, dept_count=dept_count, letter_count=letter_count, ach_count=ach_count, cert_count=cert_count)
+
+# --- إدارة الصلاحيات ---
+@app.route('/admin/permissions', methods=['GET', 'POST'])
+def admin_permissions():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، صفحة إدارة الصلاحيات مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        dept_id = request.form.get('dept_id')
+        can_delete = 1 if request.form.get('can_delete') else 0
+        can_view_all_archive = 1 if request.form.get('can_view_all_archive') else 0
+        can_view_all_achievements = 1 if request.form.get('can_view_all_achievements') else 0
+        can_add_user = 1 if request.form.get('can_add_user') else 0
+        can_page_inbox = 1 if request.form.get('can_page_inbox') else 0
+        can_page_outbox = 1 if request.form.get('can_page_outbox') else 0
+        can_page_achievements = 1 if request.form.get('can_page_achievements') else 0
+        can_page_archive = 1 if request.form.get('can_page_archive') else 0
+        can_page_quick_upload = 1 if request.form.get('can_page_quick_upload') else 0
+        new_password = request.form.get('new_password')
+
+        if new_password and new_password.strip() != '':
+            cursor.execute('''
+                UPDATE departments 
+                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
+                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s,
+                    password = %s
+                WHERE id = %s
+            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, new_password.strip(), dept_id))
+        else:
+            cursor.execute('''
+                UPDATE departments 
+                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
+                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
+                WHERE id = %s
+            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return '''<script>alert("تم تحديث الصلاحيات وبيانات الإدارة بنجاح!"); window.location.href="/admin/permissions";</script>'''
+
+    cursor.execute('SELECT * FROM departments ORDER BY id ASC')
+    departments = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    html_code = '''
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>إدارة الصلاحيات - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; padding: 20px 10px; }
+            .perm-card { background: #ffffff; border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 1.5rem; overflow: hidden; }
+            .perm-header { background-color: var(--fifa-green-primary); color: #fff; padding: 1rem; font-weight: bold; font-size: 1.1rem; }
+            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h4 class="fw-bold m-0" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة إدارة صلاحيات الإدارات والشبكة</h4>
+                <a href="/dashboard" class="btn btn-outline-success fw-bold fs-7"><i class='bx bx-right-arrow-alt ms-1'></i>العودة للنظام</a>
+            </div>
+
+            <div class="row">
+                {% for d in departments %}
+                <div class="col-lg-6">
+                    <div class="perm-card">
+                        <div class="perm-header d-flex justify-content-between align-items-center">
+                            <span><i class='bx bxs-building ms-2'></i>{{ d.name }}</span>
+                            <span class="badge bg-warning text-dark fs-8">{{ d.username }}</span>
+                        </div>
+                        <div class="p-3">
+                            <form action="/admin/permissions" method="post">
+                                <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                
+                                <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-check-shield ms-1'></i>الصلاحيات العامة:</h6>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_delete" {{ 'checked' if d.can_delete == 1 else '' }}>
+                                            <label class="form-check-label">صلاحية الحذف</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_add_user" {{ 'checked' if d.can_add_user == 1 else '' }}>
+                                            <label class="form-check-label">إضافة إدارات جديدة</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_view_all_archive" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
+                                            <label class="form-check-label">رؤية كامل أرشيف للنادي</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_view_all_achievements" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
+                                            <label class="form-check-label">رؤية إنجازات كافة الإدارات</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-layout ms-1'></i>صلاحيات فتح الصفحات:</h6>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_page_inbox" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
+                                            <label class="form-check-label">الصندوق الوارد</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_page_outbox" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
+                                            <label class="form-check-label">الخطابات الصادرة</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_page_achievements" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
+                                            <label class="form-check-label">إنجازات الشهر</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_page_archive" {{ 'checked' if d.can_page_archive == 1 else '' }}>
+                                            <label class="form-check-label">أرشيف الإدارة</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_page_quick_upload" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
+                                            <label class="form-check-label">رفع وتوثيق فوري</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">تغيير كلمة المرور (اتركه فارغاً للإبقاء):</label>
+                                    <input type="password" name="new_password" class="form-control fs-8" placeholder="كلمة مرور جديدة...">
+                                </div>
+
+                                <button type="submit" class="btn btn-fifa-gold w-100 fs-7 shadow-sm py-2">تحديث صلاحيات {{ d.name }}</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code, departments=departments)
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
