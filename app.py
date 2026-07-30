@@ -814,29 +814,28 @@ DASHBOARD_HTML = '''
         }
         
         /* مربع الصورة القابل للتمدد والسحب داخل ورقة الخطاب */
-        #draggableResizableImageContainer {
-            position: absolute;
-            top: 200px;
-            left: 100px;
-            width: 180px;
-            height: 120px;
-            min-width: 60px;
-            min-height: 60px;
-            resize: both;
-            overflow: hidden;
-            border: 2px dashed #c5a059;
-            background: rgba(255, 255, 255, 0.8);
-            z-index: 100;
-            display: none;
-            cursor: move;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        #draggableResizableImageContainer img {
-            width: 100%;
-            height: 100%;
-            object-fit: fill;
-            pointer-events: none;
-        }
+.resizable-image-box {
+    width: 150px;
+    height: 60px;
+    resize: both;
+    overflow: hidden;
+    border: 1px dashed #c8d6cd;
+    border-radius: 6px;
+    display: inline-block;
+    background: #ffffff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    padding: 3px;
+    vertical-align: middle;
+    position: relative;
+}
+
+.resizable-image-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    display: block;
+    border-radius: 4px;
+}
         .remove-img-btn {
             position: absolute;
             top: 2px;
