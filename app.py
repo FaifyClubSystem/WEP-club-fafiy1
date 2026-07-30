@@ -582,7 +582,7 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= ورقة خطاب Word رسمية بدقة مطابقة للنادي ================= */
+        /* ================= ورقة خطاب Word رسمية تفاعلية للنادي ================= */
         .word-paper-container {
             display: flex;
             justify-content: center;
@@ -678,6 +678,20 @@ DASHBOARD_HTML = '''
             align-items: center;
             justify-content: flex-end;
             gap: 6px;
+        }
+        .paper-editable-input {
+            border: none;
+            border-bottom: 1px dashed #aaa;
+            background: transparent;
+            font-weight: bold;
+            font-family: inherit;
+            font-size: inherit;
+            padding: 0 4px;
+        }
+        .paper-editable-input:focus {
+            outline: none;
+            border-bottom: 1px solid var(--fifa-green-primary);
+            background: #fdfdfd;
         }
     </style>
 </head>
@@ -779,23 +793,23 @@ DASHBOARD_HTML = '''
                                 <div class="fw-bold text-success fs-5">FAIFA</div>
                             </div>
                             <div class="word-paper-left">
-                                الرقم: <span id="paperLetterNum">—</span><br>
-                                التاريخ : <span id="paperLetterDate">٢٠٢٦/٤/٢٦م</span><br>
-                                المشفوعات : <span id="paperLetterAttach">-</span>
+                                الرقم: <input type="text" id="paperLetterNumInput" class="paper-editable-input" value="—" style="width: 100px;"><br>
+                                التاريخ : <input type="text" id="paperLetterDateInput" class="paper-editable-input" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
+                                المشفوعات : <input type="text" id="paperLetterAttachInput" class="paper-editable-input" value="-" style="width: 100px;">
                             </div>
                         </div>
 
-                        <div class="word-paper-title" id="paperSalutation">
-                            سعادة الرئيس التنفيذي المحترم
+                        <div class="word-paper-title">
+                            سعادة <input type="text" id="paperSalutationInput" class="paper-editable-input text-center" value="الرئيس التنفيذي" style="width: 250px;"> المحترم
                         </div>
                         <div class="word-paper-greeting">
                             السلام عليكم ورحمة الله وبركاته
                         </div>
 
                         <div class="word-paper-body" id="paperBodyText">
-إشارة إلى خطابكم الكريم بتاريخ ٢٠٢٦/٤/٢٤م بشأن ملاحظات عدم الامتثال خلال شهر أبريل، نود الإفادة بأنه تم الاطلاع على ما ورد من ملاحظات، والعمل على معالجتها، حيث تم تعزيز الالتزام بإجراءات النسخ الاحتياطي للبيانات، ومراجعة وتحديث صلاحيات المستخدمين بما يتناسب مع طبيعة مهامهم ، والتأكيد على توثيق جميع الأعطال والحوادث التقنية في السجلات الرسمية المعتمدة.
+إشارة إلى خطابكم الكريم بشأن الملاحظات والتوصيات المعتمدة، نود الإفادة بأنه تم الاطلاع على كافة التفاصيل والتعامل معها وفق الأنظمة واللوائح المعتمدة.
 
-كما تم اتخاذ الإجراءات التصحيحية اللازمة لضمان رفع مستوى الالتزام ومنع تكرار هذه الملاحظات مستقبلاً، وسيتم تزويد إدارة الحوكمة والامتثال والمخاطر بتقرير يوضح ما تم اتخاذه خلال المدة المحددة.
+شاكرين لكم حسن تعاونكم الدائم معنا.
                         </div>
 
                         <div class="word-paper-footer-closing">
@@ -803,8 +817,10 @@ DASHBOARD_HTML = '''
                         </div>
 
                         <div class="word-paper-signature">
-                            مدير تقنية المعلومات<br>
-                            <span style="font-size: 1.25rem; font-weight: bold;">عيسى حسين الفيفي</span>
+                            <input type="text" id="paperSignerTitleInput" class="paper-editable-input" value="{{ dept_name }}" style="width: 220px;"><br>
+                            <span style="font-size: 1.25rem; font-weight: bold;">
+                                <input type="text" id="paperSignerNameInput" class="paper-editable-input" value="مسؤول الإدارة" style="width: 220px;">
+                            </span>
                         </div>
 
                         <div class="word-paper-contacts">
@@ -846,8 +862,8 @@ DASHBOARD_HTML = '''
                                 <input type="file" name="file" class="form-control fs-7">
                             </div>
                             <div class="col-12">
-                                <label class="form-label fw-bold fs-7">وصف ومحتوى الخطاب (تعديل مباشر للورقة):</label>
-                                <textarea name="content" id="letterContentInput" class="form-control fs-7" rows="5" placeholder="اكتب نص الخطاب هنا..." oninput="syncContent(this.value)"></textarea>
+                                <label class="form-label fw-bold fs-7">صيغة ومحتوى الخطاب (تعديل مباشر للورقة أعلاه):</label>
+                                <textarea name="content" id="letterContentInput" class="form-control fs-7" rows="5" placeholder="اكتب صيغة الخطاب هنا..." oninput="syncContent(this.value)"></textarea>
                             </div>
                             <div class="col-12 text-end mt-3">
                                 <button type="submit" class="btn btn-fifa-primary px-5 py-2 fw-bold shadow">
@@ -893,7 +909,7 @@ DASHBOARD_HTML = '''
                                                 <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
                                                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
                                             </div>
-                                            {% if letter.content %}<p class="text-secondary small mb-2">{{ letter.content }}</p>{% endif %}
+                                            {% if letter.content %}<p class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content }}</p>{% endif %}
 
                                             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                                                 <span class="fs-7 text-muted">
@@ -914,6 +930,12 @@ DASHBOARD_HTML = '''
                                     </div>
                                     
                                     <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0">
+                                        {% if current_page == 'inbox' or current_page == 'outbox' %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="loadLetterToEditor('{{ letter.id }}', '{{ letter.title }}', '{{ letter.sender_id }}', '{{ letter.priority }}')">
+                                                <i class='bx bx-edit ms-1'></i> تعديل / إرسال
+                                            </button>
+                                        {% endif %}
+
                                         {% if letter.file_data %}
                                             <a href="/view_letter_file/{{ letter.id }}" target="_blank" class="btn btn-sm btn-success py-1 px-2 fs-7 shadow-sm">فتح بالموقع</a>
                                             <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
@@ -958,18 +980,34 @@ DASHBOARD_HTML = '''
             var selectedOption = selectElem.options[selectElem.selectedIndex];
             var deptName = selectedOption.getAttribute('data-name');
             if (deptName) {
-                document.getElementById('paperSalutation').innerText = "سعادة " + deptName + " المحترم";
+                document.getElementById('paperSalutationInput').value = deptName;
             }
         }
 
         function syncContent(text) {
-            if (text.trim() !== '') {
-                document.getElementById('paperBodyText').innerText = text;
+            var paperBody = document.getElementById('paperBodyText');
+            if (paperBody) {
+                paperBody.innerText = text.trim() !== '' ? text : "أدخل نص الخطاب...";
             }
         }
 
         function syncTitle(text) {
-            // تحديث اختياري
+            // مزامنة اختارية
+        }
+
+        function loadLetterToEditor(id, title, senderId, priority) {
+            var textElem = document.getElementById('letter-text-' + id);
+            var content = textElem ? textElem.innerText : '';
+            
+            document.getElementById('letterTitleInput').value = title;
+            document.getElementById('letterContentInput').value = content;
+            document.getElementById('letterPriority').value = priority;
+            syncContent(content);
+
+            var paperBody = document.getElementById('officialPaper');
+            if (paperBody) {
+                paperBody.scrollIntoView({ behavior: 'smooth' });
+            }
         }
 
         function downloadLetterPDF() {
@@ -1001,6 +1039,14 @@ DASHBOARD_HTML = '''
                 }
             }
         }
+
+        // إعداد النص المبدئي عند تحميل الصفحة
+        window.addEventListener('DOMContentLoaded', function() {
+            var inputContent = document.getElementById('letterContentInput');
+            if (inputContent && inputContent.value.trim() !== '') {
+                syncContent(inputContent.value);
+            }
+        });
     </script>
 </body>
 </html>
@@ -1882,8 +1928,10 @@ def admin_permissions():
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
-            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
-            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
+            .dept-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
+            .dept-card-header { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 11px 11px 0 0; padding: 0.8rem 1.2rem; }
+            .form-check-input:checked { background-color: var(--fifa-green-primary); border-color: var(--fifa-green-primary); }
+            .btn-save-perm { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; border-radius: 6px; }
         </style>
     </head>
     <body>
@@ -1935,60 +1983,91 @@ def admin_permissions():
             </aside>
 
             <main class="main-content">
-                <div class="modern-card p-3 p-md-4">
-                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">إدارة صلاحيات الوصول والأقسام</h5>
-                    
-                    {% for dept in departments %}
-                    <div class="border rounded p-3 mb-3 bg-white shadow-sm">
-                        <form action="/admin/permissions" method="post">
-                            <input type="hidden" name="dept_id" value="{{ dept.id }}">
-                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 border-bottom pb-2">
-                                <h6 class="fw-bold m-0" style="color: var(--fifa-green-primary);">{{ dept.name }} <span class="text-muted fs-8">({{ dept.username }})</span></h6>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <button type="submit" class="btn btn-sm btn-fifa-gold px-3">حفظ الصلاحيات</button>
-                                    <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة هذا نهائياً؟');">حذف الحساب</a>
-                                </div>
+                <div class="mb-4">
+                    <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>إدارة الصلاحيات والوصول للمستخدمين</h4>
+                </div>
+
+                <div class="row">
+                    {% for d in departments %}
+                    <div class="col-lg-6">
+                        <div class="dept-card">
+                            <div class="dept-card-header d-flex justify-content-between align-items-center">
+                                <span class="fw-bold fs-6"><i class='bx bxs-user-detail ms-2' style="color: var(--fifa-gold);"></i>{{ d.name }}</span>
+                                <span class="badge bg-light text-dark fs-8">{{ d.username }}</span>
                             </div>
-                            
-                            <div class="row g-2 fs-7">
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ dept.id }}" id="inbox_{{ dept.id }}" {{ 'checked' if dept.can_page_inbox == 1 else '' }}>
-                                        <label class="form-check-label" for="inbox_{{ dept.id }}">عرض الصندوق الوارد</label>
+                            <div class="p-3">
+                                <form action="/admin/permissions" method="post">
+                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                    
+                                    <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-layout ms-1'></i>صلاحيات أزرار القائمة الجانبية:</h6>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ d.id }}" id="inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="inbox_{{ d.id }}">الصندوق الوارد</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ d.id }}" id="outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="outbox_{{ d.id }}">الخطابات الصادرة</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ d.id }}" id="ach_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="ach_{{ d.id }}">إنجازات الشهر</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_archive_{{ d.id }}" id="arch_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="arch_{{ d.id }}">أرشيف الإدارة</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ d.id }}" id="quick_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="quick_{{ d.id }}">رفع وتوثيق فوري</label>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ dept.id }}" id="outbox_{{ dept.id }}" {{ 'checked' if dept.can_page_outbox == 1 else '' }}>
-                                        <label class="form-check-label" for="outbox_{{ dept.id }}">عرض الخطابات الصادرة</label>
+
+                                    <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-lock-alt ms-1'></i>الصلاحيات والإجراءات العامة:</h6>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-12">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ d.id }}" id="all_arch_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="all_arch_{{ d.id }}">مشاهدة أرشيف كافة الإدارات</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ d.id }}" id="all_ach_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="all_ach_{{ d.id }}">مشاهدة إنجازات كافة الإدارات</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_delete_{{ d.id }}" id="del_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-danger" for="del_{{ d.id }}">حذف الملفات والخطابات</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_add_user_{{ d.id }}" id="add_u_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="add_u_{{ d.id }}">إضافة إدارات جديدة</label>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ dept.id }}" id="ach_{{ dept.id }}" {{ 'checked' if dept.can_page_achievements == 1 else '' }}>
-                                        <label class="form-check-label" for="ach_{{ dept.id }}">عرض إنجازات الشهر</label>
+
+                                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                                        <button type="submit" class="btn btn-save-perm btn-sm px-4">حفظ الصلاحيات</button>
+                                        <a href="/admin/delete_department/{{ d.id }}" class="btn btn-outline-danger btn-sm fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة هذا نهائياً؟');">حذف الحساب</a>
                                     </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="can_page_archive_{{ dept.id }}" id="archive_{{ dept.id }}" {{ 'checked' if dept.can_page_archive == 1 else '' }}>
-                                        <label class="form-check-label" for="archive_{{ dept.id }}">عرض أرشيف الإدارة</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ dept.id }}" id="quick_{{ dept.id }}" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }}>
-                                        <label class="form-check-label" for="quick_{{ dept.id }}">عرض الرفع الفوري</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" id="del_{{ dept.id }}" {{ 'checked' if dept.can_delete == 1 else '' }}>
-                                        <label class="form-check-label text-danger fw-bold" for="del_{{ dept.id }}">صلاحية الحذف</label>
-                                    </div>
-                                </div>
+                                </form>
                             </div>
-                        </form>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
