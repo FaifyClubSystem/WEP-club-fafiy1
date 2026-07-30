@@ -87,6 +87,56 @@ def init_db():
         )
     ''')
     
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='departments'")
+    dept_columns = [col['column_name'] for col in cursor.fetchall()]
+    if 'can_view_all_archive' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_view_all_archive INTEGER DEFAULT 1')
+    if 'can_view_all_achievements' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_view_all_achievements INTEGER DEFAULT 0')
+    if 'can_add_user' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_add_user INTEGER DEFAULT 1')
+        
+    if 'can_page_inbox' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_inbox INTEGER DEFAULT 1')
+    if 'can_page_outbox' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_outbox INTEGER DEFAULT 1')
+    if 'can_page_achievements' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_achievements INTEGER DEFAULT 1')
+    if 'can_page_archive' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_archive INTEGER DEFAULT 1')
+    if 'can_page_quick_upload' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_quick_upload INTEGER DEFAULT 1')
+
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='letters'")
+    letter_cols = [col['column_name'] for col in cursor.fetchall()]
+    if 'file_path' not in letter_cols:
+        cursor.execute('ALTER TABLE letters ADD COLUMN file_path TEXT')
+    if 'archive_dept_id' not in letter_cols:
+        cursor.execute('ALTER TABLE letters ADD COLUMN archive_dept_id INTEGER')
+    if 'file_data' not in letter_cols:
+        cursor.execute('ALTER TABLE letters ADD COLUMN file_data BYTEA')
+    if 'file_mimetype' not in letter_cols:
+        cursor.execute('ALTER TABLE letters ADD COLUMN file_mimetype TEXT')
+    if 'letter_number' not in letter_cols:
+        cursor.execute('ALTER TABLE letters ADD COLUMN letter_number TEXT')
+
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='monthly_achievements'")
+    ach_cols = [col['column_name'] for col in cursor.fetchall()]
+    if 'title' not in ach_cols:
+        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN title TEXT')
+    if 'file_name' not in ach_cols:
+        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_name TEXT')
+    if 'file_path' not in ach_cols:
+        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_path TEXT')
+    if 'month_year' not in ach_cols:
+        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN month_year TEXT')
+    if 'uploaded_at' not in ach_cols:
+        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN uploaded_at TEXT')
+    if 'file_data' not in ach_cols:
+        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_data BYTEA')
+    if 'file_mimetype' not in ach_cols:
+        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_mimetype TEXT')
+    
     conn.commit()
     cursor.close()
     conn.close()
@@ -169,6 +219,47 @@ def delete_letter(letter_id):
     conn.close()
     return '''<script>alert("تم الحذف بنجاح"); window.history.back();</script>'''
 
+@app.route('/delete_selected_letters', methods=['POST'])
+def delete_selected_letters():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
+        
+    letter_ids_raw = request.form.getlist('letter_ids')
+    action_type = request.form.get('action_type')
+    dept_id = session['dept_id']
+
+    if action_type == 'all':
+        if current_dept['can_view_all_archive'] == 1 or is_admin:
+            cursor.execute('''
+                DELETE FROM letters 
+                WHERE (sender_id = receiver_id AND sender_id IS NOT NULL) OR (sender_id IS NULL AND receiver_id IS NULL)
+            ''')
+        else:
+            cursor.execute('''
+                DELETE FROM letters 
+                WHERE (sender_id = receiver_id AND sender_id = %s) OR (sender_id IS NULL AND receiver_id IS NULL AND archive_dept_id = %s)
+            ''', (dept_id, dept_id))
+    elif letter_ids_raw:
+        letter_ids = [int(lid) for lid in letter_ids_raw if lid.isdigit()]
+        if letter_ids:
+            cursor.execute('DELETE FROM letters WHERE id = ANY(%s)', (letter_ids,))
+        
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تمت عملية الحذف بنجاح!"); window.location.href="/archive";</script>'''
+
 @app.route('/upload_achievement', methods=['POST'])
 def upload_achievement():
     if 'dept_id' not in session:
@@ -199,6 +290,48 @@ def upload_achievement():
         conn.close()
         
     return redirect(url_for('monthly_achievements'))
+
+@app.route('/admin/clear_monthly_files/<int:dept_id>')
+def clear_monthly_files(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if str(session['dept_id']) != str(dept_id) and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("غير مسموح لك بتفريغ ملفات هذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
+    
+    cursor.execute('SELECT * FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    achievements = cursor.fetchall()
+    
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+    for ach in achievements:
+        cursor.execute('''
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, archive_dept_id)
+            VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s, %s)
+        ''', (
+            f"أرشيف إنجازات شهرية: {ach['title']}",
+            f"تمت الأرشفة التلقائية من إنجازات الشهر بتاريخ: {current_time}",
+            "عادي",
+            ach['file_name'],
+            ach.get('file_data'),
+            ach.get('file_mimetype'),
+            current_time,
+            dept_id
+        ))
+    
+    cursor.execute('DELETE FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    return '''<script>alert("تم تفريغ وأرشفة ملفات الإنجازات الشهرية للإدارة بنجاح إلى أرشيفها الخاص!"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -293,6 +426,102 @@ def login():
             
             <div class="login-footer">
                 جميع الحقوق محفوظة &copy; نادي فيفا الرياضي 2026
+            </div>
+        </div>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_add_user'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك الصلاحية لإضافة إدارة أو مستخدم جديد."); window.location.href="/dashboard";</script>'''
+
+    if request.method == 'POST':
+        dept_name = request.form['dept_name'].strip()
+        username = request.form['username'].strip()
+        password = request.form['password']
+        
+        try:
+            cursor.execute('''
+                INSERT INTO departments (name, username, password, can_access_archive, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload) 
+                VALUES (%s, %s, %s, 1, 1, 0, 1, 1, 1, 1, 1, 1)
+            ''', (dept_name, username, password))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return '''<script>alert("تم إنشاء حساب الإدارة بنجاح!"); window.location.href="/admin/permissions";</script>'''
+        except IntegrityError as e:
+            conn.rollback()
+            cursor.execute('SELECT id FROM departments WHERE username = %s', (username,))
+            user_exists = cursor.fetchone()
+            cursor.execute('SELECT id FROM departments WHERE name = %s', (dept_name,))
+            name_exists = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if user_exists:
+                return '''<script>alert("خطأ: اسم المستخدم (username) مستخدم مكرر بالفعل، يرجى اختيار اسم مستخدم آخر."); window.location.href="/register";</script>'''
+            elif name_exists:
+                return '''<script>alert("خطأ: اسم الإدارة أو القسم (name) مسجل مكرر بالفعل، يرجى تغييره."); window.location.href="/register";</script>'''
+            else:
+                return '''<script>alert("حدث خطأ في قاعدة البيانات أثناء التسجيل (قيمة مكررة)!"); window.location.href="/register";</script>'''
+            
+    cursor.close()
+    conn.close()
+    
+    html_code = '''
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>إنشاء حساب إدارة - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; padding: 15px; }
+            .register-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 16px; border: 1px solid #d5e2d8; box-shadow: 0 10px 30px rgba(18, 56, 38, 0.08); width: 100%; max-width: 450px; padding: 1.5rem; position: relative; overflow: hidden; }
+            .register-card::before { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 5px; background: linear-gradient(90deg, var(--fifa-gold), var(--fifa-green)); }
+            .form-control { border-radius: 8px; padding: 0.75rem 1rem; border-color: #dbe3df; }
+            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; border-radius: 8px; padding: 0.75rem; font-weight: 700; border: none; width: 100%; }
+        </style>
+    </head>
+    <body>
+        <div class="register-card text-center">
+            <h5 class="fw-bold mb-1" style="color: var(--fifa-green);">تسجيل إدارة/قسم جديد</h5>
+            <p class="text-muted fs-7 mb-4">إنشاء حساب إداري متصل بنظام أرشفة النادي</p>
+            <form action="/register" method="post">
+                <div class="mb-3 text-start">
+                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">اسم الإدارة / القسم</label>
+                    <input type="text" name="dept_name" class="form-control" placeholder="مثال: إدارة الألعاب الرياضية" required>
+                </div>
+                <div class="mb-3 text-start">
+                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">اسم المستخدم (للدخول)</label>
+                    <input type="text" name="username" class="form-control" placeholder="مثال: sports_dept" required>
+                </div>
+                <div class="mb-4 text-start">
+                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">كلمة المرور</label>
+                    <input type="password" name="password" class="form-control" placeholder="أدخل كلمة مرور قوية" required>
+                </div>
+                <button type="submit" class="btn btn-fifa-gold mb-3">تسجيل الحساب</button>
+            </form>
+            <div class="border-top pt-3 mt-2">
+                <a href="/dashboard" class="text-muted text-decoration-none fs-7"><i class='bx bx-right-arrow-alt ms-1'></i>العودة لوحة التحكم</a>
             </div>
         </div>
     </body>
@@ -601,14 +830,14 @@ DASHBOARD_HTML = '''
                     </div>
                 </div>
 
-                <!-- ============ نموذج تفاصيل الخطاب والإرسال ============ -->
+                <!-- ============ نموذج أسفل ورقة الخطاب لتحديد البيانات والإرسال ============ -->
                 <div class="modern-card p-4 mb-4">
                     <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-paper-plane ms-1'></i> تفاصيل إرسال المعاملة / الخطاب</h5>
                     <form id="letterSendForm" action="/send_letter" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="letter_id" id="editLetterId" value="">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold fs-7">إلى الإدارة المستلمة:</label>
+                                <label class="form-label fw-bold fs-7">الإدارة المستلمة:</label>
                                 <select name="receiver_id" id="receiverSelect" class="form-select fs-7" required onchange="updateReceiverTitle(this)">
                                     <option value="" selected disabled>اختر الإدارة المستلمة...</option>
                                     {% for d in depts %}
@@ -618,7 +847,7 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold fs-7">عنوان الخطاب (الموضوع):</label>
-                                <input type="text" name="title" id="letterTitleInput" class="form-control fs-7" required placeholder="أدخل عنوان الخطاب...">
+                                <input type="text" name="title" id="letterTitleInput" class="form-control fs-7" required placeholder="أدخل عنوان الخطاب..." oninput="syncTitle(this.value)">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label fw-bold fs-7">الأهمية:</label>
@@ -648,19 +877,39 @@ DASHBOARD_HTML = '''
 
                 <div class="modern-card p-2 p-sm-3">
                     {% if letters %}
+                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                        <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
+                            <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
+                                <div class="form-check m-0">
+                                    <input class="form-check-input" type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
+                                    <label class="form-check-label fw-bold fs-7 text-dark" for="selectAllCheckbox">تحديد الكل</label>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-danger fs-7" onclick="submitBulkDelete('selected')">
+                                        <i class='bx bx-trash ms-1'></i>حذف الملفات المحددة
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-danger fs-7 fw-bold" onclick="submitBulkDelete('all')">
+                                        <i class='bx bx-trash-alt ms-1'></i>حذف كل الأرشيف
+                                    </button>
+                                </div>
+                            </div>
+                        {% endif %}
+
                         <div class="letters-list">
                             {% for letter in letters %}
                                 <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
                                     <div class="d-flex align-items-start gap-2 w-100">
+                                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                                            <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
+                                        {% endif %}
                                         <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
                                         <div class="w-100">
                                             <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
                                                 <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
                                                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
                                             </div>
-                                            {% if letter.content %}
-                                                <p class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content }}</p>
-                                            {% endif %}
+                                            {% if letter.content %}<p class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content }}</p>{% endif %}
 
                                             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                                                 <span class="fs-7 text-muted">
@@ -682,8 +931,7 @@ DASHBOARD_HTML = '''
                                     
                                     <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0">
                                         {% if current_page == 'inbox' or current_page == 'outbox' %}
-                                            <!-- زر التعديل والإرسال التفاعلي -->
-                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7 text-nowrap" onclick="loadLetterToEditor('{{ letter.id }}', '{{ letter.title|e }}', '{{ letter.sender_id if current_page == 'inbox' else letter.receiver_id }}', '{{ letter.priority }}')">
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="loadLetterToEditor('{{ letter.id }}', '{{ letter.title }}', '{{ letter.sender_id }}', '{{ letter.priority }}')">
                                                 <i class='bx bx-edit ms-1'></i> تعديل / إرسال
                                             </button>
                                         {% endif %}
@@ -701,6 +949,11 @@ DASHBOARD_HTML = '''
                                 </div>
                             {% endfor %}
                         </div>
+
+                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                        </form>
+                        {% endif %}
+
                     {% else %}
                         <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد سجلات مسجلة حالياً.</p></div>
                     {% endif %}
@@ -714,6 +967,13 @@ DASHBOARD_HTML = '''
         function toggleSidebar() {
             document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
             document.getElementById('mobileOverlay').classList.toggle('active');
+        }
+
+        function toggleSelectAll(source) {
+            checkboxes = document.querySelectorAll('.letter-checkbox');
+            for(var i=0, n=checkboxes.length; i<n; i++) {
+                checkboxes[i].checked = source.checked;
+            }
         }
 
         function updateReceiverTitle(selectElem) {
@@ -731,22 +991,17 @@ DASHBOARD_HTML = '''
             }
         }
 
-        // دالة لتحميل مادة الخطاب وتعبئته مباشرة بالورقة والنموذج
-        function loadLetterToEditor(id, title, targetDeptId, priority) {
+        function syncTitle(text) {
+            // مزامنة اختارية
+        }
+
+        function loadLetterToEditor(id, title, senderId, priority) {
             var textElem = document.getElementById('letter-text-' + id);
             var content = textElem ? textElem.innerText : '';
             
             document.getElementById('letterTitleInput').value = title;
             document.getElementById('letterContentInput').value = content;
             document.getElementById('letterPriority').value = priority;
-            
-            // تحديد الإدارة المستهدفة في القائمة إن وُجدت
-            var receiverSelect = document.getElementById('receiverSelect');
-            if (receiverSelect && targetDeptId) {
-                receiverSelect.value = targetDeptId;
-                updateReceiverTitle(receiverSelect);
-            }
-
             syncContent(content);
 
             var paperBody = document.getElementById('officialPaper');
@@ -767,6 +1022,25 @@ DASHBOARD_HTML = '''
             html2pdf().set(opt).from(element).save();
         }
 
+        function submitBulkDelete(type) {
+            document.getElementById('actionTypeInput').value = type;
+            if (type === 'all') {
+                if (confirm('تحذير شديد: هل أنت متأكد من حذف كافة الملفات الموجودة في الأرشيف نهائياً؟')) {
+                    document.getElementById('bulkDeleteForm').submit();
+                }
+            } else {
+                var checkedCount = document.querySelectorAll('.letter-checkbox:checked').length;
+                if (checkedCount === 0) {
+                    alert('الرجاء تحديد ملف واحد على الأقل للحذف.');
+                    return;
+                }
+                if (confirm('هل أنت متأكد من حذف الملفات المحددة؟')) {
+                    document.getElementById('bulkDeleteForm').submit();
+                }
+            }
+        }
+
+        // إعداد النص المبدئي عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', function() {
             var inputContent = document.getElementById('letterContentInput');
             if (inputContent && inputContent.value.trim() !== '') {
@@ -882,28 +1156,49 @@ def send_letter():
         return redirect(url_for('login'))
     
     sender_id = session['dept_id']
+    letter_id = request.form.get('letter_id')
     receiver_id = request.form.get('receiver_id')
     title = request.form.get('title')
     priority = request.form.get('priority', 'عادي')
     content = request.form.get('content', '')
+    
     file = request.files.get('file')
     
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    file_name = ''
-    file_data = None
-    file_mimetype = None
-    if file and file.filename != '':
-        original_name = secure_filename(file.filename)
-        file_name = f"{int(datetime.now().timestamp())}_{original_name}"
-        file_data = psycopg2.Binary(file.read())
-        file_mimetype = file.content_type or 'application/octet-stream'
-        
-    cursor.execute('''
-        INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+    
+    if letter_id and letter_id.isdigit():
+        if file and file.filename != '':
+            original_name = secure_filename(file.filename)
+            file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+            file_data = psycopg2.Binary(file.read())
+            file_mimetype = file.content_type or 'application/octet-stream'
+            
+            cursor.execute('''
+                UPDATE letters 
+                SET title = %s, content = %s, priority = %s, receiver_id = %s, file_name = %s, file_data = %s, file_mimetype = %s, created_at = %s
+                WHERE id = %s AND sender_id = %s
+            ''', (title, content, priority, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
+        else:
+            cursor.execute('''
+                UPDATE letters 
+                SET title = %s, content = %s, priority = %s, receiver_id = %s, created_at = %s
+                WHERE id = %s AND sender_id = %s
+            ''', (title, content, priority, receiver_id, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
+    else:
+        file_name = ''
+        file_data = None
+        file_mimetype = None
+        if file and file.filename != '':
+            original_name = secure_filename(file.filename)
+            file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+            file_data = psycopg2.Binary(file.read())
+            file_mimetype = file.content_type or 'application/octet-stream'
+            
+        cursor.execute('''
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
         
     conn.commit()
     cursor.close()
@@ -972,6 +1267,823 @@ def archive():
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   now=datetime.now())
+
+@app.route('/quick_upload', methods=['GET', 'POST'])
+def quick_upload():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_page_quick_upload'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة الرفع الفوري."); window.location.href="/dashboard";</script>'''
+
+    if request.method == 'POST':
+        dept_id = session['dept_id']
+        document_title = request.form.get('document_title')
+        archive_category = request.form.get('archive_category')
+        notes = request.form.get('notes', '')
+        
+        files = request.files.getlist('archive_files')
+        uploaded_count = 0
+
+        for file in files:
+            if file and file.filename != '':
+                original_name = secure_filename(file.filename)
+                file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+                file_bytes = file.read()
+                content_type = file.content_type or 'application/octet-stream'
+                
+                file_title = f"{document_title} - {original_name}" if len(files) > 1 else document_title
+                
+                cursor.execute('''
+                    INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, archive_dept_id)
+                    VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s, %s)
+                ''', (
+                    file_title, 
+                    f"التصنيف: {archive_category} | ملاحظات: {notes}", 
+                    "عادي", 
+                    file_name, 
+                    psycopg2.Binary(file_bytes),
+                    content_type,
+                    datetime.now().strftime('%Y-%m-%d %H:%M'),
+                    dept_id
+                ))
+                uploaded_count += 1
+                
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        if uploaded_count > 0:
+            return f'''<script>alert("تم رفع وأرشفة {uploaded_count} ملف بنجاح إلى أرشيف الإدارة حصرياً!"); window.location.href="/archive";</script>'''
+        else:
+            return '''<script>alert("الرجاء التأكد من رفع الملفات بشكل صحيح."); window.location.href="/quick_upload";</script>'''
+    
+    cursor.close()
+    conn.close()
+    
+    html_code = '''
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>رفع ملفات متعددة للأرشفة - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            
+            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .content-body { flex: 1; padding: 1.25rem; display: flex; align-items: center; justify-content: center; }
+            .upload-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 16px; border: 1px solid #d5e2d8; box-shadow: 0 10px 30px rgba(18, 56, 38, 0.08); width: 100%; max-width: 650px; padding: 1.5rem; position: relative; }
+            .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 10px; padding: 0.75rem; font-weight: 700; border: none; }
+        </style>
+    </head>
+    <body>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
+                <a href="/quick_upload" class="sidebar-link active"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
+                {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                {% endif %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                {% endif %}
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+            <main class="content-body">
+                <div class="upload-card">
+                    <div class="text-center mb-4">
+                        <h3 class="fw-bold fs-5" style="color: var(--fifa-green-primary);">رفع وتوثيق فوري (تظهر في أرشيف الإدارة فقط)</h3>
+                    </div>
+                    <form action="/quick_upload" method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">عنوان رئيسي للملفات المرفوعة</label>
+                            <input type="text" name="document_title" required class="form-control py-2 fs-7" placeholder="مثال: فواتير وعقود قسم الصيانة">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">تصنيف الأرشيف (تسجيل يدوي)</label>
+                            <input type="text" name="archive_category" required class="form-control py-2 fs-7 bg-white" placeholder="أدخل تصنيف الأرشيف يدوياً...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">اختر الملفات</label>
+                            <input type="file" name="archive_files" multiple required class="form-control fs-7">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green-primary);">ملاحظات وصفية (اختياري)</label>
+                            <textarea name="notes" rows="2" class="form-control fs-7" placeholder="أدخل تفاصيل..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-fifa-primary w-100 shadow-sm py-2 fs-7">رفع وأرشفة الملفات الآن</button>
+                    </form>
+                </div>
+            </main>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code, is_admin=is_admin, current_dept=current_dept)
+
+@app.route('/monthly_achievements')
+def monthly_achievements():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+    
+    if current_dept['can_page_achievements'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة إنجازات الشهر."); window.location.href="/dashboard";</script>'''
+    
+    can_view_all_ach = current_dept['can_view_all_achievements'] == 1 or is_admin
+
+    if can_view_all_ach:
+        cursor.execute('SELECT * FROM departments')
+        depts = cursor.fetchall()
+    else:
+        cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+        depts = cursor.fetchall()
+    
+    cursor.execute('''
+        SELECT ma.*, d.name as dept_name 
+        FROM monthly_achievements ma
+        JOIN departments d ON ma.dept_id = d.id
+        ORDER BY ma.id DESC
+    ''')
+    achievements = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+
+    html_code = '''
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>إنجازات الشهر - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            
+            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .content-body { flex: 1; padding: 1.25rem; }
+            .dept-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 1.5rem; }
+            .dept-header { background-color: var(--fifa-green-primary); color: #fff; border-radius: 11px 11px 0 0; padding: 0.8rem 1rem; }
+            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
+        </style>
+    </head>
+    <body>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
+                <a href="/monthly_achievements" class="sidebar-link active"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
+                {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                {% endif %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                {% endif %}
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+            <main class="content-body">
+                <div class="container-fluid p-0">
+                    <div class="mb-4">
+                        <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-trophy ms-2' style="color: var(--fifa-gold);"></i>إنجازات الإدارات الشهرية</h4>
+                    </div>
+                    <div class="row">
+                        {% for d in depts %}
+                        <div class="col-lg-6">
+                            <div class="dept-card">
+                                <div class="dept-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <span class="fw-bold fs-7"><i class='bx bxs-folder-open ms-2' style="color: var(--fifa-gold);"></i>{{ d.name }}</span>
+                                    <div class="d-flex gap-2">
+                                        {% if is_admin or can_delete == 1 %}
+                                            <a href="/admin/clear_monthly_files/{{ d.id }}" class="btn btn-sm btn-outline-light fs-8" onclick="return confirm('تأكيد تفريغ وأرشفة ملفات هذا الشهر ونقلها للأرشيف الخاص بالإدارة؟');">
+                                                <i class='bx bx-archive-in ms-1'></i>تفريغ وأرشفة
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="p-3">
+                                    <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
+                                        {% set ns = namespace(found=false) %}
+                                        {% for a in achievements %}
+                                            {% if a.dept_id == d.id %}
+                                                {% set ns.found = true %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+                                                    <div>
+                                                        <i class='bx bxs-file-pdf text-danger fs-5 align-middle ms-1'></i>
+                                                        <strong class="text-dark fs-7">{{ a.title }}</strong>
+                                                        <span class="text-muted d-block fs-8">{{ a.uploaded_at }}</span>
+                                                    </div>
+                                                    <div>
+                                                        <a href="/download_ach_file/{{ a.id }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fs-8 dept-file-link">تنزيل</a>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if not ns.found %}
+                                            <div class="text-center py-3 text-muted fs-7">لا توجد ملفات مرفوعة.</div>
+                                        {% endif %}
+                                    </div>
+                                    {% if session['dept_id'] == d.id or is_admin %}
+                                    <form action="/upload_achievement" method="post" enctype="multipart/form-data" class="bg-white p-2 rounded border">
+                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                        <div class="d-flex flex-column flex-sm-row gap-2">
+                                            <input type="text" name="title" class="form-control fs-8" placeholder="عنوان الإنجاز..." required>
+                                            <input type="file" name="file" class="form-control fs-8" required>
+                                            <button class="btn btn-fifa-gold fs-8 text-nowrap" type="submit">رفع</button>
+                                        </div>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </main>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code, depts=depts, achievements=achievements, is_admin=is_admin, can_delete=current_dept['can_delete'], current_dept=current_dept, dept_name=session.get('dept_name'), now=datetime.now())
+
+@app.route('/admin/dashboard', methods=['GET', 'POST'])
+def admin_dashboard():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، هذه الصفحة مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form.get('content', '')
+        file = request.files.get('file')
+        
+        file_name = None
+        file_data = None
+        file_mimetype = None
+
+        if file and file.filename != '':
+            original_name = secure_filename(file.filename)
+            file_name = f"admin_{int(datetime.now().timestamp())}_{original_name}"
+            file_data = psycopg2.Binary(file.read())
+            file_mimetype = file.content_type or 'application/octet-stream'
+
+        cursor.execute('''
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, archive_dept_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (title, content, 'عادي', session['dept_id'], session['dept_id'], file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), session['dept_id']))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return '''<script>alert("تمت إضافة الملف بنجاح عبر لوحة التحكم!"); window.location.href="/admin/dashboard";</script>'''
+
+    cursor.execute('SELECT * FROM letters ORDER BY id DESC')
+    items = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    html_code = '''
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>لوحة التحكم الشاملة - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            
+            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
+            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
+            .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; border-radius: 6px; }
+        </style>
+    </head>
+    <body>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
+                {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link active" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                {% endif %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                {% endif %}
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+
+            <main class="main-content">
+                <div class="modern-card p-3 p-md-4 mb-4">
+                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">رفع ملف جديد للقاعدة</h5>
+                    <form action="/admin/dashboard" method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold fs-7">عنوان العنصر / الملف</label>
+                            <input type="text" name="title" class="form-control fs-7" required placeholder="أدخل اسم أو عنوان الملف">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold fs-7">اختر الملف المرفق</label>
+                            <input type="file" name="file" class="form-control fs-7" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold fs-7">الوصف أو التفاصيل (اختياري)</label>
+                            <textarea name="content" class="form-control fs-7" rows="3" placeholder="أدخل تفاصيل إضافية..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-fifa-gold fs-7 py-2 px-4">رفع الملف وحفظه</button>
+                    </form>
+                </div>
+                <div class="modern-card p-3">
+                    <h5 class="fw-bold fs-6 mb-3 px-2">قائمة العناصر والملفات المسجلة</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 fs-7">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>العنوان</th>
+                                    <th>الملف المرفق</th>
+                                    <th>التاريخ</th>
+                                    <th class="text-center">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in items %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td class="fw-bold text-dark">{{ item.title }}</td>
+                                    <td>
+                                        {% if item.file_data %}
+                                            <a href="/view_letter_file/{{ item.id }}" target="_blank" class="btn btn-sm btn-success py-1 px-2 fs-8">فتح</a>
+                                            <a href="/download_letter_file/{{ item.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-8">تنزيل</a>
+                                        {% else %}
+                                            <span class="text-muted fs-8">لا يوجد ملف</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="text-muted fs-8">{{ item.created_at }}</span></td>
+                                    <td class="text-center">
+                                        <a href="/delete_letter/{{ item.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-8" onclick="return confirm('حذف الملف؟');">حذف</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code, items=items, is_admin=is_admin, current_dept=current_dept)
+
+@app.route('/admin/delete_department/<int:dept_id>')
+def delete_department(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    if not is_admin_user(session.get('dept_name')):
+        return '''<script>alert("عذراً، هذه الصفحة مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+
+    if session['dept_id'] == dept_id:
+        return '''<script>alert("لا يمكنك حذف حساب الإدارة الخاص بك حالياً أثناء تسجيل الدخول به."); window.location.href="/admin/permissions";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('DELETE FROM departments WHERE id = %s', (dept_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        cursor.close()
+        conn.close()
+        return f'''<script>alert("حدث خطأ أثناء حذف الحساب: {str(e)}"); window.location.href="/admin/permissions";</script>'''
+
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف المستخدم/الإدارة بنجاح!"); window.location.href="/admin/permissions";</script>'''
+
+@app.route('/admin/permissions', methods=['GET', 'POST'])
+def admin_permissions():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، هذه الصفحة مخصصة للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+
+    if request.method == 'POST':
+        dept_id = request.form.get('dept_id')
+        can_view_all = 1 if f'can_view_all_archive_{dept_id}' in request.form else 0
+        can_delete = 1 if f'can_delete_{dept_id}' in request.form else 0
+        can_view_all_ach = 1 if f'can_view_all_achievements_{dept_id}' in request.form else 0
+        can_add_user = 1 if f'can_add_user_{dept_id}' in request.form else 0
+        
+        can_page_inbox = 1 if f'can_page_inbox_{dept_id}' in request.form else 0
+        can_page_outbox = 1 if f'can_page_outbox_{dept_id}' in request.form else 0
+        can_page_achievements = 1 if f'can_page_achievements_{dept_id}' in request.form else 0
+        can_page_archive = 1 if f'can_page_archive_{dept_id}' in request.form else 0
+        can_page_quick_upload = 1 if f'can_page_quick_upload_{dept_id}' in request.form else 0
+
+        cursor.execute('''
+            UPDATE departments 
+            SET can_view_all_archive = %s, can_delete = %s, can_view_all_achievements = %s, can_add_user = %s,
+                can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
+            WHERE id = %s
+        ''', (can_view_all, can_delete, can_view_all_ach, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return '''<script>alert("تم تحديث الصلاحيات بنجاح!"); window.location.href="/admin/permissions";</script>'''
+
+    cursor.execute('SELECT * FROM departments ORDER BY id ASC')
+    departments = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    html_code = '''
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>إدارة الصلاحيات - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            
+            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
+            .dept-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
+            .dept-card-header { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 11px 11px 0 0; padding: 0.8rem 1.2rem; }
+            .form-check-input:checked { background-color: var(--fifa-green-primary); border-color: var(--fifa-green-primary); }
+            .btn-save-perm { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; border-radius: 6px; }
+        </style>
+    </head>
+    <body>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
+                {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link active"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                {% endif %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                {% endif %}
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+
+            <main class="main-content">
+                <div class="mb-4">
+                    <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>إدارة الصلاحيات والوصول للمستخدمين</h4>
+                </div>
+
+                <div class="row">
+                    {% for d in departments %}
+                    <div class="col-lg-6">
+                        <div class="dept-card">
+                            <div class="dept-card-header d-flex justify-content-between align-items-center">
+                                <span class="fw-bold fs-6"><i class='bx bxs-user-detail ms-2' style="color: var(--fifa-gold);"></i>{{ d.name }}</span>
+                                <span class="badge bg-light text-dark fs-8">{{ d.username }}</span>
+                            </div>
+                            <div class="p-3">
+                                <form action="/admin/permissions" method="post">
+                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                    
+                                    <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-layout ms-1'></i>صلاحيات أزرار القائمة الجانبية:</h6>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ d.id }}" id="inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="inbox_{{ d.id }}">الصندوق الوارد</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ d.id }}" id="outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="outbox_{{ d.id }}">الخطابات الصادرة</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ d.id }}" id="ach_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="ach_{{ d.id }}">إنجازات الشهر</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_archive_{{ d.id }}" id="arch_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="arch_{{ d.id }}">أرشيف الإدارة</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ d.id }}" id="quick_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="quick_{{ d.id }}">رفع وتوثيق فوري</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-lock-alt ms-1'></i>الصلاحيات والإجراءات العامة:</h6>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-12">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ d.id }}" id="all_arch_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="all_arch_{{ d.id }}">مشاهدة أرشيف كافة الإدارات</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ d.id }}" id="all_ach_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="all_ach_{{ d.id }}">مشاهدة إنجازات كافة الإدارات</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_delete_{{ d.id }}" id="del_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-danger" for="del_{{ d.id }}">حذف الملفات والخطابات</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check form-switch fs-7">
+                                                <input class="form-check-input" type="checkbox" name="can_add_user_{{ d.id }}" id="add_u_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}>
+                                                <label class="form-check-label fw-bold text-dark" for="add_u_{{ d.id }}">إضافة إدارات جديدة</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                                        <button type="submit" class="btn btn-save-perm btn-sm px-4">حفظ الصلاحيات</button>
+                                        <a href="/admin/delete_department/{{ d.id }}" class="btn btn-outline-danger btn-sm fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة هذا نهائياً؟');">حذف الحساب</a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </main>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code, departments=departments, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
