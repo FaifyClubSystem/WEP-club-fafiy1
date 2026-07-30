@@ -86,6 +86,19 @@ def init_db():
             uploaded_at TEXT
         )
     ''')
+
+    # جدول جديد لشهادات الدورات
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS course_certificates (
+            id SERIAL PRIMARY KEY,
+            dept_id INTEGER,
+            title TEXT,
+            file_name TEXT,
+            file_data BYTEA,
+            file_mimetype TEXT,
+            uploaded_at TEXT
+        )
+    ''')
     
     cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='departments'")
     dept_columns = [col['column_name'] for col in cursor.fetchall()]
@@ -107,41 +120,13 @@ def init_db():
     if 'can_page_quick_upload' not in dept_columns:
         cursor.execute('ALTER TABLE departments ADD COLUMN can_page_quick_upload INTEGER DEFAULT 1')
 
-    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='letters'")
-    letter_cols = [col['column_name'] for col in cursor.fetchall()]
-    if 'file_path' not in letter_cols:
-        cursor.execute('ALTER TABLE letters ADD COLUMN file_path TEXT')
-    if 'archive_dept_id' not in letter_cols:
-        cursor.execute('ALTER TABLE letters ADD COLUMN archive_dept_id INTEGER')
-    if 'file_data' not in letter_cols:
-        cursor.execute('ALTER TABLE letters ADD COLUMN file_data BYTEA')
-    if 'file_mimetype' not in letter_cols:
-        cursor.execute('ALTER TABLE letters ADD COLUMN file_mimetype TEXT')
-    if 'letter_number' not in letter_cols:
-        cursor.execute('ALTER TABLE letters ADD COLUMN letter_number TEXT')
-
-    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='monthly_achievements'")
-    ach_cols = [col['column_name'] for col in cursor.fetchall()]
-    if 'title' not in ach_cols:
-        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN title TEXT')
-    if 'file_name' not in ach_cols:
-        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_name TEXT')
-    if 'file_path' not in ach_cols:
-        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_path TEXT')
-    if 'month_year' not in ach_cols:
-        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN month_year TEXT')
-    if 'uploaded_at' not in ach_cols:
-        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN uploaded_at TEXT')
-    if 'file_data' not in ach_cols:
-        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_data BYTEA')
-    if 'file_mimetype' not in ach_cols:
-        cursor.execute('ALTER TABLE monthly_achievements ADD COLUMN file_mimetype TEXT')
-    
     conn.commit()
     cursor.close()
     conn.close()
 
 init_db()
+
+# --- مسارات التحميل والمعاينة لكل ملفات النظام ---
 
 @app.route('/download_letter_file/<int:letter_id>')
 def download_letter_file(letter_id):
@@ -193,6 +178,60 @@ def download_ach_file(ach_id):
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
             as_attachment=True,
+            download_name=row['file_name'] or 'file'
+        )
+    return "الملف غير موجود", 404
+
+@app.route('/view_ach_file/<int:ach_id>')
+def view_ach_file(ach_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM monthly_achievements WHERE id = %s', (ach_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if row and row['file_data']:
+        return send_file(
+            io.BytesIO(row['file_data']),
+            mimetype=row['file_mimetype'] or 'application/octet-stream',
+            as_attachment=False,
+            download_name=row['file_name'] or 'file'
+        )
+    return "الملف غير موجود", 404
+
+@app.route('/download_cert_file/<int:cert_id>')
+def download_cert_file(cert_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM course_certificates WHERE id = %s', (cert_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if row and row['file_data']:
+        return send_file(
+            io.BytesIO(row['file_data']),
+            mimetype=row['file_mimetype'] or 'application/octet-stream',
+            as_attachment=True,
+            download_name=row['file_name'] or 'file'
+        )
+    return "الملف غير موجود", 404
+
+@app.route('/view_cert_file/<int:cert_id>')
+def view_cert_file(cert_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM course_certificates WHERE id = %s', (cert_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if row and row['file_data']:
+        return send_file(
+            io.BytesIO(row['file_data']),
+            mimetype=row['file_mimetype'] or 'application/octet-stream',
+            as_attachment=False,
             download_name=row['file_name'] or 'file'
         )
     return "الملف غير موجود", 404
@@ -291,6 +330,37 @@ def upload_achievement():
         
     return redirect(url_for('monthly_achievements'))
 
+@app.route('/upload_certificate', methods=['POST'])
+def upload_certificate():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+        
+    dept_id = request.form.get('dept_id')
+    title = request.form.get('title')
+    file = request.files.get('file')
+    
+    is_admin = is_admin_user(session.get('dept_name'))
+    if str(session['dept_id']) != str(dept_id) and not is_admin:
+        return '''<script>alert("غير مسموح لك برفع شهادات دورات لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
+    
+    if file and file.filename != '':
+        original_name = secure_filename(file.filename)
+        file_name = f"cert_{int(datetime.now().timestamp())}_{original_name}"
+        file_bytes = file.read()
+        file_mimetype = file.content_type or 'application/octet-stream'
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO course_certificates (dept_id, title, file_name, file_data, file_mimetype, uploaded_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (dept_id, title, file_name, psycopg2.Binary(file_bytes), file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+    return redirect(url_for('monthly_achievements'))
+
 @app.route('/admin/clear_monthly_files/<int:dept_id>')
 def clear_monthly_files(dept_id):
     if 'dept_id' not in session:
@@ -307,6 +377,7 @@ def clear_monthly_files(dept_id):
         conn.close()
         return '''<script>alert("غير مسموح لك بتفريغ ملفات هذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
+    # تفريغ الإنجازات
     cursor.execute('SELECT * FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
     achievements = cursor.fetchall()
     
@@ -325,13 +396,32 @@ def clear_monthly_files(dept_id):
             current_time,
             dept_id
         ))
+
+    # تفريغ شهادات الدورات
+    cursor.execute('SELECT * FROM course_certificates WHERE dept_id = %s', (dept_id,))
+    certs = cursor.fetchall()
+    for cert in certs:
+        cursor.execute('''
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, archive_dept_id)
+            VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s, %s)
+        ''', (
+            f"أرشيف شهادات دورات: {cert['title']}",
+            f"تمت الأرشفة التلقائية من قسم شهادات الدورات بتاريخ: {current_time}",
+            "عادي",
+            cert['file_name'],
+            cert.get('file_data'),
+            cert.get('file_mimetype'),
+            current_time,
+            dept_id
+        ))
     
     cursor.execute('DELETE FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    cursor.execute('DELETE FROM course_certificates WHERE dept_id = %s', (dept_id,))
     conn.commit()
     cursor.close()
     conn.close()
     
-    return '''<script>alert("تم تفريغ وأرشفة ملفات الإنجازات الشهرية للإدارة بنجاح إلى أرشيفها الخاص!"); window.location.href="/monthly_achievements";</script>'''
+    return '''<script>alert("تم تفريغ وأرشفة الإنجازات وشهادات الدورات للإدارة بنجاح إلى أرشيفها الخاص!"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -937,7 +1027,9 @@ DASHBOARD_HTML = '''
                                         {% endif %}
 
                                         {% if letter.file_data %}
-                                            <a href="/view_letter_file/{{ letter.id }}" target="_blank" class="btn btn-sm btn-success py-1 px-2 fs-7 shadow-sm">فتح بالموقع</a>
+                                            <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
+                                                <i class='bx bx-show ms-1'></i> معاينة
+                                            </button>
                                             <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
                                         {% endif %}
 
@@ -962,8 +1054,30 @@ DASHBOARD_HTML = '''
         </main>
     </div>
 
+    <!-- نافذة معاينة الملفات الموحدة Modal -->
+    <div class="modal fade" id="previewFileModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white py-2">
+            <h6 class="modal-title fw-bold" id="previewFileTitle">معاينة المستند</h6>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-0" style="height: 80vh; background: #525659;">
+            <iframe id="previewFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function previewFile(url, title) {
+            document.getElementById('previewFileTitle').innerText = 'معاينة: ' + title;
+            document.getElementById('previewFrame').src = url;
+            var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
+            modal.show();
+        }
+
         function toggleSidebar() {
             document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
             document.getElementById('mobileOverlay').classList.toggle('active');
@@ -989,10 +1103,6 @@ DASHBOARD_HTML = '''
             if (paperBody) {
                 paperBody.innerText = text.trim() !== '' ? text : "أدخل نص الخطاب...";
             }
-        }
-
-        function syncTitle(text) {
-            // مزامنة اختارية
         }
 
         function loadLetterToEditor(id, title, senderId, priority) {
@@ -1040,7 +1150,6 @@ DASHBOARD_HTML = '''
             }
         }
 
-        // إعداد النص المبدئي عند تحميل الصفحة
         window.addEventListener('DOMContentLoaded', function() {
             var inputContent = document.getElementById('letterContentInput');
             if (inputContent && inputContent.value.trim() !== '') {
@@ -1479,6 +1588,14 @@ def monthly_achievements():
         ORDER BY ma.id DESC
     ''')
     achievements = cursor.fetchall()
+
+    cursor.execute('''
+        SELECT cc.*, d.name as dept_name 
+        FROM course_certificates cc
+        JOIN departments d ON cc.dept_id = d.id
+        ORDER BY cc.id DESC
+    ''')
+    certificates = cursor.fetchall()
     
     cursor.close()
     conn.close()
@@ -1489,7 +1606,7 @@ def monthly_achievements():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>إنجازات الشهر - نادي فيفا</title>
+        <title>إنجازات وشهادات الدورات - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
         <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
         <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
@@ -1515,6 +1632,7 @@ def monthly_achievements():
             .dept-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 1.5rem; }
             .dept-header { background-color: var(--fifa-green-primary); color: #fff; border-radius: 11px 11px 0 0; padding: 0.8rem 1rem; }
             .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
+            .sub-section-title { font-weight: 700; font-size: 0.85rem; color: var(--fifa-green-primary); border-bottom: 2px solid var(--fifa-gold); padding-bottom: 3px; margin-bottom: 10px; }
         </style>
     </head>
     <body>
@@ -1566,7 +1684,7 @@ def monthly_achievements():
             <main class="content-body">
                 <div class="container-fluid p-0">
                     <div class="mb-4">
-                        <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-trophy ms-2' style="color: var(--fifa-gold);"></i>إنجازات الإدارات الشهرية</h4>
+                        <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-trophy ms-2' style="color: var(--fifa-gold);"></i>إنجازات وشهادات دورات الإدارات</h4>
                     </div>
                     <div class="row">
                         {% for d in depts %}
@@ -1576,44 +1694,86 @@ def monthly_achievements():
                                     <span class="fw-bold fs-7"><i class='bx bxs-folder-open ms-2' style="color: var(--fifa-gold);"></i>{{ d.name }}</span>
                                     <div class="d-flex gap-2">
                                         {% if is_admin or can_delete == 1 %}
-                                            <a href="/admin/clear_monthly_files/{{ d.id }}" class="btn btn-sm btn-outline-light fs-8" onclick="return confirm('تأكيد تفريغ وأرشفة ملفات هذا الشهر ونقلها للأرشيف الخاص بالإدارة؟');">
+                                            <a href="/admin/clear_monthly_files/{{ d.id }}" class="btn btn-sm btn-outline-light fs-8" onclick="return confirm('تأكيد تفريغ وأرشفة الإنجازات والشهادات لهذا الشهر ونقلها لأرشيف الإدارة؟');">
                                                 <i class='bx bx-archive-in ms-1'></i>تفريغ وأرشفة
                                             </a>
                                         {% endif %}
                                     </div>
                                 </div>
                                 <div class="p-3">
+                                    
+                                    <!-- 1. قسم الإنجازات الشهري -->
+                                    <div class="sub-section-title"><i class='bx bxs-award ms-1'></i> ملفات الإنجازات الشهرية</div>
                                     <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
                                         {% set ns = namespace(found=false) %}
                                         {% for a in achievements %}
                                             {% if a.dept_id == d.id %}
                                                 {% set ns.found = true %}
-                                                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent">
+                                                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent p-2">
                                                     <div>
                                                         <i class='bx bxs-file-pdf text-danger fs-5 align-middle ms-1'></i>
                                                         <strong class="text-dark fs-7">{{ a.title }}</strong>
                                                         <span class="text-muted d-block fs-8">{{ a.uploaded_at }}</span>
                                                     </div>
-                                                    <div>
-                                                        <a href="/download_ach_file/{{ a.id }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fs-8 dept-file-link">تنزيل</a>
+                                                    <div class="d-flex gap-1">
+                                                        <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_ach_file/{{ a.id }}', '{{ a.title }}')">معاينة</button>
+                                                        <a href="/download_ach_file/{{ a.id }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تنزيل</a>
                                                     </div>
                                                 </div>
                                             {% endif %}
                                         {% endfor %}
                                         {% if not ns.found %}
-                                            <div class="text-center py-3 text-muted fs-7">لا توجد ملفات مرفوعة.</div>
+                                            <div class="text-center py-2 text-muted fs-8">لا توجد إنجازات مرفوعة.</div>
                                         {% endif %}
                                     </div>
+
                                     {% if session['dept_id'] == d.id or is_admin %}
-                                    <form action="/upload_achievement" method="post" enctype="multipart/form-data" class="bg-white p-2 rounded border">
+                                    <form action="/upload_achievement" method="post" enctype="multipart/form-data" class="bg-white p-2 rounded border mb-3">
                                         <input type="hidden" name="dept_id" value="{{ d.id }}">
                                         <div class="d-flex flex-column flex-sm-row gap-2">
                                             <input type="text" name="title" class="form-control fs-8" placeholder="عنوان الإنجاز..." required>
                                             <input type="file" name="file" class="form-control fs-8" required>
-                                            <button class="btn btn-fifa-gold fs-8 text-nowrap" type="submit">رفع</button>
+                                            <button class="btn btn-fifa-gold fs-8 text-nowrap" type="submit">رفع إنجاز</button>
                                         </div>
                                     </form>
                                     {% endif %}
+
+                                    <!-- 2. قسم شهادات الدورات التدريبية -->
+                                    <div class="sub-section-title"><i class='bx bxs-certification ms-1'></i> شهادات الدورات التدريبية</div>
+                                    <div class="list-group mb-3 fs-7" id="dept-certs-{{ d.id }}">
+                                        {% set ns_c = namespace(found=false) %}
+                                        {% for c in certificates %}
+                                            {% if c.dept_id == d.id %}
+                                                {% set ns_c.found = true %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent p-2">
+                                                    <div>
+                                                        <i class='bx bxs-certification text-primary fs-5 align-middle ms-1'></i>
+                                                        <strong class="text-dark fs-7">{{ c.title }}</strong>
+                                                        <span class="text-muted d-block fs-8">{{ c.uploaded_at }}</span>
+                                                    </div>
+                                                    <div class="d-flex gap-1">
+                                                        <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_cert_file/{{ c.id }}', '{{ c.title }}')">معاينة</button>
+                                                        <a href="/download_cert_file/{{ c.id }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">تنزيل</a>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if not ns_c.found %}
+                                            <div class="text-center py-2 text-muted fs-8">لا توجد شهادات دورات مرفوعة.</div>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if session['dept_id'] == d.id or is_admin %}
+                                    <form action="/upload_certificate" method="post" enctype="multipart/form-data" class="bg-light p-2 rounded border">
+                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                        <div class="d-flex flex-column flex-sm-row gap-2">
+                                            <input type="text" name="title" class="form-control fs-8" placeholder="عنوان أو اسم شهادة الدورة..." required>
+                                            <input type="file" name="file" class="form-control fs-8" required>
+                                            <button class="btn btn-primary fs-8 text-nowrap" type="submit">رفع شهادة</button>
+                                        </div>
+                                    </form>
+                                    {% endif %}
+
                                 </div>
                             </div>
                         </div>
@@ -1622,8 +1782,31 @@ def monthly_achievements():
                 </div>
             </main>
         </div>
+
+        <!-- نافذة معاينة الملفات الموحدة Modal -->
+        <div class="modal fade" id="previewFileModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header bg-dark text-white py-2">
+                <h6 class="modal-title fw-bold" id="previewFileTitle">معاينة المستند</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body p-0" style="height: 80vh; background: #525659;">
+                <iframe id="previewFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
+            function previewFile(url, title) {
+                document.getElementById('previewFileTitle').innerText = 'معاينة: ' + title;
+                document.getElementById('previewFrame').src = url;
+                var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
+                modal.show();
+            }
+
             function toggleSidebar() {
                 document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
                 document.getElementById('mobileOverlay').classList.toggle('active');
@@ -1632,7 +1815,7 @@ def monthly_achievements():
     </body>
     </html>
     '''
-    return render_template_string(html_code, depts=depts, achievements=achievements, is_admin=is_admin, can_delete=current_dept['can_delete'], current_dept=current_dept, dept_name=session.get('dept_name'), now=datetime.now())
+    return render_template_string(html_code, depts=depts, achievements=achievements, certificates=certificates, is_admin=is_admin, can_delete=current_dept['can_delete'], current_dept=current_dept, dept_name=session.get('dept_name'), now=datetime.now())
 
 @app.route('/admin/dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
@@ -1799,7 +1982,7 @@ def admin_dashboard():
                                     <td class="fw-bold text-dark">{{ item.title }}</td>
                                     <td>
                                         {% if item.file_data %}
-                                            <a href="/view_letter_file/{{ item.id }}" target="_blank" class="btn btn-sm btn-success py-1 px-2 fs-8">فتح</a>
+                                            <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ item.id }}', '{{ item.title }}')">معاينة</button>
                                             <a href="/download_letter_file/{{ item.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-8">تنزيل</a>
                                         {% else %}
                                             <span class="text-muted fs-8">لا يوجد ملف</span>
@@ -1817,8 +2000,31 @@ def admin_dashboard():
                 </div>
             </main>
         </div>
+
+        <!-- نافذة معاينة الملفات الموحدة Modal -->
+        <div class="modal fade" id="previewFileModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header bg-dark text-white py-2">
+                <h6 class="modal-title fw-bold" id="previewFileTitle">معاينة المستند</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body p-0" style="height: 80vh; background: #525659;">
+                <iframe id="previewFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
+            function previewFile(url, title) {
+                document.getElementById('previewFileTitle').innerText = 'معاينة: ' + title;
+                document.getElementById('previewFrame').src = url;
+                var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
+                modal.show();
+            }
+
             function toggleSidebar() {
                 document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
                 document.getElementById('mobileOverlay').classList.toggle('active');
@@ -1928,10 +2134,7 @@ def admin_permissions():
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
             .main-content { flex: 1; padding: 1.25rem; width: 100%; overflow-x: hidden; }
-            .dept-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); margin-bottom: 1.5rem; }
-            .dept-card-header { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 11px 11px 0 0; padding: 0.8rem 1.2rem; }
-            .form-check-input:checked { background-color: var(--fifa-green-primary); border-color: var(--fifa-green-primary); }
-            .btn-save-perm { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; border-radius: 6px; }
+            .modern-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid var(--fifa-card-border); box-shadow: 0 4px 15px rgba(18, 56, 38, 0.03); }
         </style>
     </head>
     <body>
@@ -1983,93 +2186,51 @@ def admin_permissions():
             </aside>
 
             <main class="main-content">
-                <div class="mb-4">
-                    <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>إدارة الصلاحيات والوصول للمستخدمين</h4>
-                </div>
-
-                <div class="row">
-                    {% for d in departments %}
-                    <div class="col-lg-6">
-                        <div class="dept-card">
-                            <div class="dept-card-header d-flex justify-content-between align-items-center">
-                                <span class="fw-bold fs-6"><i class='bx bxs-user-detail ms-2' style="color: var(--fifa-gold);"></i>{{ d.name }}</span>
-                                <span class="badge bg-light text-dark fs-8">{{ d.username }}</span>
-                            </div>
-                            <div class="p-3">
-                                <form action="/admin/permissions" method="post">
-                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                    
-                                    <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-layout ms-1'></i>صلاحيات أزرار القائمة الجانبية:</h6>
-                                    <div class="row g-2 mb-3">
-                                        <div class="col-6">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ d.id }}" id="inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="inbox_{{ d.id }}">الصندوق الوارد</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ d.id }}" id="outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="outbox_{{ d.id }}">الخطابات الصادرة</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ d.id }}" id="ach_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="ach_{{ d.id }}">إنجازات الشهر</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_page_archive_{{ d.id }}" id="arch_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="arch_{{ d.id }}">أرشيف الإدارة</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ d.id }}" id="quick_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="quick_{{ d.id }}">رفع وتوثيق فوري</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-lock-alt ms-1'></i>الصلاحيات والإجراءات العامة:</h6>
-                                    <div class="row g-2 mb-3">
-                                        <div class="col-12">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ d.id }}" id="all_arch_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="all_arch_{{ d.id }}">مشاهدة أرشيف كافة الإدارات</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ d.id }}" id="all_ach_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="all_ach_{{ d.id }}">مشاهدة إنجازات كافة الإدارات</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_delete_{{ d.id }}" id="del_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-danger" for="del_{{ d.id }}">حذف الملفات والخطابات</label>
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <div class="form-check form-switch fs-7">
-                                                <input class="form-check-input" type="checkbox" name="can_add_user_{{ d.id }}" id="add_u_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}>
-                                                <label class="form-check-label fw-bold text-dark" for="add_u_{{ d.id }}">إضافة إدارات جديدة</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex justify-content-between align-items-center border-top pt-2">
-                                        <button type="submit" class="btn btn-save-perm btn-sm px-4">حفظ الصلاحيات</button>
-                                        <a href="/admin/delete_department/{{ d.id }}" class="btn btn-outline-danger btn-sm fs-8" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة هذا نهائياً؟');">حذف الحساب</a>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
+                <div class="modern-card p-3 p-md-4">
+                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">إدارة صلاحيات الإدارات والمنسقين</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover align-middle fs-7">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم الإدارة</th>
+                                    <th>اسم المستخدم</th>
+                                    <th>الوصول للصفحات</th>
+                                    <th>صلاحيات عامة</th>
+                                    <th>حفظ والتعديل</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in departments %}
+                                <tr>
+                                    <form action="/admin/permissions" method="post">
+                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                        <td>{{ d.id }}</td>
+                                        <td class="fw-bold">{{ d.name }}</td>
+                                        <td><code>{{ d.username }}</code></td>
+                                        <td>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_inbox_{{ d.id }}" {{ 'checked' if d.can_page_inbox == 1 else '' }}><label class="form-check-label">الوارد</label></div>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_outbox_{{ d.id }}" {{ 'checked' if d.can_page_outbox == 1 else '' }}><label class="form-check-label">الصادر</label></div>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_achievements_{{ d.id }}" {{ 'checked' if d.can_page_achievements == 1 else '' }}><label class="form-check-label">الإنجازات والشهادات</label></div>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_archive_{{ d.id }}" {{ 'checked' if d.can_page_archive == 1 else '' }}><label class="form-check-label">الأرشيف</label></div>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ d.id }}" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}><label class="form-check-label">الرفع الفوري</label></div>
+                                        </td>
+                                        <td>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ d.id }}" {{ 'checked' if d.can_view_all_archive == 1 else '' }}><label class="form-check-label">مشاهدة كل الأرشيف</label></div>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_view_all_achievements_{{ d.id }}" {{ 'checked' if d.can_view_all_achievements == 1 else '' }}><label class="form-check-label">مشاهدة إنجازات باقي الإدارات</label></div>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_delete_{{ d.id }}" {{ 'checked' if d.can_delete == 1 else '' }}><label class="form-check-label">صلاحية الحذف</label></div>
+                                            <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="can_add_user_{{ d.id }}" {{ 'checked' if d.can_add_user == 1 else '' }}><label class="form-check-label">إضافة مستخدمين</label></div>
+                                        </td>
+                                        <td>
+                                            <button type="submit" class="btn btn-sm btn-success w-100 mb-1 fs-8">حفظ</button>
+                                            <a href="/admin/delete_department/{{ d.id }}" class="btn btn-sm btn-outline-danger w-100 fs-8" onclick="return confirm('تأكيد حذف الحساب نهائياً؟');">حذف</a>
+                                        </td>
+                                    </form>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    {% endfor %}
                 </div>
             </main>
         </div>
@@ -2086,4 +2247,4 @@ def admin_permissions():
     return render_template_string(html_code, departments=departments, is_admin=is_admin, current_dept=current_dept)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True)
