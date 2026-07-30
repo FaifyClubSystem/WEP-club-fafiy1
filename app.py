@@ -911,7 +911,7 @@ DASHBOARD_HTML = '''
                     {% endif %}
                 </div>
 
-                {% if current_page == 'outbox' or current_page == 'inbox' %}
+{% if current_page == 'outbox' or current_page == 'inbox' %}
                 <!-- ============ ورقة الخطاب الرسمية المباشرة مع شريط التنسيق ============ -->
                 <div class="word-paper-container">
                     
@@ -923,7 +923,7 @@ DASHBOARD_HTML = '''
                         <span id="currentFontSizeLabel" class="badge bg-light text-dark border fs-8">18px</span>
                         
                         <div class="vr mx-1"></div>
-
+ 
                         <select id="fontFamilySelect" onchange="changeFontFamily(this.value)" title="نوع الخط">
                             <option value="'Amiri', serif">خط الأميري النسخي</option>
                             <option value="'Almarai', sans-serif">خط المراعي العادي</option>
@@ -931,21 +931,25 @@ DASHBOARD_HTML = '''
                             <option value="'Cairo', sans-serif">خط كايرو</option>
                             <option value="'Changa', sans-serif">خط شانغا</option>
                         </select>
-
+ 
                         <div class="vr mx-1"></div>
-
+ 
                         <button type="button" onclick="formatDoc('bold')" title="تغميق (Bold)"><i class='bx bx-bold fs-6'></i></button>
                         <button type="button" onclick="formatDoc('underline')" title="تحته خط"><i class='bx bx-underline fs-6'></i></button>
                         <input type="color" id="textColorPicker" onchange="formatDoc('foreColor', this.value)" title="لون الخط" style="width: 32px; height: 28px; padding: 2px;">
-
+ 
                         <div class="vr mx-1"></div>
-
+ 
                         <button type="button" onclick="formatDoc('justifyRight')" title="محاذاة لليمين"><i class='bx bx-align-right fs-6'></i></button>
                         <button type="button" onclick="formatDoc('justifyCenter')" title="محاذاة للوسط"><i class='bx bx-align-middle fs-6'></i></button>
                         <button type="button" onclick="formatDoc('justifyLeft')" title="محاذاة لليصار"><i class='bx bx-align-left fs-6'></i></button>
                         <button type="button" onclick="formatDoc('justifyFull')" title="ضبط المحاذاة"><i class='bx bx-align-justify fs-6'></i></button>
+ 
+                        <div class="vr mx-1"></div>
+ 
+ 
                     </div>
-
+ 
                     <div class="word-paper" id="officialPaper">
                         <div class="word-paper-header">
                             <div class="word-paper-right">
@@ -956,35 +960,28 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="word-paper-center">
                                 <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
+                                
                             </div>
                             <div class="word-paper-left">
                                 <div class="word-paper-left-inner">
-                                    الرقم : <input type="text" id="paperLetterNumInput" value="" style="width: 100px; border:none; border-bottom:1px dashed #aaa; background:transparent; font-weight:bold;"><br>
-                                    التاريخ : <input type="text" id="paperLetterDateInput" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px; border:none; border-bottom:1px dashed #aaa; background:transparent; font-weight:bold;"><br>
-                                    المشفوعات : <input type="text" id="paperLetterAttachInput" value="" style="width: 100px; border:none; border-bottom:1px dashed #aaa; background:transparent; font-weight:bold;">
+                                    الرقم : <input type="text" id="paperLetterNumInput" class="" value="" style="width: 100px;"><br>
+                                    التاريخ : <input type="text" id="paperLetterDateInput" class="" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
+                                    المشفوعات : <input type="text" id="paperLetterAttachInput" class="" value="" style="width: 100px;">
                                 </div>
                             </div>
                         </div>
-
-                        <!-- نص الخطاب المباشر القابل للتعديل والتكبير والتصغير -->
+ 
+                    
+ 
+                        <!-- نص الخطاب المباشر القابل للتعديل والتكبير والتصغير للكتابة المباشرة -->
                         <div class="word-paper-body" id="paperBodyText" contenteditable="true" oninput="syncTextareaWithPaper()">
-                            أدخل نص الخطاب...
+ 
                         </div>
-
-                        <!-- شكل أسفل ورقة النموذج المطلوبة -->
-                        <div class="word-paper-footer-form">
-                            <div class="footer-form-grid">
-                                <div>
-                                    <strong>إدارة النادي / الجهة المرسلة:</strong><br>
-                                    <span class="text-secondary">{{ dept_name }}</span>
-                                </div>
-                                <div class="text-start">
-                                    <strong>الاعتماد والتوقيع:</strong><br>
-                                    <span class="text-secondary">ختم الإدارة / المدير المختص</span>
-                                </div>
-                            </div>
-                        </div>
-
+ 
+                       
+ 
+                        
+ 
                         <div class="word-paper-contacts">
                             <div>fifaclub1436@gmail.com <i class='bx bx-envelope ms-1'></i></div>
                             <div>faifaclub1 <i class='bx bxl-twitter ms-1'></i></div>
