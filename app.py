@@ -669,7 +669,7 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= ورقة خطاب Word رسمية مقاس A4 حقيقي مع أدوات التحكّم بالخط ================= */
+ /* ================= ورقة خطاب Word رسمية مقاس A4 حقيقي مع أدوات التحكّم بالخط ================= */
         .paper-toolbar {
             background: #ffffff;
             border: 1px solid #c8d6cd;
@@ -757,6 +757,14 @@ DASHBOARD_HTML = '''
             object-fit: contain;
             margin-bottom: 2px;
         }
+        .word-paper-center .brand-name-sub {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #000;
+            letter-spacing: 1px;
+            font-family: Arial, sans-serif;
+            text-transform: uppercase;
+        }
         .word-paper-left {
             text-align: right;
             font-size: 1.05rem;
@@ -770,6 +778,19 @@ DASHBOARD_HTML = '''
         .word-paper-left-inner {
             text-align: right;
             min-width: 180px;
+        }
+        .word-paper-title {
+            text-align: center;
+            font-size: 1.35rem;
+            font-weight: bold;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .word-paper-greeting {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
         }
         /* منطقة نص الخطاب القابلة للكتابة والتكبير والتصغير */
         .word-paper-body {
@@ -788,21 +809,18 @@ DASHBOARD_HTML = '''
             border-color: #c5a059;
             background-color: #fafcfb;
         }
-        
-        /* شكل أسفل ورقة النموذج (توقيع وختم ونموذج رسمي) */
-        .word-paper-footer-form {
-            margin-top: 4rem;
-            border-top: 2px dashed #123826;
-            padding-top: 1.5rem;
+        .word-paper-footer-closing {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 3rem;
         }
-        .word-paper-footer-form .footer-form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            font-size: 1rem;
-            font-family: 'Almarai', sans-serif;
+        .word-paper-signature {
+            text-align: left;
+            margin-left: 2rem;
+            font-size: 1.15rem;
+            font-weight: bold;
         }
-
         .word-paper-contacts {
             position: absolute;
             bottom: 10mm;
@@ -820,6 +838,38 @@ DASHBOARD_HTML = '''
             justify-content: flex-start;
             gap: 6px;
             margin-top: 2px;
+        }
+        .paper-editable-input {
+            border: none;
+            border-bottom: 1px dashed #aaa;
+            background: transparent;
+            font-weight: bold;
+            font-family: inherit;
+            font-size: inherit;
+            padding: 0 4px;
+        }
+        .paper-editable-input:focus {
+            outline: none;
+            border-bottom: 1px solid var(--fifa-green-primary);
+            background: #fdfdfd;
+        }
+ 
+        /* نافذة معاينة الخطاب A4 */
+        #previewLetterModal .modal-body {
+            background: #6b6f70;
+            display: flex;
+            justify-content: center;
+            padding: 24px 10px;
+            overflow: auto;
+            max-height: 85vh;
+        }
+        #previewLetterContainer .word-paper {
+            box-shadow: 0 15px 40px rgba(0,0,0,0.35);
+        }
+        #previewLetterContainer input {
+            border: none !important;
+            background: transparent !important;
+            pointer-events: none;
         }
 
     </style>
