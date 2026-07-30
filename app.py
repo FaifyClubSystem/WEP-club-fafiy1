@@ -972,8 +972,8 @@ DASHBOARD_HTML = '''
                                 نادي فيفا الرياضي
                             </div>
                             <div class="word-paper-center">
-                                <img src="{{ url_for('static', filename='logo.png') }}" alt="" onerror="this.style.display='none'">
-                                <div class="brand-name-sub">FAIFA</div>
+                                <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
+                                
                             </div>
                             <div class="word-paper-left">
                                 <div class="word-paper-left-inner">
