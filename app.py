@@ -543,7 +543,8 @@ DASHBOARD_HTML = '''
     <title>{{ page_title }} - نظام أرشفة نادي فيفا</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --fifa-green-primary: #123826;
@@ -560,28 +561,11 @@ DASHBOARD_HTML = '''
         .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
         
         @media (max-width: 991.98px) {
-            .sidebar {
-                position: fixed;
-                top: 0;
-                right: -260px;
-                height: 100vh;
-                box-shadow: -5px 0 15px rgba(0,0,0,0.2);
-            }
-            .sidebar.show-sidebar {
-                right: 0;
-            }
+            .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+            .sidebar.show-sidebar { right: 0; }
         }
 
-        .mobile-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 1030;
-        }
+        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
         .mobile-overlay.active { display: block; }
 
         .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
@@ -598,52 +582,103 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= نمط الخطاب الرسمي (وفق قالب النادي المعتمد) ================= */
-        .official-letter {
+        /* ================= ورقة خطاب Word رسمية بدقة مطابقة للنادي ================= */
+        .word-paper-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .word-paper {
             background: #ffffff;
-            border-radius: 10px;
-            padding: 1.75rem 1.75rem 1.25rem 1.75rem;
+            width: 100%;
+            max-width: 800px;
+            min-height: 1050px;
+            padding: 3rem 3.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border: 1px solid #c8d6cd;
             position: relative;
-            box-shadow: 0 10px 30px rgba(18, 56, 38, 0.10);
-            direction: rtl;
-            max-height: 78vh;
-            overflow-y: auto;
+            font-family: 'Amiri', 'Traditional Arabic', serif;
+            color: #000;
+            line-height: 1.8;
+            box-sizing: border-box;
         }
-        .official-letter::before {
-            content: '';
-            position: absolute;
-            top: 0; right: 0; left: 0;
-            height: 6px;
-            background: linear-gradient(90deg, var(--fifa-green-primary), var(--fifa-gold));
-            border-radius: 10px 10px 0 0;
-        }
-        .letter-head-row {
+        .word-paper-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            gap: 10px;
-            border-bottom: 2px solid var(--fifa-green-primary);
-            padding-bottom: 0.9rem;
-            margin-bottom: 1.1rem;
+            margin-bottom: 2rem;
+            line-height: 1.4;
         }
-        .letter-head-meta { font-size: 0.78rem; font-weight: 700; color: var(--fifa-green-primary); line-height: 1.9; white-space: nowrap; }
-        .letter-head-meta input { border: none; border-bottom: 1px dotted #b9c7bf; background: transparent; font-weight: 700; color: var(--fifa-green-primary); font-size: 0.78rem; width: 110px; padding: 0 2px; }
-        .letter-head-meta input:focus { outline: none; border-bottom: 1px solid var(--fifa-gold); }
-        .letter-head-center { text-align: center; flex: 1; }
-        .letter-head-center .kingdom { font-weight: 800; font-size: 0.95rem; color: var(--fifa-green-primary); }
-        .letter-head-center .sub { font-weight: 700; font-size: 0.82rem; color: #3c4a43; }
-        .letter-head-logo img { height: 55px; object-fit: contain; }
-        .letter-head-logo i { font-size: 2.6rem; color: var(--fifa-green-primary); }
-
-        .letter-meta-fields { background: var(--fifa-bg); border: 1px solid var(--fifa-card-border); border-radius: 10px; padding: 0.9rem; margin-bottom: 1.1rem; }
-        .letter-salutation { font-weight: 800; color: var(--fifa-green-primary); font-size: 0.95rem; margin-bottom: 0.2rem; }
-        .letter-greeting { font-weight: 700; color: #3c4a43; font-size: 0.88rem; margin-bottom: 1rem; }
-        .letter-body-box textarea { border: none; background: transparent; resize: vertical; font-size: 0.9rem; line-height: 2; padding: 0; }
-        .letter-body-box textarea:focus { outline: none; box-shadow: none; }
-        .letter-closing { font-weight: 700; color: #3c4a43; font-size: 0.88rem; margin-top: 1rem; }
-        .letter-signature { text-align: center; margin-top: 1.5rem; }
-        .letter-signature .role { font-weight: 700; color: #3c4a43; font-size: 0.85rem; }
-        .letter-signature .name { font-weight: 800; color: var(--fifa-green-primary); font-size: 0.95rem; margin-top: 0.3rem; }
+        .word-paper-right {
+            text-align: right;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #000;
+        }
+        .word-paper-center {
+            text-align: center;
+            flex: 1;
+        }
+        .word-paper-center img {
+            max-height: 80px;
+            margin-bottom: 5px;
+        }
+        .word-paper-left {
+            text-align: right;
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: #000;
+            min-width: 170px;
+        }
+        .word-paper-title {
+            text-align: center;
+            font-size: 1.35rem;
+            font-weight: bold;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .word-paper-greeting {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+        }
+        .word-paper-body {
+            font-size: 1.15rem;
+            text-align: justify;
+            text-justify: inter-word;
+            margin-bottom: 2rem;
+            white-space: pre-line;
+            min-height: 250px;
+        }
+        .word-paper-footer-closing {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 3rem;
+        }
+        .word-paper-signature {
+            text-align: left;
+            margin-left: 2rem;
+            font-size: 1.15rem;
+            font-weight: bold;
+        }
+        .word-paper-contacts {
+            position: absolute;
+            bottom: 2.5rem;
+            right: 3.5rem;
+            font-size: 0.95rem;
+            color: #333;
+            direction: ltr;
+            text-align: right;
+            font-family: sans-serif;
+        }
+        .word-paper-contacts div {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+        }
     </style>
 </head>
 <body>
@@ -722,11 +757,107 @@ DASHBOARD_HTML = '''
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                     <h4 class="section-header m-0">{{ page_title }}</h4>
                     {% if current_page == 'outbox' or current_page == 'inbox' %}
-                    <button type="button" class="btn btn-fifa-primary d-flex align-items-center gap-2 shadow-sm" onclick="openNewLetterModal()">
-                        <i class='bx bxs-paper-plane fs-5' style="color: var(--fifa-gold);"></i> إرسال خطاب
+                    <button type="button" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm fw-bold" onclick="downloadLetterPDF()">
+                        <i class='bx bxs-file-pdf fs-5'></i> تحميل PDF
                     </button>
                     {% endif %}
                 </div>
+
+                {% if current_page == 'outbox' or current_page == 'inbox' %}
+                <!-- ============ ورقة الخطاب الرسمية المباشرة (ورد) ============ -->
+                <div class="word-paper-container">
+                    <div class="word-paper" id="officialPaper">
+                        <div class="word-paper-header">
+                            <div class="word-paper-right">
+                                المملكة العربية السعودية<br>
+                                وزارة الرياضة<br>
+                                فرع وزارة الرياضة بجازان<br>
+                                نادي فيفا الرياضي
+                            </div>
+                            <div class="word-paper-center">
+                                <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
+                                <div class="fw-bold text-success fs-5">FAIFA</div>
+                            </div>
+                            <div class="word-paper-left">
+                                الرقم: <span id="paperLetterNum">—</span><br>
+                                التاريخ : <span id="paperLetterDate">٢٠٢٦/٤/٢٦م</span><br>
+                                المشفوعات : <span id="paperLetterAttach">-</span>
+                            </div>
+                        </div>
+
+                        <div class="word-paper-title" id="paperSalutation">
+                            سعادة الرئيس التنفيذي المحترم
+                        </div>
+                        <div class="word-paper-greeting">
+                            السلام عليكم ورحمة الله وبركاته
+                        </div>
+
+                        <div class="word-paper-body" id="paperBodyText">
+إشارة إلى خطابكم الكريم بتاريخ ٢٠٢٦/٤/٢٤م بشأن ملاحظات عدم الامتثال خلال شهر أبريل، نود الإفادة بأنه تم الاطلاع على ما ورد من ملاحظات، والعمل على معالجتها، حيث تم تعزيز الالتزام بإجراءات النسخ الاحتياطي للبيانات، ومراجعة وتحديث صلاحيات المستخدمين بما يتناسب مع طبيعة مهامهم ، والتأكيد على توثيق جميع الأعطال والحوادث التقنية في السجلات الرسمية المعتمدة.
+
+كما تم اتخاذ الإجراءات التصحيحية اللازمة لضمان رفع مستوى الالتزام ومنع تكرار هذه الملاحظات مستقبلاً، وسيتم تزويد إدارة الحوكمة والامتثال والمخاطر بتقرير يوضح ما تم اتخاذه خلال المدة المحددة.
+                        </div>
+
+                        <div class="word-paper-footer-closing">
+                            شاكرين ومقدرين
+                        </div>
+
+                        <div class="word-paper-signature">
+                            مدير تقنية المعلومات<br>
+                            <span style="font-size: 1.25rem; font-weight: bold;">عيسى حسين الفيفي</span>
+                        </div>
+
+                        <div class="word-paper-contacts">
+                            <div>fifaclub1436@gmail.com <i class='bx bx-envelope ms-1'></i></div>
+                            <div>faifaclub1 <i class='bx bxl-twitter ms-1'></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============ نموذج أسفل ورقة الخطاب لتحديد البيانات والإرسال ============ -->
+                <div class="modern-card p-4 mb-4">
+                    <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-paper-plane ms-1'></i> تفاصيل إرسال المعاملة / الخطاب</h5>
+                    <form id="letterSendForm" action="/send_letter" method="post" enctype="multipart/form-data">
+                        <input type="hidden" name="letter_id" id="editLetterId" value="">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">الإدارة المستلمة:</label>
+                                <select name="receiver_id" id="receiverSelect" class="form-select fs-7" required onchange="updateReceiverTitle(this)">
+                                    <option value="" selected disabled>اختر الإدارة المستلمة...</option>
+                                    {% for d in depts %}
+                                        <option value="{{ d.id }}" data-name="{{ d.name }}">{{ d.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">عنوان الخطاب (الموضوع):</label>
+                                <input type="text" name="title" id="letterTitleInput" class="form-control fs-7" required placeholder="أدخل عنوان الخطاب..." oninput="syncTitle(this.value)">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">الأهمية:</label>
+                                <select name="priority" id="letterPriority" class="form-select fs-7">
+                                    <option value="عادي">عادي</option>
+                                    <option value="عاجل">عاجل</option>
+                                    <option value="سري للغاية">سري للغاية</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">مرفق إضافي (اختياري):</label>
+                                <input type="file" name="file" class="form-control fs-7">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold fs-7">وصف ومحتوى الخطاب (تعديل مباشر للورقة):</label>
+                                <textarea name="content" id="letterContentInput" class="form-control fs-7" rows="5" placeholder="اكتب نص الخطاب هنا..." oninput="syncContent(this.value)"></textarea>
+                            </div>
+                            <div class="col-12 text-end mt-3">
+                                <button type="submit" class="btn btn-fifa-primary px-5 py-2 fw-bold shadow">
+                                    <i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب الآن
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
 
                 <div class="modern-card p-2 p-sm-3">
                     {% if letters %}
@@ -787,10 +918,6 @@ DASHBOARD_HTML = '''
                                             <a href="/view_letter_file/{{ letter.id }}" target="_blank" class="btn btn-sm btn-success py-1 px-2 fs-7 shadow-sm">فتح بالموقع</a>
                                             <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
                                         {% endif %}
-                                        
-                                        {% if current_page == 'outbox' %}
-                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7" onclick="editLetter('{{ letter.id }}', '{{ letter.receiver_id }}', '{{ letter.title|e }}', '{{ letter.priority }}', '{{ (letter.content or '')|e }}')">تعديل وإعادة إرسال</button>
-                                        {% endif %}
 
                                         <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
                                         {% if can_delete == 1 or is_admin %}
@@ -806,101 +933,11 @@ DASHBOARD_HTML = '''
                         {% endif %}
 
                     {% else %}
-                        <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد بيانات حالياً.</p></div>
+                        <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد سجلات مسجلة حالياً.</p></div>
                     {% endif %}
                 </div>
             </div>
         </main>
-    </div>
-
-    <!-- ============ نافذة الخطاب الرسمي (نموذج جاهز مطابق لترويسة النادي) ============ -->
-    <div class="modal fade" id="sendLetterModal" tabindex="-1" aria-labelledby="sendLetterModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow-lg bg-transparent">
-                <div class="official-letter">
-                    <button type="button" class="btn-close position-absolute" style="top:14px; left:14px;" data-bs-dismiss="modal" aria-label="Close"></button>
-
-                    <!-- ترويسة الخطاب الرسمية -->
-                    <div class="letter-head-row">
-                        <div class="letter-head-meta text-start">
-                            الرقم: <input type="text" name="letter_number" id="letterNumber" placeholder="—">
-                            <br>التاريخ: <span id="letterDateDisplay">{{ now.strftime('%Y/%m/%d') }}م</span>
-                            <br>المشفوعات: <input type="text" name="attachments_note" id="attachmentsNote" placeholder="-">
-                        </div>
-                        <div class="letter-head-center">
-                            <div class="kingdom">المملكة العربية السعودية</div>
-                            <div class="sub">وزارة الرياضة</div>
-                            <div class="sub">فرع وزارة الرياضة بجازان</div>
-                            <div class="sub">نادي فيفا الرياضي</div>
-                        </div>
-                        <div class="letter-head-logo">
-                            <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار نادي فيفا" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                            <i class='bx bxs-shield-alt-2' style="display:none;"></i>
-                        </div>
-                    </div>
-
-                    <form id="letterForm" action="/send_letter" method="post" enctype="multipart/form-data">
-                        <input type="hidden" name="letter_id" id="editLetterId" value="">
-
-                        <!-- بيانات الخطاب الوظيفية: المستلم / الموضوع / الأهمية / المرفق -->
-                        <div class="letter-meta-fields">
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">إلى الإدارة (المستلم):</label>
-                                    <select name="receiver_id" id="receiverSelect" class="form-select form-select-sm fs-7" required>
-                                        <option value="" selected disabled>اختر الإدارة المستقبلة...</option>
-                                        {% for d in depts %}
-                                            <option value="{{ d.id }}">{{ d.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">عنوان الخطاب (الموضوع):</label>
-                                    <input type="text" name="title" id="letterTitle" class="form-control form-control-sm fs-7" required placeholder="أدخل موضوع الخطاب...">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">الأهمية:</label>
-                                    <select name="priority" id="letterPriority" class="form-select form-select-sm fs-7">
-                                        <option value="عادي">عادي</option>
-                                        <option value="عاجل">عاجل</option>
-                                        <option value="سري للغاية">سري للغاية</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green-primary);">المرفق (اختياري):</label>
-                                    <input type="file" name="file" class="form-control form-control-sm fs-7">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- نص الخطاب على شكل رسمي -->
-                        <div class="letter-salutation" id="modalTitleText">سعادة .......................... المحترم</div>
-                        <div class="letter-greeting">السلام عليكم ورحمة الله وبركاته .. وبعد،،</div>
-
-                        <div class="letter-body-box mb-2">
-                            <textarea name="content" id="letterContent" class="form-control" rows="7" placeholder="اكتب نص ومحتوى الخطاب هنا..."></textarea>
-                        </div>
-
-                        <div class="letter-closing">وتفضلوا بقبول فائق الاحترام والتقدير ،،،</div>
-
-                        <div class="letter-signature">
-                            <div class="role">مقدمه</div>
-                            <div class="name">{{ dept_name }}</div>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-3">
-                            <small class="text-muted">جميع الخطابات معتمدة رسمياً ومؤرشفة إلكترونياً</small>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-secondary fs-7 px-3" data-bs-dismiss="modal">إلغاء</button>
-                                <button type="submit" class="btn btn-fifa-primary fs-7 px-4 shadow-sm fw-bold" id="submitBtnText" style="background-color: var(--fifa-green-primary); color: #fff;">
-                                    <i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -917,26 +954,34 @@ DASHBOARD_HTML = '''
             }
         }
 
-        function openNewLetterModal() {
-            document.getElementById('letterForm').reset();
-            document.getElementById('editLetterId').value = '';
-            document.getElementById('modalTitleText').innerText = 'سعادة .......................... المحترم';
-            document.getElementById('submitBtnText').innerHTML = "<i class='bx bxs-paper-plane ms-1'></i> إرسال الخطاب";
-            var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
-            myModal.show();
+        function updateReceiverTitle(selectElem) {
+            var selectedOption = selectElem.options[selectElem.selectedIndex];
+            var deptName = selectedOption.getAttribute('data-name');
+            if (deptName) {
+                document.getElementById('paperSalutation').innerText = "سعادة " + deptName + " المحترم";
+            }
         }
 
-        function editLetter(id, receiverId, title, priority, content) {
-            document.getElementById('editLetterId').value = id;
-            document.getElementById('receiverSelect').value = receiverId;
-            document.getElementById('letterTitle').value = title;
-            document.getElementById('letterPriority').value = priority;
-            document.getElementById('letterContent').value = content;
-            
-            document.getElementById('modalTitleText').innerText = 'سعادة .......................... المحترم (تعديل)';
-            document.getElementById('submitBtnText').innerHTML = "<i class='bx bxs-paper-plane ms-1'></i> حفظ وإعادة إرسال";
-            var myModal = new bootstrap.Modal(document.getElementById('sendLetterModal'));
-            myModal.show();
+        function syncContent(text) {
+            if (text.trim() !== '') {
+                document.getElementById('paperBodyText').innerText = text;
+            }
+        }
+
+        function syncTitle(text) {
+            // تحديث اختياري
+        }
+
+        function downloadLetterPDF() {
+            var element = document.getElementById('officialPaper');
+            var opt = {
+              margin:       0.2,
+              filename:     'خطاب_رسمي_نادي_فيفا.pdf',
+              image:        { type: 'jpeg', quality: 0.98 },
+              html2canvas:  { scale: 2 },
+              jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
         }
 
         function submitBulkDelete(type) {
@@ -1891,63 +1936,61 @@ def admin_permissions():
 
             <main class="main-content">
                 <div class="modern-card p-3 p-md-4">
-                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">إدارة صلاحيات الإدارات والصفحات</h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle fs-8">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>اسم الإدارة / القسم</th>
-                                    <th class="text-center">حفظ الأرشيف</th>
-                                    <th class="text-center">صلاحية الحذف</th>
-                                    <th class="text-center">إضافة مستخدم</th>
-                                    <th class="text-center">الوارد</th>
-                                    <th class="text-center">الصادرة</th>
-                                    <th class="text-center">الإنجازات</th>
-                                    <th class="text-center">الأرشيف</th>
-                                    <th class="text-center">الرفع الفوري</th>
-                                    <th class="text-center">إجراء</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dept in departments %}
-                                <tr>
-                                    <form action="/admin/permissions" method="post">
-                                        <input type="hidden" name="dept_id" value="{{ dept.id }}">
-                                        <td class="fw-bold text-dark text-nowrap">{{ dept.name }}</td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_view_all_archive_{{ dept.id }}" {{ 'checked' if dept.can_view_all_archive == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" {{ 'checked' if dept.can_delete == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_add_user_{{ dept.id }}" {{ 'checked' if dept.can_add_user == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ dept.id }}" {{ 'checked' if dept.get('can_page_inbox', 1) == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ dept.id }}" {{ 'checked' if dept.get('can_page_outbox', 1) == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ dept.id }}" {{ 'checked' if dept.get('can_page_achievements', 1) == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_page_archive_{{ dept.id }}" {{ 'checked' if dept.get('can_page_archive', 1) == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center">
-                                            <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ dept.id }}" {{ 'checked' if dept.get('can_page_quick_upload', 1) == 1 else '' }}>
-                                        </td>
-                                        <td class="text-center text-nowrap">
-                                            <button type="submit" class="btn btn-sm btn-success py-0 px-2">حفظ</button>
-                                            <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger py-0 px-1" onclick="return confirm('هل أنت متأكد من حذف حساب هذه الإدارة نهائياً؟');">حذف</a>
-                                        </td>
-                                    </form>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <h5 class="fw-bold fs-6 mb-3" style="color: var(--fifa-green-primary);">إدارة صلاحيات الوصول والأقسام</h5>
+                    
+                    {% for dept in departments %}
+                    <div class="border rounded p-3 mb-3 bg-white shadow-sm">
+                        <form action="/admin/permissions" method="post">
+                            <input type="hidden" name="dept_id" value="{{ dept.id }}">
+                            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 border-bottom pb-2">
+                                <h6 class="fw-bold m-0" style="color: var(--fifa-green-primary);">{{ dept.name }} <span class="text-muted fs-8">({{ dept.username }})</span></h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <button type="submit" class="btn btn-sm btn-fifa-gold px-3">حفظ الصلاحيات</button>
+                                    <a href="/admin/delete_department/{{ dept.id }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف حساب الإدارة هذا نهائياً؟');">حذف الحساب</a>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2 fs-7">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_inbox_{{ dept.id }}" id="inbox_{{ dept.id }}" {{ 'checked' if dept.can_page_inbox == 1 else '' }}>
+                                        <label class="form-check-label" for="inbox_{{ dept.id }}">عرض الصندوق الوارد</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_outbox_{{ dept.id }}" id="outbox_{{ dept.id }}" {{ 'checked' if dept.can_page_outbox == 1 else '' }}>
+                                        <label class="form-check-label" for="outbox_{{ dept.id }}">عرض الخطابات الصادرة</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_achievements_{{ dept.id }}" id="ach_{{ dept.id }}" {{ 'checked' if dept.can_page_achievements == 1 else '' }}>
+                                        <label class="form-check-label" for="ach_{{ dept.id }}">عرض إنجازات الشهر</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_archive_{{ dept.id }}" id="archive_{{ dept.id }}" {{ 'checked' if dept.can_page_archive == 1 else '' }}>
+                                        <label class="form-check-label" for="archive_{{ dept.id }}">عرض أرشيف الإدارة</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_page_quick_upload_{{ dept.id }}" id="quick_{{ dept.id }}" {{ 'checked' if dept.can_page_quick_upload == 1 else '' }}>
+                                        <label class="form-check-label" for="quick_{{ dept.id }}">عرض الرفع الفوري</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="can_delete_{{ dept.id }}" id="del_{{ dept.id }}" {{ 'checked' if dept.can_delete == 1 else '' }}>
+                                        <label class="form-check-label text-danger fw-bold" for="del_{{ dept.id }}">صلاحية الحذف</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                     </div>
+                    {% endfor %}
                 </div>
             </main>
         </div>
