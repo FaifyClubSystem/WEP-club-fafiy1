@@ -972,7 +972,7 @@ DASHBOARD_HTML = '''
                                 نادي فيفا الرياضي
                             </div>
                             <div class="word-paper-center">
-                                <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
+                                <img src="{{ url_for('static', filename='logo.png') }}" alt="" onerror="this.style.display='none'">
                                 <div class="brand-name-sub">FAIFA</div>
                             </div>
                             <div class="word-paper-left">
@@ -984,30 +984,16 @@ DASHBOARD_HTML = '''
                             </div>
                         </div>
 
-                        <div class="word-paper-title">
-                            سعادة <input type="text" id="paperSalutationInput" class="paper-editable-input text-center" value="الرئيس التنفيذي" style="width: 250px;"> المحترم
-                        </div>
-                        <div class="word-paper-greeting">
-                            السلام عليكم ورحمة الله وبركاته
-                        </div>
+                    
 
                         <!-- نص الخطاب المباشر القابل للتعديل والتكبير والتصغير للكتابة المباشرة -->
                         <div class="word-paper-body" id="paperBodyText" contenteditable="true" oninput="syncTextareaWithPaper()">
-إشارة إلى خطابكم الكريم بشأن الملاحظات والتوصيات المعتمدة، نود الإفادة بأنه تم الاطلاع على كافة التفاصيل والتعامل معها وفق الأنظمة واللوائح المعتمدة.
 
-شاكرين لكم حسن تعاونكم الدائم معنا.
                         </div>
 
-                        <div class="word-paper-footer-closing">
-                            شاكرين ومقدرين
-                        </div>
+                       
 
-                        <div class="word-paper-signature">
-                            <input type="text" id="paperSignerTitleInput" class="paper-editable-input" value="{{ dept_name }}" style="width: 220px;"><br>
-                            <span style="font-size: 1.25rem; font-weight: bold;">
-                                <input type="text" id="paperSignerNameInput" class="paper-editable-input" value="مسؤول الإدارة" style="width: 220px;">
-                            </span>
-                        </div>
+                        
 
                         <div class="word-paper-contacts">
                             <div>fifaclub1436@gmail.com <i class='bx bx-envelope ms-1'></i></div>
