@@ -651,10 +651,10 @@ DASHBOARD_HTML = '''
             .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
             .sidebar.show-sidebar { right: 0; }
         }
-
+ 
         .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
         .mobile-overlay.active { display: block; }
-
+ 
         .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
         .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
         .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
@@ -668,8 +668,8 @@ DASHBOARD_HTML = '''
         .bg-fifa-green { background-color: var(--fifa-green-primary) !important; color: #fff; }
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
-
- /* ================= ورقة خطاب Word رسمية مقاس A4 حقيقي مع أدوات التحكّم بالخط ================= */
+ 
+        /* ================= ورقة خطاب Word رسمية مقاس A4 حقيقي مع أدوات التحكّم بالخط ================= */
         .paper-toolbar {
             background: #ffffff;
             border: 1px solid #c8d6cd;
@@ -871,13 +871,13 @@ DASHBOARD_HTML = '''
             background: transparent !important;
             pointer-events: none;
         }
-
+ 
     </style>
 </head>
 <body>
-
+ 
     <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
-
+ 
     <nav class="navbar top-navbar sticky-top">
         <div class="container-fluid">
             <div class="d-flex align-items-center gap-2">
@@ -912,7 +912,7 @@ DASHBOARD_HTML = '''
             </div>
         </div>
     </nav>
-
+ 
     <div class="main-wrapper">
         <aside class="sidebar" id="sidebarMenu">
             <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
@@ -944,7 +944,7 @@ DASHBOARD_HTML = '''
             <div class="border-top border-secondary my-3 opacity-25"></div>
             <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
         </aside>
-
+ 
         <main class="content-body">
             <div class="container-fluid p-0">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
@@ -960,8 +960,8 @@ DASHBOARD_HTML = '''
                     </div>
                     {% endif %}
                 </div>
-
-{% if current_page == 'outbox' or current_page == 'inbox' %}
+ 
+                {% if current_page == 'outbox' or current_page == 'inbox' %}
                 <!-- ============ ورقة الخطاب الرسمية المباشرة مع شريط التنسيق ============ -->
                 <div class="word-paper-container">
                     
@@ -1038,7 +1038,7 @@ DASHBOARD_HTML = '''
                         </div>
                     </div>
                 </div>
-
+ 
                 <!-- ============ نموذج أسفل ورقة الخطاب لتحديد البيانات والإرسال ============ -->
                 <div class="modern-card p-4 mb-4">
                     <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-paper-plane ms-1'></i> تفاصيل إرسال المعاملة / الخطاب</h5>
@@ -1083,7 +1083,7 @@ DASHBOARD_HTML = '''
                     </form>
                 </div>
                 {% endif %}
-
+ 
                 <div class="modern-card p-2 p-sm-3">
                     {% if letters %}
                         {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
@@ -1104,7 +1104,7 @@ DASHBOARD_HTML = '''
                                 </div>
                             </div>
                         {% endif %}
-
+ 
                         <div class="letters-list">
                             {% for letter in letters %}
                                 <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
@@ -1119,7 +1119,7 @@ DASHBOARD_HTML = '''
                                                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
                                             </div>
                                             {% if letter.content %}<p class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content }}</p>{% endif %}
-
+ 
                                             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                                                 <span class="fs-7 text-muted">
                                                     {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
@@ -1144,14 +1144,14 @@ DASHBOARD_HTML = '''
                                                 <i class='bx bx-edit ms-1'></i> تعديل / إرسال
                                             </button>
                                         {% endif %}
-
+ 
                                         {% if letter.file_data %}
                                             <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
                                                 <i class='bx bx-show ms-1'></i> معاينة
                                             </button>
                                             <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
                                         {% endif %}
-
+ 
                                         <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
                                         {% if can_delete == 1 or is_admin %}
                                             <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
@@ -1160,11 +1160,11 @@ DASHBOARD_HTML = '''
                                 </div>
                             {% endfor %}
                         </div>
-
+ 
                         {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
                         </form>
                         {% endif %}
-
+ 
                     {% else %}
                         <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد خطابات حالياً.</p></div>
                     {% endif %}
@@ -1172,7 +1172,7 @@ DASHBOARD_HTML = '''
             </div>
         </main>
     </div>
-
+ 
     <!-- نافذة معاينة الملفات الموحدة Modal -->
     <div class="modal fade" id="previewFileModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -1187,7 +1187,7 @@ DASHBOARD_HTML = '''
         </div>
       </div>
     </div>
-
+ 
     <!-- نافذة معاينة الخطاب نفسه (مقاس A4) قبل الطباعة أو التحميل -->
     <div class="modal fade" id="previewLetterModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-centered">
@@ -1206,26 +1206,30 @@ DASHBOARD_HTML = '''
         </div>
       </div>
     </div>
-
+ 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // دالة تنفيذ تنسيقات النص العامة
         function formatDoc(cmd, value = null) {
             document.execCommand(cmd, false, value);
             syncTextareaWithPaper();
         }
-
+ 
+        // دالة تكبير وتصغير حجم الخط للنص المحدد فقط
         function changeFontSize(step) {
             var selection = window.getSelection();
             if (!selection.rangeCount) return;
+ 
             var range = selection.getRangeAt(0);
             var paperBody = document.getElementById('paperBodyText');
-
+ 
             if (!paperBody.contains(range.commonAncestorContainer)) {
                 alert('يرجى تحديد النص المراد تكبيره أو تصغيره داخل ورقة الخطاب أولاً.');
                 return;
             }
-
+ 
             if (range.collapsed) {
+                // إذا لم يحدد نصاً معيناً، يطبق التغيير على حاوية الخطاب بالكامل
                 var currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
                 var newSize = currentSize + (step * 2);
                 if (newSize >= 10 && newSize <= 50) {
@@ -1233,31 +1237,38 @@ DASHBOARD_HTML = '''
                     document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
                 }
             } else {
+                // تكبير/تصغير النص المحدد فقط عبر عنصر span
                 var span = document.createElement('span');
                 var selectedElement = range.commonAncestorContainer.parentElement;
+                
                 var currentSize = 18;
                 if (selectedElement && selectedElement !== paperBody && selectedElement.style.fontSize) {
                     currentSize = parseInt(selectedElement.style.fontSize);
                 } else {
                     currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
                 }
+ 
                 var newSize = currentSize + (step * 2);
                 if (newSize < 10) newSize = 10;
                 if (newSize > 50) newSize = 50;
-
+ 
                 span.style.fontSize = newSize + 'px';
                 span.appendChild(range.extractContents());
                 range.insertNode(span);
+                
                 document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
             }
             syncTextareaWithPaper();
         }
-
+ 
+        // دالة تغيير نوع الخط للنص المحدد
         function changeFontFamily(fontFamily) {
             var selection = window.getSelection();
             if (!selection.rangeCount) return;
+ 
             var range = selection.getRangeAt(0);
             var paperBody = document.getElementById('paperBodyText');
+ 
             if (range.collapsed) {
                 paperBody.style.fontFamily = fontFamily;
             } else {
@@ -1268,7 +1279,8 @@ DASHBOARD_HTML = '''
             }
             syncTextareaWithPaper();
         }
-
+ 
+        // المزامنة بين نص الورقة ونموذج الإرسال بالأسفل
         function syncTextareaWithPaper() {
             var paperBody = document.getElementById('paperBodyText');
             var textarea = document.getElementById('letterContentInput');
@@ -1276,39 +1288,45 @@ DASHBOARD_HTML = '''
                 textarea.value = paperBody.innerText;
             }
         }
-
+ 
         function syncPaperWithTextarea(val) {
             var paperBody = document.getElementById('paperBodyText');
             if (paperBody) {
                 paperBody.innerText = val.trim() !== '' ? val : "أدخل نص الخطاب...";
             }
         }
-
+ 
         function previewFile(url, title) {
             document.getElementById('previewFileTitle').innerText = 'معاينة: ' + title;
             document.getElementById('previewFrame').src = url;
             var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
             modal.show();
         }
-
+ 
+        // معاينة الخطاب الرسمي بمقاس A4 داخل نافذة منبثقة قبل الطباعة/التحميل
         function previewLetterPaper() {
             var original = document.getElementById('officialPaper');
             var clone = original.cloneNode(true);
             clone.removeAttribute('id');
+ 
+            // استبدال حقول الإدخال بنصوص ثابتة للعرض فقط (الرقم/التاريخ/المشفوعات)
             clone.querySelectorAll('input').forEach(function (inp) {
                 var span = document.createElement('span');
                 span.innerText = inp.value || '';
                 span.style.fontWeight = 'bold';
                 inp.parentNode.replaceChild(span, inp);
             });
+ 
             var container = document.getElementById('previewLetterContainer');
             container.innerHTML = '';
             clone.id = 'previewOfficialPaper';
             container.appendChild(clone);
+ 
             var modalEl = document.getElementById('previewLetterModal');
             var modal = new bootstrap.Modal(modalEl);
             modal.show();
-
+ 
+            // ضبط مقياس العرض بحيث تظهر الصفحة كاملة داخل النافذة (بدون تغيير مقاسها الحقيقي A4)
             setTimeout(function () {
                 var modalBodyWidth = modalEl.querySelector('.modal-body').clientWidth - 20;
                 var paperWidthPx = clone.getBoundingClientRect().width;
@@ -1318,32 +1336,42 @@ DASHBOARD_HTML = '''
                 clone.style.marginBottom = (paperWidthPx * (scale - 1)) + 'px';
             }, 150);
         }
-
+ 
         function toggleSidebar() {
             document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
             document.getElementById('mobileOverlay').classList.toggle('active');
         }
-
+ 
         function toggleSelectAll(source) {
             checkboxes = document.querySelectorAll('.letter-checkbox');
             for(var i=0, n=checkboxes.length; i<n; i++) {
                 checkboxes[i].checked = source.checked;
             }
         }
-
+ 
+        function updateReceiverTitle(selectElem) {
+            var selectedOption = selectElem.options[selectElem.selectedIndex];
+            var deptName = selectedOption.getAttribute('data-name');
+            if (deptName) {
+                document.getElementById('paperSalutationInput').value = deptName;
+            }
+        }
+ 
         function loadLetterToEditor(id, title, senderId, priority) {
             var textElem = document.getElementById('letter-text-' + id);
             var content = textElem ? textElem.innerText : '';
+            
             document.getElementById('letterTitleInput').value = title;
             document.getElementById('letterContentInput').value = content;
             document.getElementById('letterPriority').value = priority;
             syncPaperWithTextarea(content);
+ 
             var paperBody = document.getElementById('officialPaper');
             if (paperBody) {
                 paperBody.scrollIntoView({ behavior: 'smooth' });
             }
         }
-
+ 
         function downloadLetterPDF() {
             var element = document.getElementById('officialPaper');
             var opt = {
@@ -1355,7 +1383,7 @@ DASHBOARD_HTML = '''
             };
             html2pdf().set(opt).from(element).save();
         }
-
+ 
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
             if (type === 'all') {
@@ -1373,7 +1401,7 @@ DASHBOARD_HTML = '''
                 }
             }
         }
-
+ 
         window.addEventListener('DOMContentLoaded', function() {
             syncTextareaWithPaper();
         });
@@ -1381,7 +1409,7 @@ DASHBOARD_HTML = '''
 </body>
 </html>
 '''
-
+ 
 @app.route('/dashboard')
 def dashboard():
     if 'dept_id' not in session:
@@ -1430,7 +1458,7 @@ def dashboard():
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   now=datetime.now())
-
+ 
 @app.route('/outbox')
 def outbox():
     if 'dept_id' not in session:
@@ -1479,7 +1507,7 @@ def outbox():
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   now=datetime.now())
-
+ 
 @app.route('/send_letter', methods=['POST'])
 def send_letter():
     if 'dept_id' not in session:
@@ -1535,7 +1563,7 @@ def send_letter():
     conn.close()
     
     return redirect(url_for('outbox'))
-
+ 
 @app.route('/archive')
 def archive():
     if 'dept_id' not in session:
@@ -1556,7 +1584,7 @@ def archive():
     
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
-
+ 
     if current_dept['can_view_all_archive'] == 1 or is_admin:
         cursor.execute('''
             SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
@@ -1597,7 +1625,7 @@ def archive():
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   now=datetime.now())
-
+ 
 @app.route('/quick_upload', methods=['GET', 'POST'])
 def quick_upload():
     if 'dept_id' not in session:
@@ -1613,7 +1641,7 @@ def quick_upload():
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة الرفع الفوري."); window.location.href="/dashboard";</script>'''
-
+ 
     if request.method == 'POST':
         dept_id = session['dept_id']
         document_title = request.form.get('document_title')
@@ -1622,7 +1650,7 @@ def quick_upload():
         
         files = request.files.getlist('archive_files')
         uploaded_count = 0
-
+ 
         for file in files:
             if file and file.filename != '':
                 original_name = secure_filename(file.filename)
