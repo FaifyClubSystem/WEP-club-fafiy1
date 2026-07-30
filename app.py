@@ -669,7 +669,7 @@ DASHBOARD_HTML = '''
         .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.6rem 1.2rem; font-weight: 700; border: none; }
         .btn-fifa-primary:hover { background-color: var(--fifa-green-light); color: #fff; }
 
-        /* ================= ورقة خطاب Word رسمية مع أدوات التحكّم بالخط ================= */
+        /* ================= ورقة خطاب Word رسمية مقاس A4 حقيقي مع أدوات التحكّم بالخط ================= */
         .paper-toolbar {
             background: #ffffff;
             border: 1px solid #c8d6cd;
@@ -680,9 +680,11 @@ DASHBOARD_HTML = '''
             flex-wrap: wrap;
             align-items: center;
             gap: 6px;
-            max-width: 800px;
+            width: 210mm;
+            max-width: 100%;
             margin: 0 auto;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            box-sizing: border-box;
         }
         .paper-toolbar button, .paper-toolbar select, .paper-toolbar input[type="color"] {
             border: 1px solid #d5e2d8;
@@ -704,21 +706,28 @@ DASHBOARD_HTML = '''
             flex-direction: column;
             align-items: center;
             margin-bottom: 2rem;
+            overflow-x: auto;
+            padding-bottom: 8px;
         }
+        /* مقاس A4 الحقيقي: 210مم × 297مم، تماماً مثل صفحة الوورد */
         .word-paper {
             background: #ffffff;
-            width: 100%;
-            max-width: 800px;
-            min-height: 1050px;
-            padding: 3rem 3.5rem;
+            width: 210mm;
+            min-height: 297mm;
+            max-width: 210mm;
+            padding: 18mm 20mm;
             box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             border: 1px solid #c8d6cd;
-            border-radius: 0 0 10px 10px;
+            border-radius: 0 0 4px 4px;
             position: relative;
             font-family: 'Amiri', 'Traditional Arabic', serif;
             color: #000;
             line-height: 1.8;
             box-sizing: border-box;
+            flex-shrink: 0;
+        }
+        @media (max-width: 860px) {
+            .word-paper, .paper-toolbar { width: 100%; min-width: 210mm; }
         }
         .word-paper-header {
             display: flex;
@@ -814,8 +823,8 @@ DASHBOARD_HTML = '''
         }
         .word-paper-contacts {
             position: absolute;
-            bottom: 2.5rem;
-            left: 3.5rem;
+            bottom: 10mm;
+            left: 20mm;
             font-size: 0.95rem;
             color: #000;
             direction: ltr;
@@ -843,6 +852,24 @@ DASHBOARD_HTML = '''
             outline: none;
             border-bottom: 1px solid var(--fifa-green-primary);
             background: #fdfdfd;
+        }
+
+        /* نافذة معاينة الخطاب A4 */
+        #previewLetterModal .modal-body {
+            background: #6b6f70;
+            display: flex;
+            justify-content: center;
+            padding: 24px 10px;
+            overflow: auto;
+            max-height: 85vh;
+        }
+        #previewLetterContainer .word-paper {
+            box-shadow: 0 15px 40px rgba(0,0,0,0.35);
+        }
+        #previewLetterContainer input {
+            border: none !important;
+            background: transparent !important;
+            pointer-events: none;
         }
 
     </style>
@@ -923,9 +950,14 @@ DASHBOARD_HTML = '''
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                     <h4 class="section-header m-0">{{ page_title }}</h4>
                     {% if current_page == 'outbox' or current_page == 'inbox' %}
-                    <button type="button" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm fw-bold" onclick="downloadLetterPDF()">
-                        <i class='bx bxs-file-pdf fs-5'></i> تحميل PDF
-                    </button>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-outline-dark d-flex align-items-center gap-2 shadow-sm fw-bold" onclick="previewLetterPaper()">
+                            <i class='bx bx-show fs-5'></i> معاينة الخطاب
+                        </button>
+                        <button type="button" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm fw-bold" onclick="downloadLetterPDF()">
+                            <i class='bx bxs-file-pdf fs-5'></i> تحميل PDF
+                        </button>
+                    </div>
                     {% endif %}
                 </div>
 
@@ -934,7 +966,7 @@ DASHBOARD_HTML = '''
                 <div class="word-paper-container">
                     
                     <!-- شريط أدوات التنسيق وتكبير/تصغير الخط للنص المحدد -->
-                    <div class="paper-toolbar w-100">
+                    <div class="paper-toolbar">
                         <span class="fw-bold fs-8 text-muted me-1"><i class='bx bx-font'></i> تنسيق الخط المحدد:</span>
                         <button type="button" onclick="changeFontSize(1)" title="تكبير النص المحدد"><i class='bx bx-font-plus fs-6'></i> A+</button>
                         <button type="button" onclick="changeFontSize(-1)" title="تصغير النص المحدد"><i class='bx bx-font-minus fs-6'></i> A-</button>
@@ -1156,6 +1188,25 @@ DASHBOARD_HTML = '''
       </div>
     </div>
 
+    <!-- نافذة معاينة الخطاب نفسه (مقاس A4) قبل الطباعة أو التحميل -->
+    <div class="modal fade" id="previewLetterModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white py-2">
+            <h6 class="modal-title fw-bold"><i class='bx bx-show ms-1'></i> معاينة الخطاب (مقاس A4)</h6>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="previewLetterContainer"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+            <button type="button" class="btn btn-danger fw-bold" onclick="downloadLetterPDF()"><i class='bx bxs-file-pdf ms-1'></i> تحميل PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // دالة تنفيذ تنسيقات النص العامة
@@ -1252,6 +1303,40 @@ DASHBOARD_HTML = '''
             modal.show();
         }
 
+        // معاينة الخطاب الرسمي بمقاس A4 داخل نافذة منبثقة قبل الطباعة/التحميل
+        function previewLetterPaper() {
+            var original = document.getElementById('officialPaper');
+            var clone = original.cloneNode(true);
+            clone.removeAttribute('id');
+
+            // استبدال حقول الإدخال بنصوص ثابتة للعرض فقط (الرقم/التاريخ/المشفوعات)
+            clone.querySelectorAll('input').forEach(function (inp) {
+                var span = document.createElement('span');
+                span.innerText = inp.value || '';
+                span.style.fontWeight = 'bold';
+                inp.parentNode.replaceChild(span, inp);
+            });
+
+            var container = document.getElementById('previewLetterContainer');
+            container.innerHTML = '';
+            clone.id = 'previewOfficialPaper';
+            container.appendChild(clone);
+
+            var modalEl = document.getElementById('previewLetterModal');
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+
+            // ضبط مقياس العرض بحيث تظهر الصفحة كاملة داخل النافذة (بدون تغيير مقاسها الحقيقي A4)
+            setTimeout(function () {
+                var modalBodyWidth = modalEl.querySelector('.modal-body').clientWidth - 20;
+                var paperWidthPx = clone.getBoundingClientRect().width;
+                var scale = Math.min(1, modalBodyWidth / paperWidthPx);
+                clone.style.transform = 'scale(' + scale + ')';
+                clone.style.transformOrigin = 'top center';
+                clone.style.marginBottom = (paperWidthPx * (scale - 1)) + 'px';
+            }, 150);
+        }
+
         function toggleSidebar() {
             document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
             document.getElementById('mobileOverlay').classList.toggle('active');
@@ -1290,11 +1375,11 @@ DASHBOARD_HTML = '''
         function downloadLetterPDF() {
             var element = document.getElementById('officialPaper');
             var opt = {
-              margin:       0.2,
+              margin:       0,
               filename:     'خطاب_رسمي_نادي_فيفا.pdf',
               image:        { type: 'jpeg', quality: 0.98 },
               html2canvas:  { scale: 2 },
-              jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+              jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
             html2pdf().set(opt).from(element).save();
         }
