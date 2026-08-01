@@ -1524,44 +1524,60 @@ DASHBOARD_HTML = '''
             }
         }
  
-        // تحميل PDF: يبني نسخة نظيفة من الورقة (بدون حقول input وبدون contenteditable) لتفادي تداخل/تشوه النص عربياً
+// تحميل PDF: بناء نسخة دقيقة ونظيفة من محتوى الخطاب الرسمي وتضمينه بالكامل لتفادي الفراغ
         function downloadLetterPDF() {
-            // إذا كانت نافذة المعاينة مفتوحة وتحتوي نسخة من الخطاب (مثلاً معاينة خطاب مؤرشف)، نستخدم تلك النسخة نفسها بدل ورقة التحرير الفارغة
+            // نأخذ النسخة المعروضة حالياً سواء من نافذة المعاينة أو ورقة التحرير المباشرة
             var source = document.getElementById('previewOfficialPaper') || document.getElementById('officialPaper');
+            if (!source) {
+                alert("لا توجد ورقة خطاب نشطة للتحميل!");
+                return;
+            }
+            
             var clone = source.cloneNode(true);
             clone.removeAttribute('id');
             clone.setAttribute('dir', 'rtl');
- 
+
+            // تحويل حقول الإدخال (Inputs) إلى نصوص عادية في النسخة المنسوخة
             clone.querySelectorAll('input').forEach(function (inp) {
                 var span = document.createElement('span');
-                span.innerText = inp.value || '';
+                span.innerText = inp.value || inp.getAttribute('value') || '';
                 span.style.fontWeight = 'bold';
                 inp.parentNode.replaceChild(span, inp);
             });
- 
-            var bodyEl = clone.querySelector('.word-paper-body');
-            if (bodyEl) bodyEl.removeAttribute('contenteditable');
- 
+
+            // التأكد من جلب محتوى الخطاب بشكل نصي/HTML سليم ووضعه بالورقة المنسوخة
+            var originalBody = source.querySelector('.word-paper-body');
+            var cloneBody = clone.querySelector('.word-paper-body');
+            if (originalBody && cloneBody) {
+                cloneBody.removeAttribute('contenteditable');
+                cloneBody.innerHTML = originalBody.innerHTML;
+            }
+
+            // إعداد العنصر خارج الشاشة لعمل الـ Rendering بدقة عالية
             clone.style.position = 'fixed';
             clone.style.top = '0';
             clone.style.left = '-9999px';
             clone.style.zIndex = '-1';
+            clone.style.transform = 'none';
             document.body.appendChild(clone);
- 
+
             var opt = {
               margin:       0,
               filename:     'خطاب_رسمي_نادي_فيفا.pdf',
               image:        { type: 'jpeg', quality: 0.98 },
-              html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+              html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
               jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
+
             html2pdf().set(opt).from(clone).save().then(function () {
                 document.body.removeChild(clone);
-            }).catch(function () {
-                document.body.removeChild(clone);
+            }).catch(function (err) {
+                console.error("PDF generation error:", err);
+                if (document.body.contains(clone)) {
+                    document.body.removeChild(clone);
+                }
             });
         }
- 
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
             if (type === 'all') {
