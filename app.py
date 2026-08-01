@@ -1040,9 +1040,9 @@ DASHBOARD_HTML = '''
                         <div class="word-paper-header">
                             <div class="word-paper-right">
                                 المملكة العربية السعودية<br>
-                                وزارة الرياضة<br>
-                                فرع وزارة الرياضة بجازان<br>
-                                نادي فيفا الرياضي
+                                   وزارة الرياضة<br>
+                                 فرع وزارة الرياضة بجازان<br>
+                                   نادي فيفا الرياضي
                             </div>
                             <div class="word-paper-center">
                                 <img src="{{ url_for('static', filename='logo.png') }}" alt="FAIFA" onerror="this.style.display='none'">
