@@ -644,8 +644,7 @@ DASHBOARD_HTML = '''
             --fifa-card-border: #d5e2d8;
         }
         body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
-        .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
-        .nav-logo { height: 42px; width: auto; object-fit: contain; }
+.top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); position: sticky; top: 0; z-index: 1045; }        .nav-logo { height: 42px; width: auto; object-fit: contain; }
         .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
         
         .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
