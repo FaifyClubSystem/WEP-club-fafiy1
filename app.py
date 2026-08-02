@@ -738,18 +738,12 @@ DASHBOARD_HTML = '''
             margin-bottom: 0.6rem;
             line-height: 1.4;
         }
-        .word-paper-header-rules { margin-bottom: 2.2rem; }
-        .word-paper-header-rules .rule-thick {
-            height: 4px;
-            border-radius: 3px;
-            background: linear-gradient(90deg, var(--fifa-green-primary) 0%, var(--fifa-gold) 55%, var(--fifa-green-primary) 100%);
-            margin-bottom: 3px;
-        }
-        .word-paper-header-rules .rule-thin {
-            height: 1px;
-            background: #123826;
-            opacity: 0.6;
-        }
+.word-paper-header-rules { margin-bottom: 2.2rem; }
+.word-paper-header-rules .rule-single {
+    height: 2.5px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--fifa-green-primary) 0%, var(--fifa-gold) 50%, var(--fifa-green-primary) 100%);
+}
         .word-paper-right {
             text-align: center !important;
             text-align-last: center !important;
@@ -1066,11 +1060,10 @@ DASHBOARD_HTML = '''
                                 </div>
                             </div>
                         </div>
-
-                        <div class="word-paper-header-rules">
-                            <div class="rule-thick"></div>
-                            <div class="rule-thin"></div>
-                        </div>
+                        
+                          <div class="word-paper-header-rules">
+                          <div class="rule-single"></div>
+                      </div>
  
                         <!-- نص الخطاب المباشر القابل للتعديل والتكبير والتصغير للكتابة المباشرة -->
                         <div class="word-paper-body" id="paperBodyText" contenteditable="true" oninput="syncTextareaWithPaper()">
@@ -1090,7 +1083,7 @@ DASHBOARD_HTML = '''
                                         <stop offset="100%" stop-color="#123826"/>
                                     </linearGradient>
                                 </defs>
-                                <path d="M0,55 C120,15 260,85 420,50 C560,20 660,70 800,40 L800,110 L0,110 Z" fill="url(#fifaWaveGrad)"/>
+                                <path d="M0,65 C180,5 380,95 560,35 C650,5 720,45 800,25 L800,110 L0,110 Z" fill="url(#fifaWaveGrad)"/>
                             </svg>
                             <div class="word-paper-footer-content">
                                 <span><i class='bx bx-envelope'></i> fifaclub1436@gmail.com</span>
