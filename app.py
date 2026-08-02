@@ -1525,19 +1525,42 @@ DASHBOARD_HTML = '''
         }
  
 // تحميل PDF: بناء نسخة دقيقة ونظيفة من محتوى الخطاب الرسمي وتضمينه بالكامل لتفادي الفراغ
-        function downloadLetterPDF() {
-            // نأخذ النسخة المعروضة حالياً سواء من نافذة المعاينة أو ورقة التحرير المباشرة
+       function downloadLetterPDF() {
+            // جلب ورقة الخطاب الأصلية أو المعاينة
             var source = document.getElementById('previewOfficialPaper') || document.getElementById('officialPaper');
             if (!source) {
                 alert("لا توجد ورقة خطاب نشطة للتحميل!");
                 return;
             }
-            
-            var clone = source.cloneNode(true);
-            clone.removeAttribute('id');
-            clone.setAttribute('dir', 'rtl');
 
-            // تحويل حقول الإدخال (Inputs) إلى نصوص عادية في النسخة المنسوخة
+            // إنشاء نافذة منبثقة جديدة للطباعة
+            var printWindow = window.open('', '_blank', 'height=800,width=800');
+            
+            // جمع ملفات الـ CSS والستايل المستخدمة في الصفحة الحالية لضمان مطابقة التصميم
+            var styles = '';
+            document.querySelectorAll('style, link[rel="stylesheet"]').forEach(function(styleNode) {
+                styles += styleNode.outerHTML;
+            });
+
+            // كتابة المحتوى والستايل داخل النافذة المنبثقة
+            printWindow.document.write('<!DOCTYPE html>');
+            printWindow.document.write('<html lang="ar" dir="rtl">');
+            printWindow.document.write('<head>');
+            printWindow.document.write('<meta charset="UTF-8">');
+            printWindow.document.write('<title>طباعة الخطاب الرسمي</title>');
+            printWindow.document.write(styles);
+            printWindow.document.write('<style>');
+            printWindow.document.write(`
+                body { background: #ffffff !important; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
+                @page { size: A4; margin: 0mm; }
+                body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            `);
+            printWindow.document.write('</style>');
+            printWindow.document.write('</head>');
+            printWindow.document.write('<body>');
+            
+            // نسخ محتوى الورقة وإزالة الحقول النصية لكي تطبع كنصوص صافية
+            var clone = source.cloneNode(true);
             clone.querySelectorAll('input').forEach(function (inp) {
                 var span = document.createElement('span');
                 span.innerText = inp.value || inp.getAttribute('value') || '';
@@ -1545,7 +1568,6 @@ DASHBOARD_HTML = '''
                 inp.parentNode.replaceChild(span, inp);
             });
 
-            // التأكد من جلب محتوى الخطاب بشكل نصي/HTML سليم ووضعه بالورقة المنسوخة
             var originalBody = source.querySelector('.word-paper-body');
             var cloneBody = clone.querySelector('.word-paper-body');
             if (originalBody && cloneBody) {
@@ -1553,30 +1575,18 @@ DASHBOARD_HTML = '''
                 cloneBody.innerHTML = originalBody.innerHTML;
             }
 
-            // إعداد العنصر خارج الشاشة لعمل الـ Rendering بدقة عالية
-            clone.style.position = 'fixed';
-            clone.style.top = '0';
-            clone.style.left = '-9999px';
-            clone.style.zIndex = '-1';
-            clone.style.transform = 'none';
-            document.body.appendChild(clone);
+            printWindow.document.write(clone.outerHTML);
+            printWindow.document.write('</body>');
+            printWindow.document.write('</html>');
+            
+            printWindow.document.close();
+            printWindow.focus();
 
-            var opt = {
-              margin:       0,
-              filename:     'خطاب_رسمي_نادي_فيفا.pdf',
-              image:        { type: 'jpeg', quality: 0.98 },
-              html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-              jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opt).from(clone).save().then(function () {
-                document.body.removeChild(clone);
-            }).catch(function (err) {
-                console.error("PDF generation error:", err);
-                if (document.body.contains(clone)) {
-                    document.body.removeChild(clone);
-                }
-            });
+            // الانتظار قليلاً ثم إطلاق نافذة الطباعة (التي تتيح للمستخدم حفظ الملف كـ PDF)
+            setTimeout(function () {
+                printWindow.print();
+                // ملاحظة: يمكنك إغلاق النافذة بعد الطباعة إذا أردت بـ printWindow.close();
+            }, 750);
         }
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
