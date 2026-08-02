@@ -1570,7 +1570,6 @@ function downloadLetterPDF() {
             margin: 0mm;
         }
 
-        /* تثبيت مقاس الورقة بالضبط على A4 الحقيقي بدون أي إضافات تكسر المقاس */
         .word-paper-container {
             margin: 0 !important;
             padding: 0 !important;
@@ -1592,6 +1591,13 @@ function downloadLetterPDF() {
             page-break-after: avoid;
             page-break-inside: avoid;
             overflow: hidden;
+        }
+
+        .word-paper-body {
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            outline: none !important;
         }
 
         body * {
@@ -1618,7 +1624,6 @@ function downloadLetterPDF() {
         cloneBody.innerHTML = originalBody.innerHTML;
     }
 
-    // لف الورقة داخل حاوية بمقاس A4 ثابت لضمان عدم تحرك المقاس عند الطباعة
     var wrapper = document.createElement('div');
     wrapper.className = 'word-paper-container';
     wrapper.appendChild(clone);
