@@ -1528,69 +1528,109 @@ DASHBOARD_HTML = '''
         }
  
 // تحميل PDF: بناء نسخة دقيقة ونظيفة من محتوى الخطاب الرسمي وتضمينه بالكامل لتفادي الفراغ
-       function downloadLetterPDF() {
-            // جلب ورقة الخطاب الأصلية أو المعاينة
-            var source = document.getElementById('previewOfficialPaper') || document.getElementById('officialPaper');
-            if (!source) {
-                alert("لا توجد ورقة خطاب نشطة للتحميل!");
-                return;
-            }
+function downloadLetterPDF() {
+    // جلب ورقة الخطاب الأصلية أو المعاينة
+    var source = document.getElementById('previewOfficialPaper') || document.getElementById('officialPaper');
+    if (!source) {
+        alert("لا توجد ورقة خطاب نشطة للتحميل!");
+        return;
+    }
 
-            // إنشاء نافذة منبثقة جديدة للطباعة
-            var printWindow = window.open('', '_blank', 'height=800,width=800');
-            
-            // جمع ملفات الـ CSS والستايل المستخدمة في الصفحة الحالية لضمان مطابقة التصميم
-            var styles = '';
-            document.querySelectorAll('style, link[rel="stylesheet"]').forEach(function(styleNode) {
-                styles += styleNode.outerHTML;
-            });
+    var printWindow = window.open('', '_blank', 'height=800,width=800');
 
-            // كتابة المحتوى والستايل داخل النافذة المنبثقة
-            printWindow.document.write('<!DOCTYPE html>');
-            printWindow.document.write('<html lang="ar" dir="rtl">');
-            printWindow.document.write('<head>');
-            printWindow.document.write('<meta charset="UTF-8">');
-            printWindow.document.write('<title>طباعة الخطاب الرسمي</title>');
-            printWindow.document.write(styles);
-            printWindow.document.write('<style>');
-            printWindow.document.write(`
-                body { background: #ffffff !important; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; }
-                @page { size: A4; margin: 0mm; }
-                body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            `);
-            printWindow.document.write('</style>');
-            printWindow.document.write('</head>');
-            printWindow.document.write('<body>');
-            
-            // نسخ محتوى الورقة وإزالة الحقول النصية لكي تطبع كنصوص صافية
-            var clone = source.cloneNode(true);
-            clone.querySelectorAll('input').forEach(function (inp) {
-                var span = document.createElement('span');
-                span.innerText = inp.value || inp.getAttribute('value') || '';
-                span.style.fontWeight = 'bold';
-                inp.parentNode.replaceChild(span, inp);
-            });
+    var styles = '';
+    document.querySelectorAll('style, link[rel="stylesheet"]').forEach(function(styleNode) {
+        styles += styleNode.outerHTML;
+    });
 
-            var originalBody = source.querySelector('.word-paper-body');
-            var cloneBody = clone.querySelector('.word-paper-body');
-            if (originalBody && cloneBody) {
-                cloneBody.removeAttribute('contenteditable');
-                cloneBody.innerHTML = originalBody.innerHTML;
-            }
+    printWindow.document.write('<!DOCTYPE html>');
+    printWindow.document.write('<html lang="ar" dir="rtl">');
+    printWindow.document.write('<head>');
+    printWindow.document.write('<meta charset="UTF-8">');
+    printWindow.document.write('<title>طباعة الخطاب الرسمي</title>');
+    printWindow.document.write(styles);
+    printWindow.document.write('<style>');
+    printWindow.document.write(`
+        * { box-sizing: border-box; }
 
-            printWindow.document.write(clone.outerHTML);
-            printWindow.document.write('</body>');
-            printWindow.document.write('</html>');
-            
-            printWindow.document.close();
-            printWindow.focus();
-
-            // الانتظار قليلاً ثم إطلاق نافذة الطباعة (التي تتيح للمستخدم حفظ الملف كـ PDF)
-            setTimeout(function () {
-                printWindow.print();
-                // ملاحظة: يمكنك إغلاق النافذة بعد الطباعة إذا أردت بـ printWindow.close();
-            }, 750);
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 210mm;
+            height: 297mm;
+            background: #ffffff !important;
         }
+
+        body {
+            display: block !important;
+        }
+
+        @page {
+            size: A4;
+            margin: 0mm;
+        }
+
+        /* تثبيت مقاس الورقة بالضبط على A4 الحقيقي بدون أي إضافات تكسر المقاس */
+        .word-paper-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            display: block !important;
+        }
+
+        .word-paper {
+            width: 210mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            max-height: 297mm !important;
+            max-width: 210mm !important;
+            margin: 0 auto !important;
+            padding: 18mm 20mm !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            page-break-after: avoid;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+
+        body * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    `);
+    printWindow.document.write('</style>');
+    printWindow.document.write('</head>');
+    printWindow.document.write('<body>');
+
+    var clone = source.cloneNode(true);
+    clone.querySelectorAll('input').forEach(function (inp) {
+        var span = document.createElement('span');
+        span.innerText = inp.value || inp.getAttribute('value') || '';
+        span.style.fontWeight = 'bold';
+        inp.parentNode.replaceChild(span, inp);
+    });
+
+    var originalBody = source.querySelector('.word-paper-body');
+    var cloneBody = clone.querySelector('.word-paper-body');
+    if (originalBody && cloneBody) {
+        cloneBody.removeAttribute('contenteditable');
+        cloneBody.innerHTML = originalBody.innerHTML;
+    }
+
+    // لف الورقة داخل حاوية بمقاس A4 ثابت لضمان عدم تحرك المقاس عند الطباعة
+    var wrapper = document.createElement('div');
+    wrapper.className = 'word-paper-container';
+    wrapper.appendChild(clone);
+
+    printWindow.document.body.appendChild(wrapper);
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(function () {
+        printWindow.print();
+    }, 750);
+}
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
             if (type === 'all') {
