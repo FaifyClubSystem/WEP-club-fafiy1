@@ -751,12 +751,20 @@ DASHBOARD_HTML = '''
             opacity: 0.6;
         }
         .word-paper-right {
-            text-align: right;
+            text-align: center !important;
+            text-align-last: center !important;
+            text-justify: none !important;
+            white-space: normal;
+            word-spacing: normal !important;
+            letter-spacing: normal !important;
             font-size: 1.15rem;
             font-weight: bold;
             color: #000;
-            flex: 1;
-        }
+           flex: 0 1 auto;
+           width: max-content;
+           max-width: 260px;
+           margin: 0 auto;
+       }
         .word-paper-center {
             text-align: center;
             flex: 1;
@@ -765,12 +773,12 @@ DASHBOARD_HTML = '''
             align-items: center;
             justify-content: center;
         }
-        .word-paper-center img {
-            max-height: 85px;
-            width: auto;
-            object-fit: contain;
-            margin-bottom: 2px;
-        }
+         .word-paper-center img {
+             max-height: 125px;
+             width: auto;
+             object-fit: contain;
+             margin-bottom: 2px;
+       }
         .word-paper-center .brand-name-sub {
             font-weight: 800;
             font-size: 1.3rem;
