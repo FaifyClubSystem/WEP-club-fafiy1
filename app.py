@@ -1174,8 +1174,7 @@ DASHBOARD_HTML = '''
                                                 <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
                                                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
                                             </div>
-                                            {% if letter.content %}<p class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</p>{% endif %}
- 
+                                                 {% if letter.content %}<div class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %} 
                                             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                                                 <span class="fs-7 text-muted">
                                                     {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
