@@ -624,6 +624,66 @@ def logout():
     return redirect(url_for('login'))
 
 DASHBOARD_HTML = '''
+{% macro render_letter_item(letter) %}
+<div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
+    <div class="d-flex align-items-start gap-2 w-100">
+        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+            <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
+        {% endif %}
+        <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
+        <div class="w-100">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
+                <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
+                <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
+            </div>
+            {% if letter.content %}<div class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                <span class="fs-7 text-muted">
+                    {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
+                    {% elif current_page == 'inbox' %}من: <strong>{{ letter.sender_name }}</strong>
+                    {% elif current_page == 'archive' %}
+                        {% if letter.archive_dept_name %}
+                            أرشيف إدارة: <span class="badge bg-success text-white px-2 py-1">{{ letter.archive_dept_name }}</span>
+                        {% elif letter.sender_id and letter.receiver_id %}
+                            من: <strong>{{ letter.sender_name }}</strong> إلى: <strong>{{ letter.receiver_name }}</strong>
+                        {% else %}
+                            <span class="badge bg-secondary">أرشيف عام</span>
+                        {% endif %}
+                    {% else %}<span class="badge bg-warning text-dark">رفع فوري خاص</span>{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0 flex-wrap">
+        {% if current_page == 'inbox' or current_page == 'outbox' %}
+            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7"
+                data-id="{{ letter.id }}" data-title="{{ letter.title|e }}"
+                data-sender-id="{{ letter.sender_id or '' }}" data-receiver-id="{{ letter.receiver_id or '' }}"
+                data-priority="{{ letter.priority }}" data-page="{{ current_page }}"
+                onclick="loadLetterToEditor(this)">
+                <i class='bx bx-edit ms-1'></i> تعديل / إرسال
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-dark py-1 px-2 fs-7"
+                data-title="{{ letter.title|e }}" data-content-id="letter-text-{{ letter.id }}"
+                data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
+                data-number="{{ letter.letter_number or letter.id }}"
+                onclick="previewArchivedLetter(this)">
+                <i class='bx bx-show ms-1'></i> معاينة الخطاب
+            </button>
+        {% endif %}
+        {% if letter.file_data %}
+            <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
+                <i class='bx bx-show ms-1'></i> معاينة
+            </button>
+            <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
+        {% endif %}
+        <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
+        {% if can_delete == 1 or is_admin %}
+            <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -1963,66 +2023,6 @@ def quick_upload():
     conn.close()
     
     html_code = '''
-    {% macro render_letter_item(letter) %}
-<div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
-    <div class="d-flex align-items-start gap-2 w-100">
-        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
-            <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
-        {% endif %}
-        <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
-        <div class="w-100">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
-                <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
-                <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
-            </div>
-            {% if letter.content %}<div class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %}
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                <span class="fs-7 text-muted">
-                    {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
-                    {% elif current_page == 'inbox' %}من: <strong>{{ letter.sender_name }}</strong>
-                    {% elif current_page == 'archive' %}
-                        {% if letter.archive_dept_name %}
-                            أرشيف إدارة: <span class="badge bg-success text-white px-2 py-1">{{ letter.archive_dept_name }}</span>
-                        {% elif letter.sender_id and letter.receiver_id %}
-                            من: <strong>{{ letter.sender_name }}</strong> إلى: <strong>{{ letter.receiver_name }}</strong>
-                        {% else %}
-                            <span class="badge bg-secondary">أرشيف عام</span>
-                        {% endif %}
-                    {% else %}<span class="badge bg-warning text-dark">رفع فوري خاص</span>{% endif %}
-                </span>
-            </div>
-        </div>
-    </div>
-    <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0 flex-wrap">
-        {% if current_page == 'inbox' or current_page == 'outbox' %}
-            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7"
-                data-id="{{ letter.id }}" data-title="{{ letter.title|e }}"
-                data-sender-id="{{ letter.sender_id or '' }}" data-receiver-id="{{ letter.receiver_id or '' }}"
-                data-priority="{{ letter.priority }}" data-page="{{ current_page }}"
-                onclick="loadLetterToEditor(this)">
-                <i class='bx bx-edit ms-1'></i> تعديل / إرسال
-            </button>
-            <button type="button" class="btn btn-sm btn-outline-dark py-1 px-2 fs-7"
-                data-title="{{ letter.title|e }}" data-content-id="letter-text-{{ letter.id }}"
-                data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
-                data-number="{{ letter.letter_number or letter.id }}"
-                onclick="previewArchivedLetter(this)">
-                <i class='bx bx-show ms-1'></i> معاينة الخطاب
-            </button>
-        {% endif %}
-        {% if letter.file_data %}
-            <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
-                <i class='bx bx-show ms-1'></i> معاينة
-            </button>
-            <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
-        {% endif %}
-        <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
-        {% if can_delete == 1 or is_admin %}
-            <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
-        {% endif %}
-    </div>
-</div>
-{% endmacro %}
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
     <head>
