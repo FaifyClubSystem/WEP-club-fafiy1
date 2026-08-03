@@ -146,7 +146,7 @@ def download_letter_file(letter_id):
         )
     return "الملف غير موجود", 404
 
-             @app.route('/download_archive_zip')
+@app.route('/download_archive_zip')
 def download_archive_zip():
     if 'dept_id' not in session:
         return redirect(url_for('login'))
