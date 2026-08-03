@@ -1792,9 +1792,9 @@ var doc = printFrame.contentWindow.document;
     doc.open();
     doc.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>طباعة الخطاب الرسمي</title>' + styles + '<style>' +
         '* { box-sizing: border-box; } ' +
-        'html, body { margin:0 !important; padding:0 !important; width:210mm; height:297mm !important; max-height:297mm !important; overflow:hidden !important; background:#fff !important; } ' +
+        'html, body { height:297mm !important; max-height:297mm !important; overflow:hidden !important; } ' +
         '@page { size: A4; margin: 0mm; } ' +
-        '.word-paper-container { margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; } ' +
+        '.word-paper-container { margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; margin-bottom:0 !important; } ' +
         '.word-paper { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; max-width:210mm !important; margin:0 auto !important; padding:18mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; zoom:1 !important; transform:none !important; page-break-after:avoid; page-break-inside:avoid; overflow:hidden; } ' +
         '.word-paper-body { border:none !important; background:transparent !important; padding:0 !important; outline:none !important; } ' +
         'body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
