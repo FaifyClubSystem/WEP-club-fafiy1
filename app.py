@@ -710,11 +710,11 @@ DASHBOARD_HTML = '''
         .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
         
         @media (max-width: 991.98px) {
-            .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+            .sidebar { position: fixed; top: var(--navbar-height, 76px); right: -260px; height: calc(100vh - var(--navbar-height, 76px)); box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
             .sidebar.show-sidebar { right: 0; }
         }
  
-        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+        .mobile-overlay { display: none; position: fixed; top: var(--navbar-height, 76px); left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
         .mobile-overlay.active { display: block; }
  
         .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
@@ -1515,6 +1515,15 @@ DASHBOARD_HTML = '''
                 clone.style.marginBottom = (paperWidthPx * (scale - 1)) + 'px';
             }, 150);
         }
+        function updateNavbarHeightVar() {
+    var nav = document.querySelector('.top-navbar');
+    if (nav) {
+        document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px');
+    }
+}
+updateNavbarHeightVar();
+window.addEventListener('load', updateNavbarHeightVar);
+window.addEventListener('resize', updateNavbarHeightVar);
  function toggleSidebar() {
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
@@ -2077,10 +2086,10 @@ def quick_upload():
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
             @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+                .sidebar { position: fixed; top: var(--navbar-height, 76px); right: -260px; height: calc(100vh - var(--navbar-height, 76px)); box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
                 .sidebar.show-sidebar { right: 0; }
             }
-            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay { display: none; position: fixed; top: var(--navbar-height, 76px); left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
             .mobile-overlay.active { display: block; }
 
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
@@ -2183,7 +2192,15 @@ def quick_upload():
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-        
+        function updateNavbarHeightVar() {
+    var nav = document.querySelector('.top-navbar');
+    if (nav) {
+        document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px');
+    }
+}
+updateNavbarHeightVar();
+window.addEventListener('load', updateNavbarHeightVar);
+window.addEventListener('resize', updateNavbarHeightVar);
         function toggleSidebar() {
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
@@ -2295,10 +2312,10 @@ def monthly_achievements():
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
             @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+                .sidebar { position: fixed; top: var(--navbar-height, 76px); right: -260px; height: calc(100vh - var(--navbar-height, 76px)); box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
                 .sidebar.show-sidebar { right: 0; }
             }
-            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay { display: none; position: fixed; top: var(--navbar-height, 76px); left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
             .mobile-overlay.active { display: block; }
 
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
@@ -2492,6 +2509,15 @@ def monthly_achievements():
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
             }
+            function updateNavbarHeightVar() {
+    var nav = document.querySelector('.top-navbar');
+    if (nav) {
+        document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px');
+    }
+}
+updateNavbarHeightVar();
+window.addEventListener('load', updateNavbarHeightVar);
+window.addEventListener('resize', updateNavbarHeightVar);
             function toggleSidebar() {
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
@@ -2658,10 +2684,10 @@ def admin_dashboard():
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
             @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+                .sidebar { position: fixed; top: var(--navbar-height, 76px); right: -260px; height: calc(100vh - var(--navbar-height, 76px)); box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
                 .sidebar.show-sidebar { right: 0; }
             }
-            .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay { display: none; position: fixed; top: var(--navbar-height, 76px); left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
             .mobile-overlay.active { display: block; }
 
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
@@ -2953,6 +2979,15 @@ def admin_dashboard():
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
             }
+            function updateNavbarHeightVar() {
+    var nav = document.querySelector('.top-navbar');
+    if (nav) {
+        document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px');
+    }
+}
+updateNavbarHeightVar();
+window.addEventListener('load', updateNavbarHeightVar);
+window.addEventListener('resize', updateNavbarHeightVar);
             function toggleSidebar() {
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
