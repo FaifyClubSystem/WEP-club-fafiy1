@@ -1140,99 +1140,90 @@ DASHBOARD_HTML = '''
                 </div>
                 {% endif %}
  
-                <div class="modern-card p-2 p-sm-3">
-                    {% if letters %}
-                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
-                        <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
-                            <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
-                                <div class="form-check m-0">
-                                    <input class="form-check-input" type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
-                                    <label class="form-check-label fw-bold fs-7 text-dark" for="selectAllCheckbox">تحديد الكل</label>
+<div class="modern-card p-2 p-sm-3">
+                    {% if current_page == 'archive' and is_admin and own_letters is not none %}
+                        {% if own_letters or other_letters %}
+                            {% if can_delete == 1 or is_admin %}
+                            <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
+                                <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
+                                    <div class="form-check m-0">
+                                        <input class="form-check-input" type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
+                                        <label class="form-check-label fw-bold fs-7 text-dark" for="selectAllCheckbox">تحديد الكل</label>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-danger fs-7" onclick="submitBulkDelete('selected')">
+                                            <i class='bx bx-trash ms-1'></i>حذف الملفات المحددة
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger fs-7 fw-bold" onclick="submitBulkDelete('all')">
+                                            <i class='bx bx-trash-alt ms-1'></i>حذف كل الأرشيف
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-danger fs-7" onclick="submitBulkDelete('selected')">
-                                        <i class='bx bx-trash ms-1'></i>حذف الملفات المحددة
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-danger fs-7 fw-bold" onclick="submitBulkDelete('all')">
-                                        <i class='bx bx-trash-alt ms-1'></i>حذف كل الأرشيف
-                                    </button>
-                                </div>
+                            {% endif %}
+
+                            <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
+                                <i class='bx bxs-folder-open' style="color: var(--fifa-gold);"></i> أرشيفي الخاص
+                                <span class="badge bg-success">{{ own_letters|length }}</span>
+                            </h6>
+                            <div class="letters-list mb-4">
+                                {% if own_letters %}
+                                    {% for letter in own_letters %}{{ render_letter_item(letter) }}{% endfor %}
+                                {% else %}
+                                    <div class="text-center py-3 text-muted"><p class="fs-8 m-0">لا توجد ملفات في أرشيفك الخاص.</p></div>
+                                {% endif %}
                             </div>
+
+                            <h6 class="fw-bold mb-2 mt-3 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
+                                <i class='bx bxs-buildings' style="color: var(--fifa-gold);"></i> أرشيف باقي الإدارات
+                                <span class="badge bg-secondary">{{ other_letters|length }}</span>
+                            </h6>
+                            <div class="letters-list">
+                                {% if other_letters %}
+                                    {% for letter in other_letters %}{{ render_letter_item(letter) }}{% endfor %}
+                                {% else %}
+                                    <div class="text-center py-3 text-muted"><p class="fs-8 m-0">لا توجد ملفات مؤرشفة لباقي الإدارات.</p></div>
+                                {% endif %}
+                            </div>
+
+                            {% if can_delete == 1 or is_admin %}
+                            </form>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد خطابات حالياً.</p></div>
                         {% endif %}
- 
-                        <div class="letters-list">
-                            {% for letter in letters %}
-                                <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
-                                    <div class="d-flex align-items-start gap-2 w-100">
-                                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
-                                            <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
-                                        {% endif %}
-                                        <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
-                                        <div class="w-100">
-                                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
-                                                <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
-                                                <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
-                                            </div>
-                                                 {% if letter.content %}<div class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %} 
-                                            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
-                                                <span class="fs-7 text-muted">
-                                                    {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
-                                                    {% elif current_page == 'inbox' %}من: <strong>{{ letter.sender_name }}</strong>
-                                                    {% elif current_page == 'archive' %}
-                                                        {% if letter.archive_dept_name %}
-                                                            أرشيف إدارة: <span class="badge bg-success text-white px-2 py-1">{{ letter.archive_dept_name }}</span>
-                                                        {% elif letter.sender_id and letter.receiver_id %}
-                                                            من: <strong>{{ letter.sender_name }}</strong> إلى: <strong>{{ letter.receiver_name }}</strong>
-                                                        {% else %}
-                                                            <span class="badge bg-secondary">أرشيف عام</span>
-                                                        {% endif %}
-                                                    {% else %}<span class="badge bg-warning text-dark">رفع فوري خاص</span>{% endif %}
-                                                </span>
-                                            </div>
-                                        </div>
+
+                    {% else %}
+                        {% if letters %}
+                            {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                            <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
+                                <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
+                                    <div class="form-check m-0">
+                                        <input class="form-check-input" type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)">
+                                        <label class="form-check-label fw-bold fs-7 text-dark" for="selectAllCheckbox">تحديد الكل</label>
                                     </div>
-                                    
-                                    <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0 flex-wrap">
-                                        {% if current_page == 'inbox' or current_page == 'outbox' %}
-                                            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7"
-                                                data-id="{{ letter.id }}" data-title="{{ letter.title|e }}"
-                                                data-sender-id="{{ letter.sender_id or '' }}" data-receiver-id="{{ letter.receiver_id or '' }}"
-                                                data-priority="{{ letter.priority }}" data-page="{{ current_page }}"
-                                                onclick="loadLetterToEditor(this)">
-                                                <i class='bx bx-edit ms-1'></i> تعديل / إرسال
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-dark py-1 px-2 fs-7"
-                                                data-title="{{ letter.title|e }}" data-content-id="letter-text-{{ letter.id }}"
-                                                data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
-                                                data-number="{{ letter.letter_number or letter.id }}"
-                                                onclick="previewArchivedLetter(this)">
-                                                <i class='bx bx-show ms-1'></i> معاينة الخطاب
-                                            </button>
-                                        {% endif %}
- 
-                                        {% if letter.file_data %}
-                                            <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
-                                                <i class='bx bx-show ms-1'></i> معاينة
-                                            </button>
-                                            <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
-                                        {% endif %}
- 
-                                        <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
-                                        {% if can_delete == 1 or is_admin %}
-                                            <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
-                                        {% endif %}
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-danger fs-7" onclick="submitBulkDelete('selected')">
+                                            <i class='bx bx-trash ms-1'></i>حذف الملفات المحددة
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-danger fs-7 fw-bold" onclick="submitBulkDelete('all')">
+                                            <i class='bx bx-trash-alt ms-1'></i>حذف كل الأرشيف
+                                        </button>
                                     </div>
                                 </div>
-                            {% endfor %}
-                        </div>
- 
-                        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
-                        </form>
+                            {% endif %}
+
+                            <div class="letters-list">
+                                {% for letter in letters %}{{ render_letter_item(letter) }}{% endfor %}
+                            </div>
+
+                            {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                            </form>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد خطابات حالياً.</p></div>
                         {% endif %}
- 
-                    {% else %}
-                        <div class="text-center py-5 text-muted"><p class="fs-7">لا توجد خطابات حالياً.</p></div>
                     {% endif %}
                 </div>
             </div>
@@ -1836,7 +1827,38 @@ def archive():
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
  
-    if current_dept['can_view_all_archive'] == 1 or is_admin:
+    own_letters = None
+    other_letters = None
+
+    if is_admin:
+        # أرشيف الأدمن الخاص فقط
+        cursor.execute('''
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+            FROM letters l 
+            LEFT JOIN departments s ON l.sender_id = s.id 
+            LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+            WHERE (l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s)
+            ORDER BY l.id DESC
+        ''', (dept_id, dept_id))
+        own_letters = cursor.fetchall()
+
+        # أرشيف باقي الإدارات (يستثني أرشيف الأدمن نفسه)
+        cursor.execute('''
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+            FROM letters l 
+            LEFT JOIN departments s ON l.sender_id = s.id 
+            LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+            WHERE ((l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL AND l.sender_id != %s)
+                OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND (l.archive_dept_id IS NULL OR l.archive_dept_id != %s)))
+            ORDER BY l.id DESC
+        ''', (dept_id, dept_id))
+        other_letters = cursor.fetchall()
+
+        letters = own_letters + other_letters
+
+    elif current_dept['can_view_all_archive'] == 1:
         cursor.execute('''
             SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
             FROM letters l 
@@ -1846,6 +1868,7 @@ def archive():
             WHERE (l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL) OR (l.sender_id IS NULL AND l.receiver_id IS NULL)
             ORDER BY l.id DESC
         ''')
+        letters = cursor.fetchall()
     else:
         cursor.execute('''
             SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
@@ -1856,15 +1879,16 @@ def archive():
             WHERE ((l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s))
             ORDER BY l.id DESC
         ''', (dept_id, dept_id))
-        
-    letters = cursor.fetchall()
+        letters = cursor.fetchall()
     cursor.close()
     conn.close()
     
     return render_template_string(DASHBOARD_HTML, 
                                   page_title="أرشيف الإدارة",
                                   current_page="archive",
-                                  letters=letters, 
+                                  letters=letters,
+                                  own_letters=own_letters,
+                                  other_letters=other_letters, 
                                   depts=depts, 
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
@@ -1939,6 +1963,66 @@ def quick_upload():
     conn.close()
     
     html_code = '''
+    {% macro render_letter_item(letter) %}
+<div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
+    <div class="d-flex align-items-start gap-2 w-100">
+        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+            <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
+        {% endif %}
+        <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
+        <div class="w-100">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
+                <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
+                <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
+            </div>
+            {% if letter.content %}<div class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                <span class="fs-7 text-muted">
+                    {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
+                    {% elif current_page == 'inbox' %}من: <strong>{{ letter.sender_name }}</strong>
+                    {% elif current_page == 'archive' %}
+                        {% if letter.archive_dept_name %}
+                            أرشيف إدارة: <span class="badge bg-success text-white px-2 py-1">{{ letter.archive_dept_name }}</span>
+                        {% elif letter.sender_id and letter.receiver_id %}
+                            من: <strong>{{ letter.sender_name }}</strong> إلى: <strong>{{ letter.receiver_name }}</strong>
+                        {% else %}
+                            <span class="badge bg-secondary">أرشيف عام</span>
+                        {% endif %}
+                    {% else %}<span class="badge bg-warning text-dark">رفع فوري خاص</span>{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0 flex-wrap">
+        {% if current_page == 'inbox' or current_page == 'outbox' %}
+            <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7"
+                data-id="{{ letter.id }}" data-title="{{ letter.title|e }}"
+                data-sender-id="{{ letter.sender_id or '' }}" data-receiver-id="{{ letter.receiver_id or '' }}"
+                data-priority="{{ letter.priority }}" data-page="{{ current_page }}"
+                onclick="loadLetterToEditor(this)">
+                <i class='bx bx-edit ms-1'></i> تعديل / إرسال
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-dark py-1 px-2 fs-7"
+                data-title="{{ letter.title|e }}" data-content-id="letter-text-{{ letter.id }}"
+                data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
+                data-number="{{ letter.letter_number or letter.id }}"
+                onclick="previewArchivedLetter(this)">
+                <i class='bx bx-show ms-1'></i> معاينة الخطاب
+            </button>
+        {% endif %}
+        {% if letter.file_data %}
+            <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
+                <i class='bx bx-show ms-1'></i> معاينة
+            </button>
+            <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
+        {% endif %}
+        <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
+        {% if can_delete == 1 or is_admin %}
+            <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
     <!DOCTYPE html>
     <html lang="ar" dir="rtl">
     <head>
