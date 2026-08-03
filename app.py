@@ -1594,22 +1594,20 @@ window.addEventListener('resize', updateNavbarHeightVar);
     document.getElementById('mobileOverlay').classList.toggle('active');
 }
 // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون سكرول أفقي
+       // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون قص أو سكرول أفقي
         function fitWordPaperToScreen() {
             var container = document.querySelector('.word-paper-container');
             if (!container) return;
 
+            container.style.zoom = '';
             container.style.transform = '';
             container.style.marginBottom = '';
 
             if (window.innerWidth <= 860) {
-                var wrapperWidth = container.parentElement.clientWidth - 20;
+                var wrapperWidth = container.parentElement.clientWidth - 16;
                 var naturalWidth = container.scrollWidth;
-                var naturalHeight = container.scrollHeight;
                 var scale = Math.min(1, wrapperWidth / naturalWidth);
-
-                container.style.transform = 'scale(' + scale + ')';
-                container.style.transformOrigin = 'top center';
-                container.style.marginBottom = (naturalHeight * (scale - 1)) + 'px';
+                container.style.zoom = scale;
             }
         }
         window.addEventListener('load', fitWordPaperToScreen);
@@ -1752,11 +1750,13 @@ function downloadLetterPDF() {
         }
 
         .word-paper-container {
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            display: block !important;
-        }
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+    overflow-x: auto;
+    padding-bottom: 8px;
+}
 
         .word-paper {
             width: 210mm !important;
