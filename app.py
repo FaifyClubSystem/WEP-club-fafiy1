@@ -6,6 +6,7 @@ import psycopg2
 import psycopg2.extras
 from psycopg2 import IntegrityError
 import io
+import zipfile
 
 app = Flask(__name__)
 app.secret_key = 'fifa_club_archiving_secret_key'
@@ -145,6 +146,60 @@ def download_letter_file(letter_id):
         )
     return "الملف غير موجود", 404
 
+             @app.route('/download_archive_zip')
+def download_archive_zip():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    dept_id = session['dept_id']
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (dept_id,))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    scope = request.args.get('scope', 'own')  # own = أرشيفي فقط | all = كل الأرشيف
+
+    if scope == 'all' and (is_admin or current_dept['can_view_all_archive'] == 1):
+        cursor.execute('''
+            SELECT * FROM letters 
+            WHERE (sender_id = receiver_id AND sender_id IS NOT NULL) OR (sender_id IS NULL AND receiver_id IS NULL)
+        ''')
+    else:
+        cursor.execute('''
+            SELECT * FROM letters 
+            WHERE (sender_id = receiver_id AND sender_id = %s) OR (sender_id IS NULL AND receiver_id IS NULL AND archive_dept_id = %s)
+        ''', (dept_id, dept_id))
+
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        used_names = set()
+        for row in rows:
+            if row.get('file_data'):
+                base_name = row.get('file_name') or f"file_{row['id']}"
+                name = base_name
+                counter = 1
+                while name in used_names:
+                    name = f"{counter}_{base_name}"
+                    counter += 1
+                used_names.add(name)
+                zip_file.writestr(name, bytes(row['file_data']))
+
+    if len(used_names) == 0:
+        return '''<script>alert("لا توجد ملفات لتحميلها."); window.history.back();</script>'''
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f"archive_{scope}_{dept_id}.zip"
+    )
+    
 @app.route('/view_letter_file/<int:letter_id>')
 def view_letter_file(letter_id):
     conn = get_db_connection()
@@ -788,8 +843,8 @@ DASHBOARD_HTML = '''
             box-sizing: border-box;
             flex-shrink: 0;
         }
-        @media (max-width: 860px) {
-            .word-paper, .paper-toolbar { width: 100%; min-width: 210mm; }
+       @media (max-width: 860px) {
+            .word-paper-container { overflow-x: hidden; }
         }
         .word-paper-header {
             display: flex;
@@ -1057,6 +1112,17 @@ DASHBOARD_HTML = '''
                         <button type="button" class="btn btn-danger d-flex align-items-center gap-2 shadow-sm fw-bold" onclick="downloadLetterPDF()">
                             <i class='bx bxs-file-pdf fs-5'></i> تحميل PDF
                         </button>
+                    </div>
+                    {% elif current_page == 'archive' %}
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="/download_archive_zip?scope=own" class="btn btn-success d-flex align-items-center gap-2 shadow-sm fw-bold">
+                            <i class='bx bx-download fs-5'></i> تحميل الكل (أرشيفي)
+                        </a>
+                        {% if is_admin or can_view_all_archive == 1 %}
+                        <a href="/download_archive_zip?scope=all" class="btn btn-outline-success d-flex align-items-center gap-2 shadow-sm fw-bold">
+                            <i class='bx bx-download fs-5'></i> تحميل كل الأرشيف
+                        </a>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -1528,6 +1594,27 @@ window.addEventListener('resize', updateNavbarHeightVar);
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
 }
+// تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون سكرول أفقي
+        function fitWordPaperToScreen() {
+            var container = document.querySelector('.word-paper-container');
+            if (!container) return;
+
+            container.style.transform = '';
+            container.style.marginBottom = '';
+
+            if (window.innerWidth <= 860) {
+                var wrapperWidth = container.parentElement.clientWidth - 20;
+                var naturalWidth = container.scrollWidth;
+                var naturalHeight = container.scrollHeight;
+                var scale = Math.min(1, wrapperWidth / naturalWidth);
+
+                container.style.transform = 'scale(' + scale + ')';
+                container.style.transformOrigin = 'top center';
+                container.style.marginBottom = (naturalHeight * (scale - 1)) + 'px';
+            }
+        }
+        window.addEventListener('load', fitWordPaperToScreen);
+        window.addEventListener('resize', fitWordPaperToScreen);
         // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
