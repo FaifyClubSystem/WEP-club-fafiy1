@@ -1799,7 +1799,7 @@ var doc = printFrame.contentWindow.document;
         '.word-paper-body { border:none !important; background:transparent !important; padding:0 !important; outline:none !important; } ' +
         'body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
         '</style></head><body></body></html>');
-    doc.close();doc.close();
+    doc.close();
 
     var wrapper = doc.createElement('div');
     wrapper.className = 'word-paper-container';
