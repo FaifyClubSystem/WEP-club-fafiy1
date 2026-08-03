@@ -1595,6 +1595,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
 }
 
         // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون قص أو سكرول أفقي
+        // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون قص أو سكرول أفقي
         function fitWordPaperToScreen() {
             var container = document.querySelector('.word-paper-container');
             if (!container) return;
@@ -1606,12 +1607,24 @@ window.addEventListener('resize', updateNavbarHeightVar);
             if (window.innerWidth <= 860) {
                 var wrapperWidth = container.parentElement.clientWidth;
                 var naturalWidth = container.scrollWidth;
-                // هامش أمان 4% لتفادي أي فروقات تقريب بين المتصفحات
-                var scale = Math.min(1, (wrapperWidth / naturalWidth) * 0.96);
+                // هامش أمان أكبر لتفادي أي قص بسبب تأخر تحميل الخطوط
+                var scale = Math.min(1, (wrapperWidth / naturalWidth) * 0.90);
                 container.style.zoom = scale;
             }
         }
-        window.addEventListener('load', fitWordPaperToScreen);
+
+        function initPaperFit() {
+            fitWordPaperToScreen();
+            // إعادة الحساب بعد اكتمال تحميل كل الخطوط (يحل مشكلة تغيّر عرض النص بعد تحميل الخط)
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(fitWordPaperToScreen);
+            }
+            // إعادة حساب احتياطية بعد نصف ثانية للتأكد التام
+            setTimeout(fitWordPaperToScreen, 500);
+            setTimeout(fitWordPaperToScreen, 1200);
+        }
+
+        window.addEventListener('load', initPaperFit);
         window.addEventListener('resize', fitWordPaperToScreen);
         // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
