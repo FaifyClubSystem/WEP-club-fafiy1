@@ -1025,6 +1025,29 @@ DASHBOARD_HTML = '''
             background: transparent !important;
             pointer-events: none;
         }
+        @media print {
+            body * { visibility: hidden; }
+            #printAreaPaper, #printAreaPaper * { visibility: visible; }
+            #printAreaPaper {
+                position: absolute;
+                top: 0;
+                right: 0;
+                left: 0;
+                width: 210mm;
+                margin: 0 auto;
+            }
+            #printAreaPaper .word-paper {
+                width: 210mm !important;
+                min-height: 297mm !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                border: none !important;
+                zoom: 1 !important;
+                transform: none !important;
+            }
+            .word-paper-container { zoom: 1 !important; transform: none !important; }
+            @page { size: A4; margin: 0; }
+        }
  
     </style>
 </head>
@@ -1722,89 +1745,20 @@ window.addEventListener('resize', updateNavbarHeightVar);
  
 // تحميل PDF: بناء نسخة دقيقة ونظيفة من محتوى الخطاب الرسمي وتضمينه بالكامل لتفادي الفراغ
 function downloadLetterPDF() {
-    // جلب ورقة الخطاب الأصلية أو المعاينة
     var source = document.getElementById('previewOfficialPaper') || document.getElementById('officialPaper');
     if (!source) {
         alert("لا توجد ورقة خطاب نشطة للتحميل!");
         return;
     }
 
-    var printWindow = window.open('', '_blank', 'height=800,width=800');
-
-    var styles = '';
-    document.querySelectorAll('style, link[rel="stylesheet"]').forEach(function(styleNode) {
-        styles += styleNode.outerHTML;
-    });
-
-    printWindow.document.write('<!DOCTYPE html>');
-    printWindow.document.write('<html lang="ar" dir="rtl">');
-    printWindow.document.write('<head>');
-    printWindow.document.write('<meta charset="UTF-8">');
-    printWindow.document.write('<title>طباعة الخطاب الرسمي</title>');
-    printWindow.document.write(styles);
-    printWindow.document.write('<style>');
-    printWindow.document.write(`
-        * { box-sizing: border-box; }
-
-        html, body {
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 210mm;
-            height: 297mm;
-            background: #ffffff !important;
-        }
-
-        body {
-            display: block !important;
-        }
-
-        @page {
-            size: A4;
-            margin: 0mm;
-        }
-
-        .word-paper-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-bottom: 2rem;
-    overflow-x: auto;
-    padding-bottom: 8px;
-}
-
-        .word-paper {
-            width: 210mm !important;
-            height: 297mm !important;
-            min-height: 297mm !important;
-            max-height: 297mm !important;
-            max-width: 210mm !important;
-            margin: 0 auto !important;
-            padding: 18mm 20mm !important;
-            border: none !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-            page-break-after: avoid;
-            page-break-inside: avoid;
-            overflow: hidden;
-        }
-
-        .word-paper-body {
-            border: none !important;
-            background: transparent !important;
-            padding: 0 !important;
-            outline: none !important;
-        }
-
-        body * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-    `);
-    printWindow.document.write('</style>');
-    printWindow.document.write('</head>');
-    printWindow.document.write('<body>');
+    var oldPrintArea = document.getElementById('printAreaPaper');
+    if (oldPrintArea) oldPrintArea.remove();
 
     var clone = source.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.style.zoom = '1';
+    clone.style.transform = 'none';
+
     clone.querySelectorAll('input').forEach(function (inp) {
         var span = document.createElement('span');
         span.innerText = inp.value || inp.getAttribute('value') || '';
@@ -1819,17 +1773,17 @@ function downloadLetterPDF() {
         cloneBody.innerHTML = originalBody.innerHTML;
     }
 
-    var wrapper = document.createElement('div');
-    wrapper.className = 'word-paper-container';
-    wrapper.appendChild(clone);
-
-    printWindow.document.body.appendChild(wrapper);
-    printWindow.document.close();
-    printWindow.focus();
+    var printArea = document.createElement('div');
+    printArea.id = 'printAreaPaper';
+    printArea.appendChild(clone);
+    document.body.appendChild(printArea);
 
     setTimeout(function () {
-        printWindow.print();
-    }, 750);
+        window.print();
+        setTimeout(function () {
+            printArea.remove();
+        }, 500);
+    }, 200);
 }
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
