@@ -1891,6 +1891,7 @@ def dashboard():
                                   can_page_achievements=current_dept['can_page_achievements'],
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
+                                  can_view_all_archive=current_dept['can_view_all_archive'],
                                   now=datetime.now())
  
 @app.route('/outbox')
@@ -1940,6 +1941,7 @@ def outbox():
                                   can_page_achievements=current_dept['can_page_achievements'],
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
+                                  can_view_all_archive=current_dept['can_view_all_archive'],
                                   now=datetime.now())
  
 @app.route('/send_letter', methods=['POST'])
@@ -2091,6 +2093,7 @@ def archive():
                                   can_page_achievements=current_dept['can_page_achievements'],
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
+                                  can_view_all_archive=current_dept['can_view_all_archive'],
                                   now=datetime.now())
  
 @app.route('/quick_upload', methods=['GET', 'POST'])
