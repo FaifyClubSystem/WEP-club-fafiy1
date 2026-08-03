@@ -1751,9 +1751,6 @@ function downloadLetterPDF() {
         return;
     }
 
-    var oldPrintArea = document.getElementById('printAreaPaper');
-    if (oldPrintArea) oldPrintArea.remove();
-
     var clone = source.cloneNode(true);
     clone.removeAttribute('id');
     clone.style.zoom = '1';
@@ -1773,17 +1770,46 @@ function downloadLetterPDF() {
         cloneBody.innerHTML = originalBody.innerHTML;
     }
 
-    var printArea = document.createElement('div');
-    printArea.id = 'printAreaPaper';
-    printArea.appendChild(clone);
-    document.body.appendChild(printArea);
+    var styles = '';
+    document.querySelectorAll('style, link[rel="stylesheet"]').forEach(function (styleNode) {
+        styles += styleNode.outerHTML;
+    });
+
+    var oldFrame = document.getElementById('hiddenPrintFrame');
+    if (oldFrame) oldFrame.remove();
+
+    var printFrame = document.createElement('iframe');
+    printFrame.id = 'hiddenPrintFrame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '-10000px';
+    printFrame.style.bottom = '-10000px';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+
+    var doc = printFrame.contentWindow.document;
+    doc.open();
+    doc.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>طباعة الخطاب الرسمي</title>' + styles + '<style>' +
+        '* { box-sizing: border-box; } ' +
+        'html, body { margin:0 !important; padding:0 !important; width:210mm; background:#fff !important; } ' +
+        '@page { size: A4; margin: 0mm; } ' +
+        '.word-paper-container { margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; } ' +
+        '.word-paper { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; max-width:210mm !important; margin:0 auto !important; padding:18mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; zoom:1 !important; transform:none !important; page-break-after:avoid; page-break-inside:avoid; overflow:hidden; } ' +
+        '.word-paper-body { border:none !important; background:transparent !important; padding:0 !important; outline:none !important; } ' +
+        'body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+        '</style></head><body></body></html>');
+    doc.close();
+
+    var wrapper = doc.createElement('div');
+    wrapper.className = 'word-paper-container';
+    wrapper.appendChild(clone);
+    doc.body.appendChild(wrapper);
 
     setTimeout(function () {
-        window.print();
-        setTimeout(function () {
-            printArea.remove();
-        }, 500);
-    }, 200);
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
+    }, 500);
 }
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
