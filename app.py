@@ -842,10 +842,9 @@ DASHBOARD_HTML = '''
             line-height: 1.8;
             box-sizing: border-box;
             flex-shrink: 0;
-        }
-       @media (max-width: 860px) {
-            .word-paper-container { overflow-x: hidden; }
-        }
+@media (max-width: 860px) {
+    /* التصغير يتم بالكامل عبر JavaScript، لا حاجة لأي CSS هنا */
+}
         .word-paper-header {
             display: flex;
             justify-content: space-between;
