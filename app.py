@@ -1593,8 +1593,8 @@ window.addEventListener('resize', updateNavbarHeightVar);
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
 }
-// تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون سكرول أفقي
-       // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون قص أو سكرول أفقي
+
+        // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون قص أو سكرول أفقي
         function fitWordPaperToScreen() {
             var container = document.querySelector('.word-paper-container');
             if (!container) return;
@@ -1604,9 +1604,10 @@ window.addEventListener('resize', updateNavbarHeightVar);
             container.style.marginBottom = '';
 
             if (window.innerWidth <= 860) {
-                var wrapperWidth = container.parentElement.clientWidth - 16;
+                var wrapperWidth = container.parentElement.clientWidth;
                 var naturalWidth = container.scrollWidth;
-                var scale = Math.min(1, wrapperWidth / naturalWidth);
+                // هامش أمان 4% لتفادي أي فروقات تقريب بين المتصفحات
+                var scale = Math.min(1, (wrapperWidth / naturalWidth) * 0.96);
                 container.style.zoom = scale;
             }
         }
