@@ -1515,7 +1515,10 @@ DASHBOARD_HTML = '''
                 clone.style.marginBottom = (paperWidthPx * (scale - 1)) + 'px';
             }, 150);
         }
- 
+ function toggleSidebar() {
+    document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+    document.getElementById('mobileOverlay').classList.toggle('active');
+}
         // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
@@ -2180,7 +2183,13 @@ def quick_upload():
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
+        
+        function toggleSidebar() {
+    document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+    document.getElementById('mobileOverlay').classList.toggle('active');
+}
+
+  // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
     var touchStartY = 0;
@@ -2483,6 +2492,10 @@ def monthly_achievements():
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
             }
+            function toggleSidebar() {
+    document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+    document.getElementById('mobileOverlay').classList.toggle('active');
+}
             // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
@@ -2940,6 +2953,10 @@ def admin_dashboard():
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
             }
+            function toggleSidebar() {
+    document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+    document.getElementById('mobileOverlay').classList.toggle('active');
+}
             // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
