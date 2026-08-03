@@ -710,7 +710,7 @@ DASHBOARD_HTML = '''
         .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
         
         @media (max-width: 991.98px) {
-            .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+            .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
             .sidebar.show-sidebar { right: 0; }
         }
  
@@ -1516,10 +1516,43 @@ DASHBOARD_HTML = '''
             }, 150);
         }
  
-        function toggleSidebar() {
-            document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
-            document.getElementById('mobileOverlay').classList.toggle('active');
+        // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
+(function() {
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
+
+        var sidebarEl = document.getElementById('sidebarMenu');
+        if (!sidebarEl) return;
+
+        var touchEndX = e.changedTouches[0].clientX;
+        var touchEndY = e.changedTouches[0].clientY;
+        var deltaX = touchEndX - touchStartX;
+        var deltaY = touchEndY - touchStartY;
+
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
+
+        var isOpen = sidebarEl.classList.contains('show-sidebar');
+
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
+        if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
+            toggleSidebar();
         }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
+        else if (isOpen && deltaX > swipeThreshold) {
+            toggleSidebar();
+        }
+    }, { passive: true });
+})();
  
         function toggleSelectAll(source) {
             checkboxes = document.querySelectorAll('.letter-checkbox');
@@ -2041,7 +2074,7 @@ def quick_upload():
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
             @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
                 .sidebar.show-sidebar { right: 0; }
             }
             .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
@@ -2147,10 +2180,43 @@ def quick_upload():
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            function toggleSidebar() {
-                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
-                document.getElementById('mobileOverlay').classList.toggle('active');
-            }
+            // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
+(function() {
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
+
+        var sidebarEl = document.getElementById('sidebarMenu');
+        if (!sidebarEl) return;
+
+        var touchEndX = e.changedTouches[0].clientX;
+        var touchEndY = e.changedTouches[0].clientY;
+        var deltaX = touchEndX - touchStartX;
+        var deltaY = touchEndY - touchStartY;
+
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
+
+        var isOpen = sidebarEl.classList.contains('show-sidebar');
+
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
+        if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
+            toggleSidebar();
+        }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
+        else if (isOpen && deltaX > swipeThreshold) {
+            toggleSidebar();
+        }
+    }, { passive: true });
+})();
         </script>
     </body>
     </html>
@@ -2220,7 +2286,7 @@ def monthly_achievements():
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
             @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
                 .sidebar.show-sidebar { right: 0; }
             }
             .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
@@ -2417,10 +2483,43 @@ def monthly_achievements():
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
             }
-            function toggleSidebar() {
-                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
-                document.getElementById('mobileOverlay').classList.toggle('active');
-            }
+            // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
+(function() {
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
+
+        var sidebarEl = document.getElementById('sidebarMenu');
+        if (!sidebarEl) return;
+
+        var touchEndX = e.changedTouches[0].clientX;
+        var touchEndY = e.changedTouches[0].clientY;
+        var deltaX = touchEndX - touchStartX;
+        var deltaY = touchEndY - touchStartY;
+
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
+
+        var isOpen = sidebarEl.classList.contains('show-sidebar');
+
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
+        if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
+            toggleSidebar();
+        }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
+        else if (isOpen && deltaX > swipeThreshold) {
+            toggleSidebar();
+        }
+    }, { passive: true });
+})();
         </script>
     </body>
     </html>
@@ -2546,7 +2645,7 @@ def admin_dashboard():
             
             .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
             @media (max-width: 991.98px) {
-                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); }
+                .sidebar { position: fixed; top: 0; right: -260px; height: 100vh; box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
                 .sidebar.show-sidebar { right: 0; }
             }
             .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
@@ -2841,10 +2940,43 @@ def admin_dashboard():
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
             }
-            function toggleSidebar() {
-                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
-                document.getElementById('mobileOverlay').classList.toggle('active');
-            }
+            // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
+(function() {
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
+
+        var sidebarEl = document.getElementById('sidebarMenu');
+        if (!sidebarEl) return;
+
+        var touchEndX = e.changedTouches[0].clientX;
+        var touchEndY = e.changedTouches[0].clientY;
+        var deltaX = touchEndX - touchStartX;
+        var deltaY = touchEndY - touchStartY;
+
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
+
+        var isOpen = sidebarEl.classList.contains('show-sidebar');
+
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
+        if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
+            toggleSidebar();
+        }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
+        else if (isOpen && deltaX > swipeThreshold) {
+            toggleSidebar();
+        }
+    }, { passive: true });
+})();
         </script>
     </body>
     </html>
