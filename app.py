@@ -766,10 +766,10 @@ def logout():
     
 @app.route('/suggestions', methods=['GET', 'POST'])
 def suggestions():
-      if 'dept_id' not in session:
-                return redirect(url_for('login'))
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
 
-        is_admin = is_admin_user(session.get('dept_name'))
+    is_admin = is_admin_user(session.get('dept_name'))
     conn = get_db_connection()
     cursor = conn.cursor()
 
