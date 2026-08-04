@@ -1750,7 +1750,6 @@ function downloadLetterPDF() {
         alert("لا توجد ورقة خطاب نشطة للتحميل!");
         return;
     }
-
     var clone = source.cloneNode(true);
     clone.removeAttribute('id');
     clone.style.zoom = '1';
@@ -1788,14 +1787,14 @@ function downloadLetterPDF() {
     printFrame.style.border = '0';
     document.body.appendChild(printFrame);
 
-var doc = printFrame.contentWindow.document;
+    var doc = printFrame.contentWindow.document;
     doc.open();
     doc.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>طباعة الخطاب الرسمي</title>' + styles + '<style>' +
         '* { box-sizing: border-box; } ' +
-        'html, body { margin:0 !important; padding:0 !important; width:210mm; height:288mm !important; max-height:288mm !important; overflow:hidden !important; background:#fff !important; } ' +
+        'html, body { margin:0 !important; padding:0 !important; width:210mm; background:#fff !important; } ' +
         '@page { size: A4; margin: 0mm; } ' +
         '.word-paper-container { margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; } ' +
-        '.word-paper { width:210mm !important; height:288mm !important; min-height:288mm !important; max-height:288mm !important; max-width:210mm !important; margin:0 auto !important; padding:16mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; zoom:1 !important; transform:none !important; page-break-after:avoid; page-break-inside:avoid; overflow:hidden; } ' +
+        '.word-paper { width:210mm !important; height:auto !important; min-height:0 !important; max-width:210mm !important; margin:0 auto !important; padding:18mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; transform:none !important; page-break-after:avoid; page-break-inside:avoid; overflow:visible; position:relative; } ' +
         '.word-paper-body { border:none !important; background:transparent !important; padding:0 !important; outline:none !important; } ' +
         'body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
         '.word-paper, .word-paper-container, .word-paper-footer-wave { page-break-inside: avoid !important; break-inside: avoid !important; page-break-after: avoid !important; break-after: avoid !important; page-break-before: avoid !important; break-before: avoid !important; } ' +
@@ -1807,10 +1806,29 @@ var doc = printFrame.contentWindow.document;
     wrapper.appendChild(clone);
     doc.body.appendChild(wrapper);
 
-    setTimeout(function () {
+    function triggerPrint() {
+        // قياس الارتفاع الحقيقي للورقة وتصغيرها تناسبياً فقط عند الحاجة (بدون أي قص للنص)
+        var rect = clone.getBoundingClientRect();
+        var pxPerMm = rect.width / 210;
+        var naturalHeightMm = rect.height / pxPerMm;
+        var safeMaxMm = 290;
+
+        if (naturalHeightMm > safeMaxMm) {
+            var scale = safeMaxMm / naturalHeightMm;
+            clone.style.zoom = scale;
+        }
+
         printFrame.contentWindow.focus();
         printFrame.contentWindow.print();
-    }, 500);
+    }
+
+    if (doc.fonts && doc.fonts.ready) {
+        doc.fonts.ready.then(function () {
+            setTimeout(triggerPrint, 200);
+        });
+    } else {
+        setTimeout(triggerPrint, 700);
+    }
 }
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
