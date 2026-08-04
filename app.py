@@ -33,14 +33,14 @@ def get_db_connection():
     conn.cursor_factory = psycopg2.extras.RealDictCursor
     return conn
     
-def get_next_letter_number(cursor, dept_id):
+def get_next_letter_number(cursor):
     cursor.execute('''
         SELECT COALESCE(MAX(letter_number::integer), 0) as maxnum
         FROM letters
-        WHERE sender_id = %s AND receiver_id IS NOT NULL AND letter_number ~ '^[0-9]+$'
-    ''', (dept_id,))
+        WHERE sender_id IS NOT NULL AND receiver_id IS NOT NULL AND letter_number ~ '^[0-9]+$'
+    ''')
     row = cursor.fetchone()
-    return (row['maxnum'] or 0) + 1    
+    return (row['maxnum'] or 0) + 1
 
 def init_db():
     conn = get_db_connection()
@@ -2169,7 +2169,7 @@ def dashboard():
     ''', (dept_id,))
     letters = cursor.fetchall()
     
-    next_letter_number = get_next_letter_number(cursor, dept_id)
+    next_letter_number = get_next_letter_number(cursor)
     
     cursor.close()
     conn.close()
@@ -2223,7 +2223,7 @@ def outbox():
     ''', (dept_id,))
     letters = cursor.fetchall()
     
-    next_letter_number = get_next_letter_number(cursor, dept_id)
+    next_letter_number = get_next_letter_number(cursor)
     
     cursor.close()
     conn.close()
@@ -2292,7 +2292,7 @@ def send_letter():
             file_data = psycopg2.Binary(file.read())
             file_mimetype = file.content_type or 'application/octet-stream'
 
-        letter_number = str(get_next_letter_number(cursor, sender_id))
+        letter_number = str(get_next_letter_number(cursor))   # <-- بدون معامل الآن
 
         cursor.execute('''
             INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, letter_number)
