@@ -28,6 +28,20 @@ def is_admin_user(dept_name):
     dept_clean = dept_name.strip()
     return any(role.lower() == dept_clean.lower() for role in ADMIN_ROLES) or 'تقنية' in dept_clean or 'تنفيذي' in dept_clean
 
+def peek_next_letter_number(cursor):
+    cursor.execute('SELECT next_letter_number FROM system_settings ORDER BY id LIMIT 1')
+    row = cursor.fetchone()
+    return row['next_letter_number'] if row else 1
+
+def consume_next_letter_number(cursor):
+    number = peek_next_letter_number(cursor)
+    cursor.execute('''
+        UPDATE system_settings 
+        SET next_letter_number = next_letter_number + 1 
+        WHERE id = (SELECT id FROM system_settings ORDER BY id LIMIT 1)
+    ''')
+    return number
+
 def get_db_connection():
     conn = psycopg2.connect(NEON_DATABASE_URL, sslmode='require')
     conn.cursor_factory = psycopg2.extras.RealDictCursor
@@ -65,6 +79,17 @@ def init_db():
             can_page_suggestions INTEGER DEFAULT 1
         )
     ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS system_settings (
+            id SERIAL PRIMARY KEY,
+            next_letter_number INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+    
+    cursor.execute('SELECT COUNT(*) as count FROM system_settings')
+    if cursor.fetchone()['count'] == 0:
+        cursor.execute('INSERT INTO system_settings (next_letter_number) VALUES (1)')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS letters (
@@ -1490,7 +1515,7 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="word-paper-left">
                                 <div class="word-paper-left-inner">
-                                    الرقم : <input type="text" id="paperLetterNumInput" class="" value="{{ next_letter_number if current_page == 'outbox' else '' }}" style="width: 100px;"><br>
+                                    الرقم : <input type="text" id="paperLetterNumInput" class="" value="{{ next_letter_number }}" style="width: 100px;"><br>
                                     التاريخ : <input type="text" id="paperLetterDateInput" class="" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
                                     المشفوعات : <input type="text" id="paperLetterAttachInput" class="" value="" style="width: 100px;">
                                 </div>
@@ -2159,6 +2184,8 @@ def dashboard():
     
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
+
+    next_letter_number = peek_next_letter_number(cursor)
     
     cursor.execute('''
         SELECT l.*, d.name as sender_name 
@@ -2169,7 +2196,7 @@ def dashboard():
     ''', (dept_id,))
     letters = cursor.fetchall()
     
-    next_letter_number = get_next_letter_number(cursor)
+    
     
     cursor.close()
     conn.close()
@@ -2213,6 +2240,8 @@ def outbox():
     
     cursor.execute('SELECT id, name FROM departments WHERE id != %s', (dept_id,))
     depts = cursor.fetchall()
+
+    next_letter_number = peek_next_letter_number(cursor)
     
     cursor.execute('''
         SELECT l.*, d.name as receiver_name 
@@ -2223,7 +2252,7 @@ def outbox():
     ''', (dept_id,))
     letters = cursor.fetchall()
     
-    next_letter_number = get_next_letter_number(cursor)
+    
     
     cursor.close()
     conn.close()
@@ -2292,13 +2321,12 @@ def send_letter():
             file_data = psycopg2.Binary(file.read())
             file_mimetype = file.content_type or 'application/octet-stream'
 
-        letter_number = str(get_next_letter_number(cursor))   # <-- بدون معامل الآن
+        letter_number = str(consume_next_letter_number(cursor))
 
         cursor.execute('''
             INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, letter_number)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype,
-              datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
+        ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
         
     conn.commit()
     cursor.close()
@@ -3460,6 +3488,32 @@ window.addEventListener('resize', updateNavbarHeightVar);
     '''
     return render_template_string(html_code, depts=depts, total_letters=total_letters, total_ach=total_ach, total_certs=total_certs, dept_stats=dept_stats, dept_name=session['dept_name'])
 
+@app.route('/admin/set_letter_number', methods=['POST'])
+def set_letter_number():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، هذه الصلاحية للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+
+    new_number = request.form.get('new_next_number')
+    if not new_number or not new_number.isdigit() or int(new_number) < 1:
+        return '''<script>alert("الرجاء إدخال رقم صحيح أكبر من صفر."); window.location.href="/admin/permissions";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE system_settings 
+        SET next_letter_number = %s 
+        WHERE id = (SELECT id FROM system_settings ORDER BY id LIMIT 1)
+    ''', (int(new_number),))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return f'''<script>alert("تم تحديث رقم الصادر القادم ليصبح: {new_number}"); window.location.href="/admin/permissions";</script>'''
+    
 # --- إدارة الصلاحيات ---
 @app.route('/admin/permissions', methods=['GET', 'POST'])
 def admin_permissions():
@@ -3510,6 +3564,10 @@ def admin_permissions():
  
     cursor.execute('SELECT * FROM departments ORDER BY id ASC')
     departments = cursor.fetchall()
+
+    cursor.execute('SELECT next_letter_number FROM system_settings ORDER BY id LIMIT 1')
+    current_next_number = cursor.fetchone()['next_letter_number']
+
     cursor.close()
     conn.close()
  
@@ -3563,6 +3621,31 @@ def admin_permissions():
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <h4 class="fw-bold m-0" style="color: var(--fifa-green);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة إدارة صلاحيات الإدارات والشبكة</h4>
                 <a href="/dashboard" class="btn btn-outline-success fw-bold fs-7"><i class='bx bx-right-arrow-alt ms-1'></i>العودة للنظام</a>
+            </div>
+
+            <div class="perm-card mb-4">
+                <div class="perm-header d-flex justify-content-between align-items-center">
+                    <span><i class='bx bx-list-ol ms-2'></i>ضبط ترقيم الصادر العام</span>
+                </div>
+                <div class="p-3">
+                    <p class="text-muted fs-7 mb-3">
+                        الرقم الحالي الذي سيُستخدم في أول خطاب صادر قادم (من أي إدارة): 
+                        <strong class="text-success fs-6">{{ current_next_number }}</strong>
+                    </p>
+                    <form action="/admin/set_letter_number" method="post" class="d-flex flex-wrap gap-2 align-items-end">
+                        <div>
+                            <label class="form-label fw-bold fs-8 mb-1">تعيين الرقم التالي إلى:</label>
+                            <input type="number" name="new_next_number" min="1" class="form-control fs-7" placeholder="مثال: 1 أو 50" required style="width: 160px;">
+                        </div>
+                        <button type="submit" class="btn btn-fifa-gold fs-7 px-4">حفظ الرقم</button>
+                    </form>
+                    <form action="/admin/set_letter_number" method="post" class="mt-2" onsubmit="return confirm('تصفير الترقيم والبدء من رقم 1 مجدداً؟');">
+                        <input type="hidden" name="new_next_number" value="1">
+                        <button type="submit" class="btn btn-outline-danger fs-8 px-3 py-1">
+                            <i class='bx bx-reset ms-1'></i> تصفير الترقيم إلى 1
+                        </button>
+                    </form>
+                </div>
             </div>
  
             <div class="row">
@@ -3662,7 +3745,7 @@ def admin_permissions():
     </body>
     </html>
     '''
-    return render_template_string(html_code, departments=departments, dept_name=session['dept_name'])
+    return render_template_string(html_code, departments=departments, dept_name=session['dept_name'], current_next_number=current_next_number)
  
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
