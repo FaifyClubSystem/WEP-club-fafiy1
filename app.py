@@ -1299,6 +1299,36 @@ DASHBOARD_HTML = '''
 @media (max-width: 860px) {
     /* التصغير يتم بالكامل عبر JavaScript، لا حاجة لأي CSS هنا */
          }
+        .word-paper.extra-page { margin-top: 18px; }
+        .page-number-badge {
+            position: absolute;
+            top: 6mm;
+            left: 6mm;
+            background: var(--fifa-gold);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 0.8rem;
+            padding: 3px 12px;
+            border-radius: 20px;
+            z-index: 5;
+            font-family: 'Almarai', sans-serif;
+        }
+        .remove-page-btn {
+            position: absolute;
+            bottom: 6mm;
+            left: 6mm;
+            background: #dc3545;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            z-index: 5;
+            cursor: pointer;
+            font-family: 'Almarai', sans-serif;
+        }
+        .remove-page-btn:hover { background: #b02a37; }
         .word-paper-header {
             display: flex;
             justify-content: space-between;
@@ -1642,6 +1672,7 @@ DASHBOARD_HTML = '''
  
                         <div class="vr mx-1"></div>
  
+                        <button type="button" onclick="addNewPage()" title="إضافة صفحة ثانية لإكمال الخطاب" style="background:#123826; color:#fff;"><i class='bx bx-file-plus fs-6'></i> صفحة جديدة</button>
  
                     </div>
  
@@ -1877,6 +1908,71 @@ DASHBOARD_HTML = '''
             document.execCommand(cmd, false, value);
             syncTextareaWithPaper();
         }
+
+        // ==== دعم الصفحات المتعددة للخطاب ====
+        var pageCounter = 1;
+
+        function addNewPage(initialHTML) {
+            var container = document.querySelector('.word-paper-container');
+            if (!container) return;
+            var pages = container.querySelectorAll('.word-paper');
+            var lastPaper = pages[pages.length - 1];
+            if (!lastPaper) return;
+
+            pageCounter++;
+
+            var clone = lastPaper.cloneNode(true);
+            clone.removeAttribute('id');
+            clone.classList.add('extra-page');
+
+            var oldBadge = clone.querySelector('.page-number-badge');
+            if (oldBadge) oldBadge.remove();
+            var oldRemoveBtn = clone.querySelector('.remove-page-btn');
+            if (oldRemoveBtn) oldRemoveBtn.remove();
+
+            clone.querySelectorAll('input').forEach(function (inp) {
+                inp.removeAttribute('id');
+            });
+
+            var bodyEl = clone.querySelector('.word-paper-body');
+            if (bodyEl) {
+                bodyEl.removeAttribute('id');
+                bodyEl.setAttribute('contenteditable', 'true');
+                bodyEl.innerHTML = initialHTML || '';
+                bodyEl.oninput = syncTextareaWithPaper;
+            }
+
+            var badge = document.createElement('div');
+            badge.className = 'page-number-badge';
+            badge.innerText = 'صفحة ' + pageCounter;
+            clone.appendChild(badge);
+
+            var removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-page-btn';
+            removeBtn.innerHTML = '<i class="bx bx-trash"></i> حذف الصفحة';
+            removeBtn.onclick = function () {
+                clone.remove();
+                renumberPages();
+                syncTextareaWithPaper();
+            };
+            clone.appendChild(removeBtn);
+
+            container.appendChild(clone);
+            renumberPages();
+            syncTextareaWithPaper();
+            clone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function renumberPages() {
+            var extraPages = document.querySelectorAll('.word-paper.extra-page');
+            pageCounter = 1;
+            extraPages.forEach(function (p) {
+                pageCounter++;
+                var badge = p.querySelector('.page-number-badge');
+                if (badge) badge.innerText = 'صفحة ' + pageCounter;
+            });
+        }
  
         // دالة تكبير وتصغير حجم الخط للنص المحدد فقط
         function changeFontSize(step) {
@@ -1943,26 +2039,42 @@ DASHBOARD_HTML = '''
             syncTextareaWithPaper();
         }
  
-        // المزامنة بين نص الورقة ونموذج الإرسال بالأسفل (نحافظ على التنسيق الداخلي HTML بدل تفريغه كنص عادي)
+        // المزامنة بين نص كل صفحات الورقة ونموذج الإرسال بالأسفل (نجمع كل الصفحات مفصولة بعلامة خفية)
         function syncTextareaWithPaper() {
-            var paperBody = document.getElementById('paperBodyText');
+            var container = document.querySelector('.word-paper-container');
             var textarea = document.getElementById('letterContentInput');
-            if (paperBody && textarea) {
-                textarea.value = paperBody.innerHTML;
-            }
+            if (!container || !textarea) return;
+            var bodies = container.querySelectorAll('.word-paper-body');
+            var parts = [];
+            bodies.forEach(function (b) { parts.push(b.innerHTML); });
+            textarea.value = parts.join('<!--PAGE_BREAK-->');
         }
  
         function syncPaperWithTextarea(val) {
+            // إزالة أي صفحات إضافية سابقة قبل إعادة البناء
+            document.querySelectorAll('.word-paper.extra-page').forEach(function (p) { p.remove(); });
+            pageCounter = 1;
+
             var paperBody = document.getElementById('paperBodyText');
-            if (paperBody) {
-                if (!val || val.trim() === '') {
-                    paperBody.innerText = "أدخل نص الخطاب...";
-                } else if (/<[a-z][\\s\\S]*>/i.test(val)) {
-                    // القيمة تحتوي وسوم HTML محفوظة مسبقاً (خطاب تم تحميله للتعديل)
-                    paperBody.innerHTML = val;
-                } else {
-                    paperBody.innerText = val;
-                }
+            if (!paperBody) return;
+
+            if (!val || val.trim() === '') {
+                paperBody.innerText = "أدخل نص الخطاب...";
+                return;
+            }
+
+            var pages = val.split('<!--PAGE_BREAK-->');
+            var firstPageVal = pages[0];
+
+            if (/<[a-z][\\s\\S]*>/i.test(firstPageVal)) {
+                // القيمة تحتوي وسوم HTML محفوظة مسبقاً (خطاب تم تحميله للتعديل)
+                paperBody.innerHTML = firstPageVal;
+            } else {
+                paperBody.innerText = firstPageVal;
+            }
+
+            for (var i = 1; i < pages.length; i++) {
+                addNewPage(pages[i]);
             }
         }
  
@@ -1973,43 +2085,51 @@ DASHBOARD_HTML = '''
             modal.show();
         }
  
-        // معاينة الخطاب الرسمي بمقاس A4 داخل نافذة منبثقة قبل الطباعة/التحميل (من ورقة التحرير الحالية)
+        // معاينة الخطاب الرسمي بمقاس A4 داخل نافذة منبثقة قبل الطباعة/التحميل (من ورقة/أوراق التحرير الحالية)
         function previewLetterPaper() {
-            var original = document.getElementById('officialPaper');
-            var clone = original.cloneNode(true);
-            clone.removeAttribute('id');
- 
-            // استبدال حقول الإدخال بنصوص ثابتة للعرض فقط (الرقم/التاريخ/المشفوعات)
-            clone.querySelectorAll('input').forEach(function (inp) {
-                var span = document.createElement('span');
-                span.innerText = inp.value || '';
-                span.style.fontWeight = 'bold';
-                inp.parentNode.replaceChild(span, inp);
-            });
-            var bodyEl = clone.querySelector('.word-paper-body');
-            if (bodyEl) bodyEl.removeAttribute('contenteditable');
- 
+            var sourcePages = document.querySelectorAll('.word-paper-container > .word-paper');
             var container = document.getElementById('previewLetterContainer');
             container.innerHTML = '';
-            clone.id = 'previewOfficialPaper';
-            container.appendChild(clone);
+
+            sourcePages.forEach(function (original, idx) {
+                var clone = original.cloneNode(true);
+                clone.removeAttribute('id');
+                if (idx === 0) clone.id = 'previewOfficialPaper';
+
+                clone.querySelectorAll('input').forEach(function (inp) {
+                    var span = document.createElement('span');
+                    span.innerText = inp.value || '';
+                    span.style.fontWeight = 'bold';
+                    inp.parentNode.replaceChild(span, inp);
+                });
+                var bodyEl = clone.querySelector('.word-paper-body');
+                if (bodyEl) bodyEl.removeAttribute('contenteditable');
+
+                var removeBtn = clone.querySelector('.remove-page-btn');
+                if (removeBtn) removeBtn.remove();
+
+                clone.style.marginBottom = '20px';
+                container.appendChild(clone);
+            });
  
             var modalEl = document.getElementById('previewLetterModal');
             var modal = new bootstrap.Modal(modalEl);
             modal.show();
  
-            // ضبط مقياس العرض بحيث تظهر الصفحة كاملة داخل النافذة (بدون تغيير مقاسها الحقيقي A4)
+            // ضبط مقياس العرض بحيث تظهر كل صفحة كاملة داخل النافذة (بدون تغيير مقاسها الحقيقي A4)
             setTimeout(function () {
                 var modalBodyWidth = modalEl.querySelector('.modal-body').clientWidth - 20;
-                var paperWidthPx = clone.getBoundingClientRect().width;
-                var scale = Math.min(1, modalBodyWidth / paperWidthPx);
-                clone.style.transform = 'scale(' + scale + ')';
-                clone.style.transformOrigin = 'top center';
-                clone.style.marginBottom = (paperWidthPx * (scale - 1)) + 'px';
+                container.querySelectorAll('.word-paper').forEach(function (clone) {
+                    var paperWidthPx = clone.getBoundingClientRect().width;
+                    var scale = Math.min(1, modalBodyWidth / paperWidthPx);
+                    clone.style.transform = 'scale(' + scale + ')';
+                    clone.style.transformOrigin = 'top center';
+                    clone.style.marginBottom = (paperWidthPx * (scale - 1) + 20) + 'px';
+                });
             }, 150);
         }
  
-        // معاينة خطاب مؤرشف (من الوارد أو الصادر) بنفس شكل الورقة الرسمية A4
+        // معاينة خطاب مؤرشف (من الوارد أو الصادر) بنفس شكل الورقة الرسمية A4، مع دعم كل صفحاته
         function previewArchivedLetter(btn) {
             var title = btn.getAttribute('data-title') || '';
             var contentId = btn.getAttribute('data-content-id');
@@ -2018,35 +2138,45 @@ DASHBOARD_HTML = '''
  
             var textElem = contentId ? document.getElementById(contentId) : null;
             var contentHTML = textElem ? textElem.innerHTML : '';
+            var pagesHTML = contentHTML ? contentHTML.split('<!--PAGE_BREAK-->') : [];
+            if (pagesHTML.length === 0) pagesHTML = [title];
  
             var original = document.getElementById('officialPaper');
             if (!original) { return; }
-            var clone = original.cloneNode(true);
-            clone.removeAttribute('id');
-            clone.id = 'previewOfficialPaper';
- 
-            clone.querySelectorAll('input').forEach(function (inp) {
-                var span = document.createElement('span');
-                if (inp.id.indexOf('NumInput') !== -1) {
-                    span.innerText = numberVal;
-                } else if (inp.id.indexOf('DateInput') !== -1) {
-                    span.innerText = dateVal;
-                } else {
-                    span.innerText = '';
-                }
-                span.style.fontWeight = 'bold';
-                inp.parentNode.replaceChild(span, inp);
-            });
- 
-            var bodyEl = clone.querySelector('.word-paper-body');
-            if (bodyEl) {
-                bodyEl.removeAttribute('contenteditable');
-                bodyEl.innerHTML = contentHTML || title;
-            }
- 
+
             var container = document.getElementById('previewLetterContainer');
             container.innerHTML = '';
-            container.appendChild(clone);
+
+            pagesHTML.forEach(function (pageHtml, idx) {
+                var clone = original.cloneNode(true);
+                clone.removeAttribute('id');
+                if (idx === 0) clone.id = 'previewOfficialPaper';
+
+                clone.querySelectorAll('input').forEach(function (inp) {
+                    var span = document.createElement('span');
+                    if (inp.id.indexOf('NumInput') !== -1) {
+                        span.innerText = numberVal;
+                    } else if (inp.id.indexOf('DateInput') !== -1) {
+                        span.innerText = dateVal;
+                    } else {
+                        span.innerText = '';
+                    }
+                    span.style.fontWeight = 'bold';
+                    inp.parentNode.replaceChild(span, inp);
+                });
+
+                var bodyEl = clone.querySelector('.word-paper-body');
+                if (bodyEl) {
+                    bodyEl.removeAttribute('contenteditable');
+                    bodyEl.innerHTML = pageHtml || (idx === 0 ? title : '');
+                }
+
+                var removeBtn = clone.querySelector('.remove-page-btn');
+                if (removeBtn) removeBtn.remove();
+
+                clone.style.marginBottom = '20px';
+                container.appendChild(clone);
+            });
  
             var modalEl = document.getElementById('previewLetterModal');
             var modal = new bootstrap.Modal(modalEl);
@@ -2054,11 +2184,13 @@ DASHBOARD_HTML = '''
  
             setTimeout(function () {
                 var modalBodyWidth = modalEl.querySelector('.modal-body').clientWidth - 20;
-                var paperWidthPx = clone.getBoundingClientRect().width;
-                var scale = Math.min(1, modalBodyWidth / paperWidthPx);
-                clone.style.transform = 'scale(' + scale + ')';
-                clone.style.transformOrigin = 'top center';
-                clone.style.marginBottom = (paperWidthPx * (scale - 1)) + 'px';
+                container.querySelectorAll('.word-paper').forEach(function (clone) {
+                    var paperWidthPx = clone.getBoundingClientRect().width;
+                    var scale = Math.min(1, modalBodyWidth / paperWidthPx);
+                    clone.style.transform = 'scale(' + scale + ')';
+                    clone.style.transformOrigin = 'top center';
+                    clone.style.marginBottom = (paperWidthPx * (scale - 1) + 20) + 'px';
+                });
             }, 150);
         }
         function updateNavbarHeightVar() {
@@ -2205,31 +2337,19 @@ window.addEventListener('resize', updateNavbarHeightVar);
             }
         }
  
-// تحميل PDF: بناء نسخة دقيقة ونظيفة من محتوى الخطاب الرسمي وتضمينه بالكامل لتفادي الفراغ
+// تحميل PDF: بناء نسخة دقيقة ونظيفة من كل صفحات الخطاب الرسمي (صفحة أو أكثر) وتضمينها بالكامل لتفادي الفراغ
 function downloadLetterPDF() {
-    var source = document.getElementById('previewOfficialPaper') || document.getElementById('officialPaper');
-    if (!source) {
-        alert("لا توجد ورقة خطاب نشطة للتحميل!");
-        return;
+    var previewContainer = document.getElementById('previewLetterContainer');
+    var sourcePages;
+    if (previewContainer && previewContainer.querySelector('.word-paper')) {
+        sourcePages = previewContainer.querySelectorAll('.word-paper');
+    } else {
+        sourcePages = document.querySelectorAll('.word-paper-container > .word-paper');
     }
 
-    var clone = source.cloneNode(true);
-    clone.removeAttribute('id');
-    clone.style.zoom = '1';
-    clone.style.transform = 'none';
-
-    clone.querySelectorAll('input').forEach(function (inp) {
-        var span = document.createElement('span');
-        span.innerText = inp.value || inp.getAttribute('value') || '';
-        span.style.fontWeight = 'bold';
-        inp.parentNode.replaceChild(span, inp);
-    });
-
-    var originalBody = source.querySelector('.word-paper-body');
-    var cloneBody = clone.querySelector('.word-paper-body');
-    if (originalBody && cloneBody) {
-        cloneBody.removeAttribute('contenteditable');
-        cloneBody.innerHTML = originalBody.innerHTML;
+    if (!sourcePages || sourcePages.length === 0) {
+        alert("لا توجد ورقة خطاب نشطة للتحميل!");
+        return;
     }
 
     var styles = '';
@@ -2257,8 +2377,10 @@ function downloadLetterPDF() {
         'html, body { margin:0 !important; padding:0 !important; width:210mm; background:#fff !important; } ' +
         '@page { size: A4; margin: 0mm; } ' +
         '.word-paper-container { margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; } ' +
-        '.word-paper { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; max-width:210mm !important; margin:0 auto !important; padding:18mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; zoom:1 !important; transform:none !important; page-break-after:avoid; page-break-inside:avoid; overflow:hidden; } ' +
+        '.word-paper { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; max-width:210mm !important; margin:0 auto !important; padding:18mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; zoom:1 !important; transform:none !important; page-break-after: always; page-break-inside:avoid; overflow:hidden; } ' +
+        '.word-paper:last-child { page-break-after: auto; } ' +
         '.word-paper-body { border:none !important; background:transparent !important; padding:0 !important; outline:none !important; } ' +
+        '.page-number-badge, .remove-page-btn { display:none !important; } ' +
         'body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
         '</style></head><body></body></html>');
     doc.close();
@@ -2266,7 +2388,34 @@ function downloadLetterPDF() {
     var wrapper = doc.createElement('div');
     wrapper.id = 'printAreaPaper';
     wrapper.className = 'word-paper-container';
-    wrapper.appendChild(clone);
+
+    sourcePages.forEach(function (source) {
+        var clone = source.cloneNode(true);
+        clone.removeAttribute('id');
+        clone.style.zoom = '1';
+        clone.style.transform = 'none';
+        clone.style.marginBottom = '0';
+
+        clone.querySelectorAll('input').forEach(function (inp) {
+            var span = document.createElement('span');
+            span.innerText = inp.value || inp.getAttribute('value') || '';
+            span.style.fontWeight = 'bold';
+            inp.parentNode.replaceChild(span, inp);
+        });
+
+        var originalBody = source.querySelector('.word-paper-body');
+        var cloneBody = clone.querySelector('.word-paper-body');
+        if (originalBody && cloneBody) {
+            cloneBody.removeAttribute('contenteditable');
+            cloneBody.innerHTML = originalBody.innerHTML;
+        }
+
+        var removeBtn = clone.querySelector('.remove-page-btn');
+        if (removeBtn) removeBtn.remove();
+
+        wrapper.appendChild(clone);
+    });
+
     doc.body.appendChild(wrapper);
 
     setTimeout(function () {
