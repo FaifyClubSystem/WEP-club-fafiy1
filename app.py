@@ -271,8 +271,6 @@ def download_all_achievements(dept_id):
         as_attachment=True,
         download_name=f"achievements_dept_{dept_id}.zip"
     )
-
-
 @app.route('/download_all_certificates/<int:dept_id>')
 def download_all_certificates(dept_id):
     if 'dept_id' not in session:
@@ -345,14 +343,14 @@ def download_cert_file(cert_id):
             download_name=row['file_name'] or 'file'
         )
     return "الملف غير موجود", 404
-@app.route('/download_all_achievements/<int:dept_id>')
-def download_all_achievements(dept_id):
+@app.route('/download_all_certificates/<int:dept_id>')
+def download_all_certificates(dept_id):
     if 'dept_id' not in session:
         return redirect(url_for('login'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_data FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    cursor.execute('SELECT file_name, file_data FROM course_certificates WHERE dept_id = %s', (dept_id,))
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -372,16 +370,15 @@ def download_all_achievements(dept_id):
                 zip_file.writestr(name, bytes(row['file_data']))
 
     if len(used_names) == 0:
-        return '''<script>alert("لا توجد ملفات إنجازات لتحميلها."); window.history.back();</script>'''
+        return '''<script>alert("لا توجد شهادات دورات لتحميلها."); window.history.back();</script>'''
 
     zip_buffer.seek(0)
     return send_file(
         zip_buffer,
         mimetype='application/zip',
         as_attachment=True,
-        download_name=f"achievements_dept_{dept_id}.zip"
+        download_name=f"certificates_dept_{dept_id}.zip"
     )
-
 
 @app.route('/download_all_certificates/<int:dept_id>')
 def download_all_certificates(dept_id):
