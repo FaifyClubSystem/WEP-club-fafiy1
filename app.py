@@ -235,7 +235,81 @@ def download_ach_file(ach_id):
             download_name=row['file_name'] or 'file'
         )
     return "الملف غير موجود", 404
+@app.route('/download_all_achievements/<int:dept_id>')
+def download_all_achievements(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
 
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    zip_buffer = io.BytesIO()
+    used_names = set()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for row in rows:
+            if row.get('file_data'):
+                base_name = row.get('file_name') or 'file'
+                name = base_name
+                counter = 1
+                while name in used_names:
+                    name = f"{counter}_{base_name}"
+                    counter += 1
+                used_names.add(name)
+                zip_file.writestr(name, bytes(row['file_data']))
+
+    if len(used_names) == 0:
+        return '''<script>alert("لا توجد ملفات إنجازات لتحميلها."); window.history.back();</script>'''
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f"achievements_dept_{dept_id}.zip"
+    )
+
+
+@app.route('/download_all_certificates/<int:dept_id>')
+def download_all_certificates(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data FROM course_certificates WHERE dept_id = %s', (dept_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    zip_buffer = io.BytesIO()
+    used_names = set()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for row in rows:
+            if row.get('file_data'):
+                base_name = row.get('file_name') or 'file'
+                name = base_name
+                counter = 1
+                while name in used_names:
+                    name = f"{counter}_{base_name}"
+                    counter += 1
+                used_names.add(name)
+                zip_file.writestr(name, bytes(row['file_data']))
+
+    if len(used_names) == 0:
+        return '''<script>alert("لا توجد شهادات دورات لتحميلها."); window.history.back();</script>'''
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f"certificates_dept_{dept_id}.zip"
+    )
+    
 @app.route('/view_ach_file/<int:ach_id>')
 def view_ach_file(ach_id):
     conn = get_db_connection()
@@ -271,7 +345,81 @@ def download_cert_file(cert_id):
             download_name=row['file_name'] or 'file'
         )
     return "الملف غير موجود", 404
+@app.route('/download_all_achievements/<int:dept_id>')
+def download_all_achievements(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
 
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    zip_buffer = io.BytesIO()
+    used_names = set()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for row in rows:
+            if row.get('file_data'):
+                base_name = row.get('file_name') or 'file'
+                name = base_name
+                counter = 1
+                while name in used_names:
+                    name = f"{counter}_{base_name}"
+                    counter += 1
+                used_names.add(name)
+                zip_file.writestr(name, bytes(row['file_data']))
+
+    if len(used_names) == 0:
+        return '''<script>alert("لا توجد ملفات إنجازات لتحميلها."); window.history.back();</script>'''
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f"achievements_dept_{dept_id}.zip"
+    )
+
+
+@app.route('/download_all_certificates/<int:dept_id>')
+def download_all_certificates(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_data FROM course_certificates WHERE dept_id = %s', (dept_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    zip_buffer = io.BytesIO()
+    used_names = set()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for row in rows:
+            if row.get('file_data'):
+                base_name = row.get('file_name') or 'file'
+                name = base_name
+                counter = 1
+                while name in used_names:
+                    name = f"{counter}_{base_name}"
+                    counter += 1
+                used_names.add(name)
+                zip_file.writestr(name, bytes(row['file_data']))
+
+    if len(used_names) == 0:
+        return '''<script>alert("لا توجد شهادات دورات لتحميلها."); window.history.back();</script>'''
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f"certificates_dept_{dept_id}.zip"
+    )
+    
 @app.route('/view_cert_file/<int:cert_id>')
 def view_cert_file(cert_id):
     conn = get_db_connection()
@@ -2494,7 +2642,14 @@ def monthly_achievements():
                                     </div>
                                 </div>
                                 <div class="p-3">
-                                    <div class="sub-section-title"><i class='bx bxs-award ms-1'></i> ملفات الإنجازات الشهرية</div>
+                                    <div class="sub-section-title d-flex justify-content-between align-items-center">
+                                         <span><i class='bx bxs-award ms-1'></i> ملفات الإنجازات الشهرية</span>
+                                         {% if achievements|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
+                                         <a href="/download_all_achievements/{{ d.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">
+                                             <i class='bx bx-download ms-1'></i> تحميل الكل
+                                         </a>
+                                         {% endif %}
+                                 </div>
                                     <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
                                         {% set ns = namespace(found=false) %}
                                         {% for a in achievements %}
@@ -2529,7 +2684,14 @@ def monthly_achievements():
                                     </form>
                                     {% endif %}
 
-                                    <div class="sub-section-title"><i class='bx bxs-certification ms-1'></i> شهادات الدورات التدريبية</div>
+                                    <div class="sub-section-title d-flex justify-content-between align-items-center">
+                                         <span><i class='bx bxs-certification ms-1'></i> شهادات الدورات التدريبية</span>
+                                         {% if certificates|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
+                                         <a href="/download_all_certificates/{{ d.id }}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">
+                                             <i class='bx bx-download ms-1'></i> تحميل الكل
+                                         </a>
+                                         {% endif %}
+                                    </div>
                                     <div class="list-group mb-3 fs-7" id="dept-certs-{{ d.id }}">
                                         {% set ns_c = namespace(found=false) %}
                                         {% for c in certificates %}
