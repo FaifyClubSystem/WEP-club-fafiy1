@@ -2080,10 +2080,11 @@ function downloadLetterPDF() {
     doc.close();
 
     var wrapper = doc.createElement('div');
+    wrapper.id = 'printAreaPaper';           // <-- السطر المُضاف
     wrapper.className = 'word-paper-container';
     wrapper.appendChild(clone);
     doc.body.appendChild(wrapper);
-
+    
     setTimeout(function () {
         printFrame.contentWindow.focus();
         printFrame.contentWindow.print();
