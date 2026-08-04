@@ -32,6 +32,15 @@ def get_db_connection():
     conn = psycopg2.connect(NEON_DATABASE_URL, sslmode='require')
     conn.cursor_factory = psycopg2.extras.RealDictCursor
     return conn
+    
+def get_next_letter_number(cursor, dept_id):
+    cursor.execute('''
+        SELECT COALESCE(MAX(letter_number::integer), 0) as maxnum
+        FROM letters
+        WHERE sender_id = %s AND receiver_id IS NOT NULL AND letter_number ~ '^[0-9]+$'
+    ''', (dept_id,))
+    row = cursor.fetchone()
+    return (row['maxnum'] or 0) + 1    
 
 def init_db():
     conn = get_db_connection()
@@ -989,6 +998,7 @@ DASHBOARD_HTML = '''
                 data-id="{{ letter.id }}" data-title="{{ letter.title|e }}"
                 data-sender-id="{{ letter.sender_id or '' }}" data-receiver-id="{{ letter.receiver_id or '' }}"
                 data-priority="{{ letter.priority }}" data-page="{{ current_page }}"
+                data-letter-number="{{ letter.letter_number or '' }}"
                 onclick="loadLetterToEditor(this)">
                 <i class='bx bx-edit ms-1'></i> تعديل / إرسال
             </button>
@@ -1480,7 +1490,7 @@ DASHBOARD_HTML = '''
                             </div>
                             <div class="word-paper-left">
                                 <div class="word-paper-left-inner">
-                                    الرقم : <input type="text" id="paperLetterNumInput" class="" value="" style="width: 100px;"><br>
+                                    الرقم : <input type="text" id="paperLetterNumInput" class="" value="{{ next_letter_number if current_page == 'outbox' else '' }}" style="width: 100px;"><br>
                                     التاريخ : <input type="text" id="paperLetterDateInput" class="" value="{{ now.strftime('%Y/%m/%dم') }}" style="width: 100px;"><br>
                                     المشفوعات : <input type="text" id="paperLetterAttachInput" class="" value="" style="width: 100px;">
                                 </div>
@@ -1526,6 +1536,7 @@ DASHBOARD_HTML = '''
                     <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-paper-plane ms-1'></i> تفاصيل إرسال المعاملة / الخطاب</h5>
                     <form id="letterSendForm" action="/send_letter" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="letter_id" id="editLetterId" value="">
+                        <input type="hidden" name="letter_number" id="hiddenLetterNumberInput" value="">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold fs-7">الإدارة المستلمة:</label>
@@ -1989,6 +2000,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
             var receiverId = btn.getAttribute('data-receiver-id') || '';
             var priority = btn.getAttribute('data-priority') || 'عادي';
             var page = btn.getAttribute('data-page');
+            var letterNumber = btn.getAttribute('data-letter-number') || '';
  
             var textElem = document.getElementById('letter-text-' + id);
             var contentHTML = textElem ? textElem.innerHTML : '';
@@ -2003,6 +2015,9 @@ window.addEventListener('resize', updateNavbarHeightVar);
                 // تعديل خطاب صادر: يبقى نفس السجل ونفس ترتيبه، فقط يتم تحديثه
                 editIdInput.value = id;
                 if (receiverId && receiverSelect) receiverSelect.value = receiverId;
+                if (letterNumber) {
+                    document.getElementById('paperLetterNumInput').value = letterNumber;
+                }
             } else {
                 // الرد على خطاب وارد: لا يمكن تعديل خطاب الغير، فيتم إنشاء خطاب صادر جديد كرد
                 editIdInput.value = '';
@@ -2111,6 +2126,14 @@ function downloadLetterPDF() {
         window.addEventListener('DOMContentLoaded', function() {
             syncTextareaWithPaper();
         });
+
+        var letterSendFormEl = document.getElementById('letterSendForm');
+        if (letterSendFormEl) {
+            letterSendFormEl.addEventListener('submit', function() {
+                document.getElementById('hiddenLetterNumberInput').value =
+                    document.getElementById('paperLetterNumInput').value;
+            });
+        }
     </script>
 </body>
 </html>
@@ -2146,6 +2169,8 @@ def dashboard():
     ''', (dept_id,))
     letters = cursor.fetchall()
     
+    next_letter_number = get_next_letter_number(cursor, dept_id)
+    
     cursor.close()
     conn.close()
     
@@ -2165,6 +2190,7 @@ def dashboard():
                                   is_admin=is_admin,
                                   can_view_all_archive=current_dept['can_view_all_archive'],
                                   can_page_suggestions=current_dept['can_page_suggestions'],
+                                  next_letter_number=next_letter_number,
                                   now=datetime.now())
  
 @app.route('/outbox')
@@ -2197,6 +2223,8 @@ def outbox():
     ''', (dept_id,))
     letters = cursor.fetchall()
     
+    next_letter_number = get_next_letter_number(cursor, dept_id)
+    
     cursor.close()
     conn.close()
     
@@ -2216,6 +2244,7 @@ def outbox():
                                   is_admin=is_admin,
                                   can_view_all_archive=current_dept['can_view_all_archive'],
                                   can_page_suggestions=current_dept['can_page_suggestions'],
+                                  next_letter_number=next_letter_number,
                                   now=datetime.now())
  
 @app.route('/send_letter', methods=['POST'])
@@ -2262,11 +2291,14 @@ def send_letter():
             file_name = f"{int(datetime.now().timestamp())}_{original_name}"
             file_data = psycopg2.Binary(file.read())
             file_mimetype = file.content_type or 'application/octet-stream'
-            
+
+        letter_number = str(get_next_letter_number(cursor, sender_id))
+
         cursor.execute('''
-            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, letter_number)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype,
+              datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
         
     conn.commit()
     cursor.close()
