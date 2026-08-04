@@ -14,7 +14,7 @@ app.secret_key = 'fifa_club_archiving_secret_key'
 # --- إعدادات الاتصال بـ Neon PostgreSQL ---
 NEON_DATABASE_URL = os.environ.get(
     'DATABASE_URL', 
-    'postgresql://postgres:[Essa12121313$$$$]@db.ievhntskoenaqfcunwby.supabase.co:5432/postgres'
+    'postgresql://postgres:[Essa12121313$$$$]@db.wrwlnztmoctufkjjtpxr.supabase.co:5432/postgres'
 )
 
 ADMIN_ROLES = [
