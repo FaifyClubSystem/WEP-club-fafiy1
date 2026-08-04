@@ -98,6 +98,17 @@ def init_db():
             file_mimetype TEXT,
             uploaded_at TEXT
         )
+        
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS suggestions (
+            id SERIAL PRIMARY KEY,
+            dept_id INTEGER,
+            dept_name TEXT,
+            message TEXT NOT NULL,
+            created_at TEXT,
+            is_read INTEGER DEFAULT 0
+        )
     ''')
     
     cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='departments'")
@@ -749,7 +760,188 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+    
+@app.route('/suggestions', methods=['GET', 'POST'])
+def suggestions():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
 
+    is_admin = is_admin_user(session.get('dept_name'))
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        message = request.form.get('message', '').strip()
+        if message:
+            cursor.execute('''
+                INSERT INTO suggestions (dept_id, dept_name, message, created_at)
+                VALUES (%s, %s, %s, %s)
+            ''', (session['dept_id'], session['dept_name'], message, datetime.now().strftime('%Y-%m-%d %H:%M')))
+            conn.commit()
+        cursor.close()
+        conn.close()
+        return '''<script>alert("تم إرسال رسالتك بنجاح إلى مدير تقنية المعلومات."); window.location.href="/suggestions";</script>'''
+
+    all_suggestions = []
+    if is_admin:
+        cursor.execute('SELECT * FROM suggestions ORDER BY id DESC')
+        all_suggestions = cursor.fetchall()
+
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    html_code = '''
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
+        <title>مشاكل واقتراحات - نادي فيفا</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+        <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+        <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --fifa-green-primary: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; --fifa-card-border: #d5e2d8; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); position: sticky; top: 0; z-index: 1045; }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            .sidebar { width: 260px; background-color: var(--fifa-green-primary); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: var(--navbar-height, 76px); right: -260px; height: calc(100vh - var(--navbar-height, 76px)); box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: var(--navbar-height, 76px); left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .content-body { flex: 1; padding: 1.25rem; }
+            .modern-card { background: rgba(255, 255, 255, 0.95); border-radius: 12px; border: 1px solid var(--fifa-card-border); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+            .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.7rem 1.5rem; font-weight: 700; border: none; }
+            .btn-fifa-primary:hover { color: #fff; background-color: #1e563b; }
+            .suggestion-item { border-bottom: 1px solid #f0f4f2; padding: 1rem; }
+            .suggestion-item:last-child { border-bottom: none; }
+        </style>
+    </head>
+    <body>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
+                    </a>
+                </div>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
+                        <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
+                        <span class="fw-bold fs-7" style="color: var(--fifa-green-primary);">{{ dept_name }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-start shadow">
+                        <li><a class="dropdown-item text-danger py-2" href="/logout"><i class='bx bx-log-out ms-2'></i>تسجيل الخروج</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
+                <a href="/suggestions" class="sidebar-link active"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+                {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                {% endif %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                {% endif %}
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+            <main class="content-body">
+                <div class="container-fluid p-0">
+                    <div class="modern-card">
+                        <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">
+                            <i class='bx bxs-message-square-detail ms-1' style="color: var(--fifa-gold);"></i>
+                            إرسال مشكلة أو اقتراح
+                        </h5>
+                        <p class="text-muted fs-7">اكتب مشكلتك أو اقتراحك بالأسفل، وسيتم إرساله مباشرة إلى مدير تقنية المعلومات.</p>
+                        <form action="/suggestions" method="post">
+                            <textarea name="message" class="form-control mb-3" rows="5" placeholder="اكتب المشكلة أو الاقتراح هنا..." required></textarea>
+                            <button type="submit" class="btn btn-fifa-primary">
+                                <i class='bx bx-send ms-1'></i> إرسال
+                            </button>
+                        </form>
+                    </div>
+
+                    {% if is_admin %}
+                    <div class="modern-card">
+                        <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);">
+                            <i class='bx bxs-inbox ms-1' style="color: var(--fifa-gold);"></i>
+                            الرسائل الواردة
+                            <span class="badge bg-success">{{ all_suggestions|length }}</span>
+                        </h5>
+                        {% if all_suggestions %}
+                            {% for s in all_suggestions %}
+                            <div class="suggestion-item">
+                                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-1">
+                                    <span class="fw-bold text-dark fs-7">{{ s.dept_name }}</span>
+                                    <small class="text-muted fs-8">{{ s.created_at }}</small>
+                                </div>
+                                <p class="mb-0 text-secondary fs-7">{{ s.message }}</p>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted fs-7 text-center py-3">لا توجد رسائل حالياً.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </main>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function updateNavbarHeightVar() {
+                var nav = document.querySelector('.top-navbar');
+                if (nav) { document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px'); }
+            }
+            updateNavbarHeightVar();
+            window.addEventListener('load', updateNavbarHeightVar);
+            window.addEventListener('resize', updateNavbarHeightVar);
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
+    </body>
+    </html>
+    '''
+    return render_template_string(html_code, dept_name=session['dept_name'], current_dept=current_dept, is_admin=is_admin, all_suggestions=all_suggestions)
 DASHBOARD_HTML = '''
 {% macro render_letter_item(letter) %}
 <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
@@ -914,9 +1106,10 @@ DASHBOARD_HTML = '''
             line-height: 1.8;
             box-sizing: border-box;
             flex-shrink: 0;
+         }   
 @media (max-width: 860px) {
     /* التصغير يتم بالكامل عبر JavaScript، لا حاجة لأي CSS هنا */
-}
+         }
         .word-paper-header {
             display: flex;
             justify-content: space-between;
@@ -1183,6 +1376,7 @@ DASHBOARD_HTML = '''
             {% if can_page_quick_upload == 1 or is_admin %}
             <a href="/quick_upload" class="sidebar-link {{ 'active' if current_page == 'quick_upload' else '' }}"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
             {% endif %}
+            <a href="/suggestions" class="sidebar-link {{ 'active' if current_page == 'suggestions' else '' }}"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
             {% if is_admin %}
             <a href="/admin/dashboard" class="sidebar-link {{ 'active' if current_page == 'admin_dashboard' else '' }}" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
             <a href="/admin/permissions" class="sidebar-link {{ 'active' if current_page == 'permissions' else '' }}"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
