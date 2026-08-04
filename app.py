@@ -3073,7 +3073,14 @@ def admin_dashboard():
                             {% for stat in dept_stats %}
                             <div class="col-md-6">
                                 <div class="border rounded p-3 bg-light">
-                                    <h6 class="fw-bold text-success border-bottom pb-2">{{ stat.name }} ({{ stat.ach_count }} إنجازات)</h6>
+                                    <h6 class="fw-bold text-success border-bottom pb-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+                                        <span>{{ stat.name }} ({{ stat.ach_count }} إنجازات)</span>
+                                        {% if stat.ach_count > 0 %}
+                                        <a href="/download_all_achievements/{{ stat.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">
+                                            <i class='bx bx-download ms-1'></i> تحميل الكل
+                                        </a>
+                                        {% endif %}
+                                    </h6>
                                     {% if stat.ach_files %}
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for ach in stat.ach_files %}
@@ -3102,7 +3109,14 @@ def admin_dashboard():
                             {% for stat in dept_stats %}
                             <div class="col-md-6">
                                 <div class="border rounded p-3 bg-light">
-                                    <h6 class="fw-bold text-primary border-bottom pb-2">{{ stat.name }} ({{ stat.cert_count }} شهادات)</h6>
+                                   <h6 class="fw-bold text-primary border-bottom pb-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+                                       <span>{{ stat.name }} ({{ stat.cert_count }} شهادات)</span>
+                                       {% if stat.cert_count > 0 %}
+                                       <a href="/download_all_certificates/{{ stat.id }}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">
+                                           <i class='bx bx-download ms-1'></i> تحميل الكل
+                                       </a>
+                                       {% endif %}
+                                    </h6>
                                     {% if stat.cert_files %}
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for cert in stat.cert_files %}
