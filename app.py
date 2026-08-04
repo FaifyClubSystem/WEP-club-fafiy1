@@ -1750,6 +1750,7 @@ function downloadLetterPDF() {
         alert("لا توجد ورقة خطاب نشطة للتحميل!");
         return;
     }
+
     var clone = source.cloneNode(true);
     clone.removeAttribute('id');
     clone.style.zoom = '1';
@@ -1794,10 +1795,9 @@ function downloadLetterPDF() {
         'html, body { margin:0 !important; padding:0 !important; width:210mm; background:#fff !important; } ' +
         '@page { size: A4; margin: 0mm; } ' +
         '.word-paper-container { margin:0 !important; padding:0 !important; overflow:visible !important; display:block !important; } ' +
-        '.word-paper { width:210mm !important; height:auto !important; min-height:0 !important; max-width:210mm !important; margin:0 auto !important; padding:18mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; transform:none !important; page-break-after:avoid; page-break-inside:avoid; overflow:visible; position:relative; } ' +
+        '.word-paper { width:210mm !important; height:297mm !important; min-height:297mm !important; max-height:297mm !important; max-width:210mm !important; margin:0 auto !important; padding:18mm 20mm !important; border:none !important; box-shadow:none !important; border-radius:0 !important; zoom:1 !important; transform:none !important; page-break-after:avoid; page-break-inside:avoid; overflow:hidden; } ' +
         '.word-paper-body { border:none !important; background:transparent !important; padding:0 !important; outline:none !important; } ' +
         'body * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
-        '.word-paper, .word-paper-container, .word-paper-footer-wave { page-break-inside: avoid !important; break-inside: avoid !important; page-break-after: avoid !important; break-after: avoid !important; page-break-before: avoid !important; break-before: avoid !important; } ' +
         '</style></head><body></body></html>');
     doc.close();
 
@@ -1806,29 +1806,10 @@ function downloadLetterPDF() {
     wrapper.appendChild(clone);
     doc.body.appendChild(wrapper);
 
-    function triggerPrint() {
-        // قياس الارتفاع الحقيقي للورقة وتصغيرها تناسبياً فقط عند الحاجة (بدون أي قص للنص)
-        var rect = clone.getBoundingClientRect();
-        var pxPerMm = rect.width / 210;
-        var naturalHeightMm = rect.height / pxPerMm;
-        var safeMaxMm = 290;
-
-        if (naturalHeightMm > safeMaxMm) {
-            var scale = safeMaxMm / naturalHeightMm;
-            clone.style.zoom = scale;
-        }
-
+    setTimeout(function () {
         printFrame.contentWindow.focus();
         printFrame.contentWindow.print();
-    }
-
-    if (doc.fonts && doc.fonts.ready) {
-        doc.fonts.ready.then(function () {
-            setTimeout(triggerPrint, 200);
-        });
-    } else {
-        setTimeout(triggerPrint, 700);
-    }
+    }, 500);
 }
         function submitBulkDelete(type) {
             document.getElementById('actionTypeInput').value = type;
