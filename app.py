@@ -28,6 +28,11 @@ def is_admin_user(dept_name):
     dept_clean = dept_name.strip()
     return any(role.lower() == dept_clean.lower() for role in ADMIN_ROLES) or 'تقنية' in dept_clean or 'تنفيذي' in dept_clean
 
+def get_db_connection():
+    conn = psycopg2.connect(NEON_DATABASE_URL, sslmode='require')
+    conn.cursor_factory = psycopg2.extras.RealDictCursor
+    return conn
+
 def peek_next_letter_number(cursor):
     cursor.execute('SELECT next_letter_number FROM system_settings ORDER BY id LIMIT 1')
     row = cursor.fetchone()
@@ -41,20 +46,6 @@ def consume_next_letter_number(cursor):
         WHERE id = (SELECT id FROM system_settings ORDER BY id LIMIT 1)
     ''')
     return number
-
-def get_db_connection():
-    conn = psycopg2.connect(NEON_DATABASE_URL, sslmode='require')
-    conn.cursor_factory = psycopg2.extras.RealDictCursor
-    return conn
-    
-def get_next_letter_number(cursor):
-    cursor.execute('''
-        SELECT COALESCE(MAX(letter_number::integer), 0) as maxnum
-        FROM letters
-        WHERE sender_id IS NOT NULL AND receiver_id IS NOT NULL AND letter_number ~ '^[0-9]+$'
-    ''')
-    row = cursor.fetchone()
-    return (row['maxnum'] or 0) + 1
 
 def init_db():
     conn = get_db_connection()
@@ -79,17 +70,6 @@ def init_db():
             can_page_suggestions INTEGER DEFAULT 1
         )
     ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS system_settings (
-            id SERIAL PRIMARY KEY,
-            next_letter_number INTEGER NOT NULL DEFAULT 1
-        )
-    ''')
-    
-    cursor.execute('SELECT COUNT(*) as count FROM system_settings')
-    if cursor.fetchone()['count'] == 0:
-        cursor.execute('INSERT INTO system_settings (next_letter_number) VALUES (1)')
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS letters (
@@ -145,6 +125,16 @@ def init_db():
             is_read INTEGER DEFAULT 0
         )
     ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS system_settings (
+            id SERIAL PRIMARY KEY,
+            next_letter_number INTEGER NOT NULL DEFAULT 1
+        )
+    ''')
+    cursor.execute('SELECT COUNT(*) as count FROM system_settings')
+    if cursor.fetchone()['count'] == 0:
+        cursor.execute('INSERT INTO system_settings (next_letter_number) VALUES (1)')
     
     cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='departments'")
     dept_columns = [col['column_name'] for col in cursor.fetchall()]
@@ -758,7 +748,21 @@ def register():
         <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
         <style>
             :root { --fifa-green: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
-            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; padding: 15px; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); position: sticky; top: 0; z-index: 1045; }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            .sidebar { width: 260px; background-color: var(--fifa-green); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: var(--navbar-height, 76px); right: -260px; height: calc(100vh - var(--navbar-height, 76px)); box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: var(--navbar-height, 76px); left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .content-body { flex: 1; padding: 1.25rem; display: flex; align-items: center; justify-content: center; }
             .register-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 16px; border: 1px solid #d5e2d8; box-shadow: 0 10px 30px rgba(18, 56, 38, 0.08); width: 100%; max-width: 450px; padding: 1.5rem; position: relative; overflow: hidden; }
             .register-card::before { content: ''; position: absolute; top: 0; right: 0; left: 0; height: 5px; background: linear-gradient(90deg, var(--fifa-gold), var(--fifa-green)); }
             .form-control { border-radius: 8px; padding: 0.75rem 1rem; border-color: #dbe3df; }
@@ -766,32 +770,104 @@ def register():
         </style>
     </head>
     <body>
-        <div class="register-card text-center">
-            <h5 class="fw-bold mb-1" style="color: var(--fifa-green);">تسجيل إدارة/قسم جديد</h5>
-            <p class="text-muted fs-7 mb-4">إنشاء حساب إداري متصل بنظام أرشفة النادي</p>
-            <form action="/register" method="post">
-                <div class="mb-3 text-start">
-                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">اسم الإدارة / القسم</label>
-                    <input type="text" name="dept_name" class="form-control" placeholder="مثال: إدارة الألعاب الرياضية" required>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+        <nav class="navbar top-navbar sticky-top">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</span>
+                    </a>
                 </div>
-                <div class="mb-3 text-start">
-                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">اسم المستخدم (للدخول)</label>
-                    <input type="text" name="username" class="form-control" placeholder="مثال: sports_dept" required>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
+                        <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
+                        <span class="fw-bold fs-7" style="color: var(--fifa-green);">{{ dept_name }}</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-start shadow">
+                        <li><a class="dropdown-item text-danger py-2" href="/logout"><i class='bx bx-log-out ms-2'></i>تسجيل الخروج</a></li>
+                    </ul>
                 </div>
-                <div class="mb-4 text-start">
-                    <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">كلمة المرور</label>
-                    <input type="password" name="password" class="form-control" placeholder="أدخل كلمة مرور قوية" required>
-                </div>
-                <button type="submit" class="btn btn-fifa-gold mb-3">تسجيل الحساب</button>
-            </form>
-            <div class="border-top pt-3 mt-2">
-                <a href="/dashboard" class="text-muted text-decoration-none fs-7"><i class='bx bx-right-arrow-alt ms-1'></i>العودة لوحة التحكم</a>
             </div>
+        </nav>
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                {% if current_dept['can_page_inbox'] == 1 or is_admin %}
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 or is_admin %}
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 or is_admin %}
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 or is_admin %}
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
+                <a href="/suggestions" class="sidebar-link"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+                {% if is_admin %}
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                {% endif %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                <a href="/register" class="sidebar-link active"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                {% endif %}
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+            <main class="content-body">
+                <div class="register-card text-center">
+                    <h5 class="fw-bold mb-1" style="color: var(--fifa-green);">تسجيل إدارة/قسم جديد</h5>
+                    <p class="text-muted fs-7 mb-4">إنشاء حساب إداري متصل بنظام أرشفة النادي</p>
+                    <form action="/register" method="post">
+                        <div class="mb-3 text-start">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">اسم الإدارة / القسم</label>
+                            <input type="text" name="dept_name" class="form-control" placeholder="مثال: إدارة الألعاب الرياضية" required>
+                        </div>
+                        <div class="mb-3 text-start">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">اسم المستخدم (للدخول)</label>
+                            <input type="text" name="username" class="form-control" placeholder="مثال: sports_dept" required>
+                        </div>
+                        <div class="mb-4 text-start">
+                            <label class="form-label fw-bold fs-7" style="color: var(--fifa-green);">كلمة المرور</label>
+                            <input type="password" name="password" class="form-control" placeholder="أدخل كلمة مرور قوية" required>
+                        </div>
+                        <button type="submit" class="btn btn-fifa-gold mb-3">تسجيل الحساب</button>
+                    </form>
+                    <div class="border-top pt-3 mt-2">
+                        <a href="/dashboard" class="text-muted text-decoration-none fs-7"><i class='bx bx-right-arrow-alt ms-1'></i>العودة لوحة التحكم</a>
+                    </div>
+                </div>
+            </main>
         </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function updateNavbarHeightVar() {
+                var nav = document.querySelector('.top-navbar');
+                if (nav) { document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px'); }
+            }
+            updateNavbarHeightVar();
+            window.addEventListener('load', updateNavbarHeightVar);
+            window.addEventListener('resize', updateNavbarHeightVar);
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
     </body>
     </html>
     '''
-    return render_template_string(html_code)
+    return render_template_string(html_code, dept_name=session['dept_name'], current_dept=current_dept, is_admin=is_admin)
 
 @app.route('/logout')
 def logout():
@@ -2120,11 +2196,11 @@ function downloadLetterPDF() {
     doc.close();
 
     var wrapper = doc.createElement('div');
-    wrapper.id = 'printAreaPaper';           // <-- السطر المُضاف
+    wrapper.id = 'printAreaPaper';
     wrapper.className = 'word-paper-container';
     wrapper.appendChild(clone);
     doc.body.appendChild(wrapper);
-    
+
     setTimeout(function () {
         printFrame.contentWindow.focus();
         printFrame.contentWindow.print();
@@ -2148,17 +2224,17 @@ function downloadLetterPDF() {
             }
         }
  
+        document.getElementById('letterSendForm').addEventListener('submit', function() {
+            var numEl = document.getElementById('paperLetterNumInput');
+            var hiddenEl = document.getElementById('hiddenLetterNumberInput');
+            if (numEl && hiddenEl) {
+                hiddenEl.value = numEl.value;
+            }
+        });
+
         window.addEventListener('DOMContentLoaded', function() {
             syncTextareaWithPaper();
         });
-
-        var letterSendFormEl = document.getElementById('letterSendForm');
-        if (letterSendFormEl) {
-            letterSendFormEl.addEventListener('submit', function() {
-                document.getElementById('hiddenLetterNumberInput').value =
-                    document.getElementById('paperLetterNumInput').value;
-            });
-        }
     </script>
 </body>
 </html>
@@ -2195,8 +2271,6 @@ def dashboard():
         ORDER BY l.id DESC
     ''', (dept_id,))
     letters = cursor.fetchall()
-    
-    
     
     cursor.close()
     conn.close()
@@ -2251,8 +2325,6 @@ def outbox():
         ORDER BY l.id DESC
     ''', (dept_id,))
     letters = cursor.fetchall()
-    
-    
     
     cursor.close()
     conn.close()
@@ -2322,7 +2394,7 @@ def send_letter():
             file_mimetype = file.content_type or 'application/octet-stream'
 
         letter_number = str(consume_next_letter_number(cursor))
-
+            
         cursor.execute('''
             INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, letter_number)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -2578,6 +2650,9 @@ def quick_upload():
                 {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
                 <a href="/quick_upload" class="sidebar-link active"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
                 {% endif %}
+                {% if current_dept['can_page_suggestions'] == 1 or is_admin %}
+                <a href="/suggestions" class="sidebar-link"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+                {% endif %}
                 {% if is_admin %}
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -2806,6 +2881,9 @@ def monthly_achievements():
                 {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
                 <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
                 {% endif %}
+                {% if current_dept['can_page_suggestions'] == 1 or is_admin %}
+                <a href="/suggestions" class="sidebar-link"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+                {% endif %}
                 {% if is_admin %}
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -2838,11 +2916,18 @@ def monthly_achievements():
                                 <div class="p-3">
                                     <div class="sub-section-title d-flex justify-content-between align-items-center">
                                          <span><i class='bx bxs-award ms-1'></i> ملفات الإنجازات الشهرية</span>
+                                         <div class="d-flex gap-1">
                                          {% if achievements|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
                                          <a href="/download_all_achievements/{{ d.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">
                                              <i class='bx bx-download ms-1'></i> تحميل الكل
                                          </a>
+                                         {% if is_admin or can_delete == 1 %}
+                                         <a href="/delete_all_achievements/{{ d.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('تأكيد حذف كل ملفات الإنجازات لهذه الإدارة نهائياً؟');">
+                                             <i class='bx bx-trash-alt ms-1'></i> حذف الكل
+                                         </a>
                                          {% endif %}
+                                         {% endif %}
+                                         </div>
                                  </div>
                                     <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
                                         {% set ns = namespace(found=false) %}
@@ -2858,6 +2943,9 @@ def monthly_achievements():
                                                     <div class="d-flex gap-1">
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_ach_file/{{ a.id }}', '{{ a.title }}')">معاينة</button>
                                                         <a href="/download_ach_file/{{ a.id }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تنزيل</a>
+                                                        {% if is_admin or can_delete == 1 %}
+                                                        <a href="/delete_achievement/{{ a.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف هذا الملف؟');">حذف</a>
+                                                        {% endif %}
                                                     </div>
                                                 </div>
                                             {% endif %}
@@ -2880,11 +2968,18 @@ def monthly_achievements():
 
                                     <div class="sub-section-title d-flex justify-content-between align-items-center">
                                          <span><i class='bx bxs-certification ms-1'></i> شهادات الدورات التدريبية</span>
+                                         <div class="d-flex gap-1">
                                          {% if certificates|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
                                          <a href="/download_all_certificates/{{ d.id }}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">
                                              <i class='bx bx-download ms-1'></i> تحميل الكل
                                          </a>
+                                         {% if is_admin or can_delete == 1 %}
+                                         <a href="/delete_all_certificates/{{ d.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('تأكيد حذف كل شهادات الدورات لهذه الإدارة نهائياً؟');">
+                                             <i class='bx bx-trash-alt ms-1'></i> حذف الكل
+                                         </a>
                                          {% endif %}
+                                         {% endif %}
+                                         </div>
                                     </div>
                                     <div class="list-group mb-3 fs-7" id="dept-certs-{{ d.id }}">
                                         {% set ns_c = namespace(found=false) %}
@@ -2900,6 +2995,9 @@ def monthly_achievements():
                                                     <div class="d-flex gap-1">
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_cert_file/{{ c.id }}', '{{ c.title }}')">معاينة</button>
                                                         <a href="/download_cert_file/{{ c.id }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">تنزيل</a>
+                                                        {% if is_admin or can_delete == 1 %}
+                                                        <a href="/delete_certificate/{{ c.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف هذا الملف؟');">حذف</a>
+                                                        {% endif %}
                                                     </div>
                                                 </div>
                                             {% endif %}
@@ -3003,6 +3101,94 @@ window.addEventListener('resize', updateNavbarHeightVar);
     </html>
     '''
     return render_template_string(html_code, depts=depts, achievements=achievements, certificates=certificates, dept_name=session['dept_name'], can_delete=current_dept['can_delete'], can_add_user=current_dept['can_add_user'], current_dept=current_dept, is_admin=is_admin)
+
+@app.route('/delete_achievement/<int:ach_id>')
+def delete_achievement(ach_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    cursor.execute('DELETE FROM monthly_achievements WHERE id = %s', (ach_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف الملف بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
+@app.route('/delete_certificate/<int:cert_id>')
+def delete_certificate(cert_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    cursor.execute('DELETE FROM course_certificates WHERE id = %s', (cert_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف الملف بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
+@app.route('/delete_all_achievements/<int:dept_id>')
+def delete_all_achievements(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    cursor.execute('DELETE FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف كل ملفات الإنجازات لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
+@app.route('/delete_all_certificates/<int:dept_id>')
+def delete_all_certificates(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    cursor.execute('DELETE FROM course_certificates WHERE dept_id = %s', (dept_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف كل شهادات الدورات لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
@@ -3178,6 +3364,7 @@ def admin_dashboard():
                 <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
                 <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
                 <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                <a href="/suggestions" class="sidebar-link"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
                 <a href="/admin/dashboard" class="sidebar-link active" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
@@ -3488,8 +3675,8 @@ window.addEventListener('resize', updateNavbarHeightVar);
     '''
     return render_template_string(html_code, depts=depts, total_letters=total_letters, total_ach=total_ach, total_certs=total_certs, dept_stats=dept_stats, dept_name=session['dept_name'])
 
-@app.route('/admin/set_letter_number', methods=['POST'])
-def set_letter_number():
+@app.route('/admin/delete_department/<int:dept_id>')
+def delete_department(dept_id):
     if 'dept_id' not in session:
         return redirect(url_for('login'))
 
@@ -3497,23 +3684,35 @@ def set_letter_number():
     if not is_admin:
         return '''<script>alert("عذراً، هذه الصلاحية للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
 
-    new_number = request.form.get('new_next_number')
-    if not new_number or not new_number.isdigit() or int(new_number) < 1:
-        return '''<script>alert("الرجاء إدخال رقم صحيح أكبر من صفر."); window.location.href="/admin/permissions";</script>'''
+    if int(dept_id) == int(session['dept_id']):
+        return '''<script>alert("لا يمكنك حذف حسابك الحالي الذي تستخدمه للدخول."); window.location.href="/admin/permissions";</script>'''
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE system_settings 
-        SET next_letter_number = %s 
-        WHERE id = (SELECT id FROM system_settings ORDER BY id LIMIT 1)
-    ''', (int(new_number),))
+
+    cursor.execute('SELECT name FROM departments WHERE id = %s', (dept_id,))
+    dept_row = cursor.fetchone()
+    if not dept_row:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("الإدارة أو المستخدم غير موجود."); window.location.href="/admin/permissions";</script>'''
+
+    if is_admin_user(dept_row['name']):
+        cursor.close()
+        conn.close()
+        return '''<script>alert("لا يمكن حذف حساب مسؤول من هنا."); window.location.href="/admin/permissions";</script>'''
+
+    cursor.execute('DELETE FROM letters WHERE sender_id = %s OR receiver_id = %s OR archive_dept_id = %s', (dept_id, dept_id, dept_id))
+    cursor.execute('DELETE FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    cursor.execute('DELETE FROM course_certificates WHERE dept_id = %s', (dept_id,))
+    cursor.execute('DELETE FROM suggestions WHERE dept_id = %s', (dept_id,))
+    cursor.execute('DELETE FROM departments WHERE id = %s', (dept_id,))
     conn.commit()
     cursor.close()
     conn.close()
 
-    return f'''<script>alert("تم تحديث رقم الصادر القادم ليصبح: {new_number}"); window.location.href="/admin/permissions";</script>'''
-    
+    return '''<script>alert("تم حذف الإدارة/المستخدم وكل بياناته المرتبطة بنجاح."); window.location.href="/admin/permissions";</script>'''
+
 # --- إدارة الصلاحيات ---
 @app.route('/admin/permissions', methods=['GET', 'POST'])
 def admin_permissions():
@@ -3526,6 +3725,8 @@ def admin_permissions():
  
     conn = get_db_connection()
     cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
  
     if request.method == 'POST':
         dept_id = request.form.get('dept_id')
@@ -3584,21 +3785,39 @@ def admin_permissions():
         <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap" rel="stylesheet">
         <style>
             :root { --fifa-green: #123826; --fifa-gold: #c5a059; --fifa-bg: #eaf3ec; }
-            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; padding: 0; }
-.top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); position: sticky; top: 0; z-index: 1045; }            .nav-logo { height: 42px; width: auto; object-fit: contain; }
-            .page-wrap { padding: 20px 10px; }
+            body { font-family: 'Almarai', sans-serif; background-color: var(--fifa-bg); color: #2b302e; overflow-x: hidden; }
+            .top-navbar { background-color: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-bottom: 3px solid var(--fifa-gold); padding: 0.6rem 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.04); position: sticky; top: 0; z-index: 1045; }
+            .nav-logo { height: 42px; width: auto; object-fit: contain; }
+            .main-wrapper { display: flex; min-height: calc(100vh - 76px); position: relative; }
+            .sidebar { width: 260px; background-color: var(--fifa-green); color: #ecf0f1; padding-top: 1rem; flex-shrink: 0; transition: all 0.3s ease; z-index: 1040; }
+            @media (max-width: 991.98px) {
+                .sidebar { position: fixed; top: var(--navbar-height, 76px); right: -260px; height: calc(100vh - var(--navbar-height, 76px)); box-shadow: -5px 0 15px rgba(0,0,0,0.2); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+                .sidebar.show-sidebar { right: 0; }
+            }
+            .mobile-overlay { display: none; position: fixed; top: var(--navbar-height, 76px); left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); z-index: 1030; }
+            .mobile-overlay.active { display: block; }
+            .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
+            .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
+            .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
+            .content-body { flex: 1; padding: 1.25rem; }
             .perm-card { background: #ffffff; border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 1.5rem; overflow: hidden; }
             .perm-header { background-color: var(--fifa-green); color: #fff; padding: 1rem; font-weight: bold; font-size: 1.1rem; }
             .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
         </style>
     </head>
     <body>
+        <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
         <nav class="navbar top-navbar sticky-top">
             <div class="container-fluid">
-                <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                    <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
-                    <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</span>
-                </a>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-success d-lg-none py-1 px-2 border-0" type="button" onclick="toggleSidebar()">
+                        <i class='bx bx-menu fs-2' style="color: var(--fifa-green);"></i>
+                    </button>
+                    <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</span>
+                    </a>
+                </div>
                 <div class="d-flex align-items-center gap-2">
                     <a href="/quick_upload" class="btn btn-sm btn-warning fw-bold text-dark d-flex align-items-center gap-1 shadow-sm px-2">
                         <i class='bx bx-cloud-upload fs-5'></i>
@@ -3616,8 +3835,36 @@ def admin_permissions():
                 </div>
             </div>
         </nav>
-        <div class="page-wrap">
-        <div class="container">
+        <div class="main-wrapper">
+            <aside class="sidebar" id="sidebarMenu">
+                <div class="d-flex justify-content-between align-items-center px-3 mb-2 d-lg-none">
+                    <span class="fw-bold text-white">قائمة التنقل</span>
+                    <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
+                </div>
+                {% if current_dept['can_page_inbox'] == 1 %}
+                <a href="/dashboard" class="sidebar-link"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+                {% endif %}
+                {% if current_dept['can_page_outbox'] == 1 %}
+                <a href="/outbox" class="sidebar-link"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
+                {% endif %}
+                {% if current_dept['can_page_achievements'] == 1 %}
+                <a href="/monthly_achievements" class="sidebar-link"><i class='bx bxs-trophy'></i>إنجازات الشهر</a>
+                {% endif %}
+                {% if current_dept['can_page_archive'] == 1 %}
+                <a href="/archive" class="sidebar-link"><i class='bx bxs-file-archive'></i>أرشيف الإدارة</a>
+                {% endif %}
+                {% if current_dept['can_page_quick_upload'] == 1 %}
+                <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
+                {% endif %}
+                <a href="/suggestions" class="sidebar-link"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+                <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
+                <a href="/admin/permissions" class="sidebar-link active"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
+                <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
+                <div class="border-top border-secondary my-3 opacity-25"></div>
+                <a href="/logout" class="sidebar-link text-danger"><i class='bx bx-log-out text-danger'></i>تسجيل الخروج</a>
+            </aside>
+            <main class="content-body">
+        <div class="container-fluid p-0">
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <h4 class="fw-bold m-0" style="color: var(--fifa-green);"><i class='bx bxs-shield ms-2' style="color: var(--fifa-gold);"></i>لوحة إدارة صلاحيات الإدارات والشبكة</h4>
                 <a href="/dashboard" class="btn btn-outline-success fw-bold fs-7"><i class='bx bx-right-arrow-alt ms-1'></i>العودة للنظام</a>
@@ -3735,17 +3982,65 @@ def admin_permissions():
  
                                 <button type="submit" class="btn btn-fifa-gold w-100 fs-7 shadow-sm py-2">تحديث صلاحيات {{ d.name }}</button>
                             </form>
+                            {% if not (d.name == 'الرئيس التنفيذي' or d.name == 'رئيس تنفيذي' or d.name == 'CEO' or d.name == 'مدير تقنية المعلومات' or d.name == 'مدير تقنية معلومات' or d.name == 'تقنية المعلومات' or d.name == 'IT Manager' or d.name == 'IT' or 'تقنية' in d.name or 'تنفيذي' in d.name) %}
+                            <form action="/admin/delete_department/{{ d.id }}" method="get" class="mt-2" onsubmit="return confirm('تحذير: سيتم حذف هذه الإدارة/المستخدم وكل خطاباته وملفاته نهائياً. هل أنت متأكد؟');">
+                                <button type="submit" class="btn btn-outline-danger w-100 fs-7 py-2">
+                                    <i class='bx bx-user-x ms-1'></i> حذف هذا المستخدم نهائياً
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
+            </main>
         </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            function updateNavbarHeightVar() {
+                var nav = document.querySelector('.top-navbar');
+                if (nav) { document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px'); }
+            }
+            updateNavbarHeightVar();
+            window.addEventListener('load', updateNavbarHeightVar);
+            window.addEventListener('resize', updateNavbarHeightVar);
+            function toggleSidebar() {
+                document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
+                document.getElementById('mobileOverlay').classList.toggle('active');
+            }
+        </script>
     </body>
     </html>
     '''
-    return render_template_string(html_code, departments=departments, dept_name=session['dept_name'], current_next_number=current_next_number)
- 
+    return render_template_string(html_code, departments=departments, dept_name=session['dept_name'], current_dept=current_dept, current_next_number=current_next_number)
+
+@app.route('/admin/set_letter_number', methods=['POST'])
+def set_letter_number():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، هذه الصلاحية للمسؤولين فقط."); window.location.href="/dashboard";</script>'''
+
+    new_number = request.form.get('new_next_number')
+    if not new_number or not new_number.isdigit() or int(new_number) < 1:
+        return '''<script>alert("الرجاء إدخال رقم صحيح أكبر من صفر."); window.location.href="/admin/permissions";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE system_settings 
+        SET next_letter_number = %s 
+        WHERE id = (SELECT id FROM system_settings ORDER BY id LIMIT 1)
+    ''', (int(new_number),))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return f'''<script>alert("تم تحديث رقم الصادر القادم ليصبح: {new_number}"); window.location.href="/admin/permissions";</script>'''
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
