@@ -52,7 +52,8 @@ def init_db():
             can_page_outbox INTEGER DEFAULT 1,
             can_page_achievements INTEGER DEFAULT 1,
             can_page_archive INTEGER DEFAULT 1,
-            can_page_quick_upload INTEGER DEFAULT 1
+            can_page_quick_upload INTEGER DEFAULT 1,
+            can_page_suggestions INTEGER DEFAULT 1
         )
     ''')
 
@@ -130,6 +131,8 @@ def init_db():
         cursor.execute('ALTER TABLE departments ADD COLUMN can_page_archive INTEGER DEFAULT 1')
     if 'can_page_quick_upload' not in dept_columns:
         cursor.execute('ALTER TABLE departments ADD COLUMN can_page_quick_upload INTEGER DEFAULT 1')
+    if 'can_page_suggestions' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN can_page_suggestions INTEGER DEFAULT 1')
 
     conn.commit()
     cursor.close()
@@ -682,8 +685,8 @@ def register():
         
         try:
             cursor.execute('''
-                INSERT INTO departments (name, username, password, can_access_archive, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload) 
-                VALUES (%s, %s, %s, 1, 1, 0, 1, 1, 1, 1, 1, 1)
+                INSERT INTO departments (name, username, password, can_access_archive, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, can_page_suggestions) 
+                VALUES (%s, %s, %s, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1)
             ''', (dept_name, username, password))
             conn.commit()
             cursor.close()
@@ -763,12 +766,19 @@ def logout():
     
 @app.route('/suggestions', methods=['GET', 'POST'])
 def suggestions():
-    if 'dept_id' not in session:
+   if 'dept_id' not in session:
         return redirect(url_for('login'))
 
     is_admin = is_admin_user(session.get('dept_name'))
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    cursor.execute('SELECT can_page_suggestions FROM departments WHERE id = %s', (session['dept_id'],))
+    perm_check = cursor.fetchone()
+    if perm_check['can_page_suggestions'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة مشاكل واقتراحات."); window.location.href="/dashboard";</script>'''
 
     if request.method == 'POST':
         message = request.form.get('message', '').strip()
@@ -1376,7 +1386,9 @@ DASHBOARD_HTML = '''
             {% if can_page_quick_upload == 1 or is_admin %}
             <a href="/quick_upload" class="sidebar-link {{ 'active' if current_page == 'quick_upload' else '' }}"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
             {% endif %}
+            {% if can_page_suggestions == 1 or is_admin %}
             <a href="/suggestions" class="sidebar-link {{ 'active' if current_page == 'suggestions' else '' }}"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+            {% endif %}
             {% if is_admin %}
             <a href="/admin/dashboard" class="sidebar-link {{ 'active' if current_page == 'admin_dashboard' else '' }}" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
             <a href="/admin/permissions" class="sidebar-link {{ 'active' if current_page == 'permissions' else '' }}"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -2151,6 +2163,7 @@ def dashboard():
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   can_view_all_archive=current_dept['can_view_all_archive'],
+                                  can_page_suggestions=current_dept['can_page_suggestions'],
                                   now=datetime.now())
  
 @app.route('/outbox')
@@ -2201,6 +2214,7 @@ def outbox():
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   can_view_all_archive=current_dept['can_view_all_archive'],
+                                  can_page_suggestions=current_dept['can_page_suggestions'],
                                   now=datetime.now())
  
 @app.route('/send_letter', methods=['POST'])
@@ -2353,6 +2367,7 @@ def archive():
                                   can_page_archive=current_dept['can_page_archive'],
                                   is_admin=is_admin,
                                   can_view_all_archive=current_dept['can_view_all_archive'],
+                                  can_page_suggestions=current_dept['can_page_suggestions'],
                                   now=datetime.now())
  
 @app.route('/quick_upload', methods=['GET', 'POST'])
@@ -3436,24 +3451,25 @@ def admin_permissions():
         can_page_achievements = 1 if request.form.get('can_page_achievements') else 0
         can_page_archive = 1 if request.form.get('can_page_archive') else 0
         can_page_quick_upload = 1 if request.form.get('can_page_quick_upload') else 0
+        can_page_suggestions = 1 if request.form.get('can_page_suggestions') else 0
         new_password = request.form.get('new_password')
- 
+        
         if new_password and new_password.strip() != '':
             cursor.execute('''
                 UPDATE departments 
                 SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s,
+                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s, can_page_suggestions = %s,
                     password = %s
                 WHERE id = %s
-            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, new_password.strip(), dept_id))
+            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, can_page_suggestions, new_password.strip(), dept_id))
         else:
             cursor.execute('''
                 UPDATE departments 
                 SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s
+                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s, can_page_suggestions = %s
                 WHERE id = %s
-            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, dept_id))
- 
+            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, can_page_suggestions, dept_id))
+            
         conn.commit()
         cursor.close()
         conn.close()
@@ -3586,6 +3602,12 @@ def admin_permissions():
                                         <div class="form-check form-switch fs-7">
                                             <input class="form-check-input" type="checkbox" name="can_page_quick_upload" {{ 'checked' if d.can_page_quick_upload == 1 else '' }}>
                                             <label class="form-check-label">رفع وتوثيق فوري</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check form-switch fs-7">
+                                            <input class="form-check-input" type="checkbox" name="can_page_suggestions" {{ 'checked' if d.can_page_suggestions == 1 else '' }}>
+                                            <label class="form-check-label">مشاكل واقتراحات</label>
                                         </div>
                                     </div>
                                 </div>
