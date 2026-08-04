@@ -863,6 +863,40 @@ def register():
                 document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
                 document.getElementById('mobileOverlay').classList.toggle('active');
             }
+            (function() {
+                var touchStartX = 0;
+                var touchStartY = 0;
+                var edgeThreshold = 25;
+                var swipeThreshold = 60;
+
+                document.addEventListener('touchstart', function(e) {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                }, { passive: true });
+
+                document.addEventListener('touchend', function(e) {
+                    if (window.innerWidth > 991.98) return;
+
+                    var sidebarEl = document.getElementById('sidebarMenu');
+                    if (!sidebarEl) return;
+
+                    var touchEndX = e.changedTouches[0].clientX;
+                    var touchEndY = e.changedTouches[0].clientY;
+                    var deltaX = touchEndX - touchStartX;
+                    var deltaY = touchEndY - touchStartY;
+
+                    if (Math.abs(deltaY) > 60) return;
+
+                    var isOpen = sidebarEl.classList.contains('show-sidebar');
+
+                    if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
+                        toggleSidebar();
+                    }
+                    else if (isOpen && deltaX > swipeThreshold) {
+                        toggleSidebar();
+                    }
+                }, { passive: true });
+            })();
         </script>
     </body>
     </html>
@@ -939,7 +973,7 @@ def suggestions():
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .content-body { flex: 1; padding: 1.25rem; }
+            .content-body { flex: 1; padding: 1.25rem; width: 100%; min-width: 0; overflow-x: hidden; }
             .modern-card { background: rgba(255, 255, 255, 0.95); border-radius: 12px; border: 1px solid var(--fifa-card-border); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
             .btn-fifa-primary { background-color: var(--fifa-green-primary); color: #ffffff; border-radius: 8px; padding: 0.7rem 1.5rem; font-weight: 700; border: none; }
             .btn-fifa-primary:hover { color: #fff; background-color: #1e563b; }
@@ -1057,6 +1091,40 @@ def suggestions():
                 document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
                 document.getElementById('mobileOverlay').classList.toggle('active');
             }
+            (function() {
+                var touchStartX = 0;
+                var touchStartY = 0;
+                var edgeThreshold = 25;
+                var swipeThreshold = 60;
+
+                document.addEventListener('touchstart', function(e) {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                }, { passive: true });
+
+                document.addEventListener('touchend', function(e) {
+                    if (window.innerWidth > 991.98) return;
+
+                    var sidebarEl = document.getElementById('sidebarMenu');
+                    if (!sidebarEl) return;
+
+                    var touchEndX = e.changedTouches[0].clientX;
+                    var touchEndY = e.changedTouches[0].clientY;
+                    var deltaX = touchEndX - touchStartX;
+                    var deltaY = touchEndY - touchStartY;
+
+                    if (Math.abs(deltaY) > 60) return;
+
+                    var isOpen = sidebarEl.classList.contains('show-sidebar');
+
+                    if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
+                        toggleSidebar();
+                    }
+                    else if (isOpen && deltaX > swipeThreshold) {
+                        toggleSidebar();
+                    }
+                }, { passive: true });
+            })();
         </script>
     </body>
     </html>
@@ -2821,7 +2889,7 @@ def monthly_achievements():
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .content-body { flex: 1; padding: 1.25rem; }
+            .content-body { flex: 1; padding: 1.25rem; width: 100%; min-width: 0; overflow-x: hidden; }
             .dept-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(5px); border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 1.5rem; }
             .dept-header { background-color: var(--fifa-green-primary); color: #fff; border-radius: 11px 11px 0 0; padding: 0.8rem 1rem; }
             .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
@@ -3318,7 +3386,7 @@ def admin_dashboard():
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .content-body { flex: 1; padding: 1.25rem; }
+            .content-body { flex: 1; padding: 1.25rem; width: 100%; min-width: 0; overflow-x: hidden; }
             .stat-box { background: rgba(255, 255, 255, 0.95); border-radius: 12px; border: 1px solid var(--fifa-card-border); padding: 1.2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: center; }
             .modern-card { background: rgba(255, 255, 255, 0.95); border-radius: 12px; border: 1px solid var(--fifa-card-border); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
         </style>
@@ -3799,7 +3867,7 @@ def admin_permissions():
             .sidebar-link { display: flex; align-items: center; color: #d1e0d8; text-decoration: none; padding: 12px 20px; border-right: 4px solid transparent; transition: all 0.25s; font-size: 0.95rem; }
             .sidebar-link:hover, .sidebar-link.active { background-color: rgba(255, 255, 255, 0.08); color: #ffffff; border-right-color: var(--fifa-gold); font-weight: 700; }
             .sidebar-link i { font-size: 1.35rem; margin-left: 12px; color: var(--fifa-gold); }
-            .content-body { flex: 1; padding: 1.25rem; }
+            .content-body { flex: 1; padding: 1.25rem; width: 100%; min-width: 0; overflow-x: hidden; }
             .perm-card { background: #ffffff; border-radius: 12px; border: 1px solid #d5e2d8; box-shadow: 0 4px 15px rgba(0,0,0,0.04); margin-bottom: 1.5rem; overflow: hidden; }
             .perm-header { background-color: var(--fifa-green); color: #fff; padding: 1rem; font-weight: bold; font-size: 1.1rem; }
             .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
@@ -4010,6 +4078,40 @@ def admin_permissions():
                 document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
                 document.getElementById('mobileOverlay').classList.toggle('active');
             }
+            (function() {
+                var touchStartX = 0;
+                var touchStartY = 0;
+                var edgeThreshold = 25;
+                var swipeThreshold = 60;
+
+                document.addEventListener('touchstart', function(e) {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                }, { passive: true });
+
+                document.addEventListener('touchend', function(e) {
+                    if (window.innerWidth > 991.98) return;
+
+                    var sidebarEl = document.getElementById('sidebarMenu');
+                    if (!sidebarEl) return;
+
+                    var touchEndX = e.changedTouches[0].clientX;
+                    var touchEndY = e.changedTouches[0].clientY;
+                    var deltaX = touchEndX - touchStartX;
+                    var deltaY = touchEndY - touchStartY;
+
+                    if (Math.abs(deltaY) > 60) return;
+
+                    var isOpen = sidebarEl.classList.contains('show-sidebar');
+
+                    if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
+                        toggleSidebar();
+                    }
+                    else if (isOpen && deltaX > swipeThreshold) {
+                        toggleSidebar();
+                    }
+                }, { passive: true });
+            })();
         </script>
     </body>
     </html>
