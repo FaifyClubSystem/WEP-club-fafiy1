@@ -1552,6 +1552,7 @@ DASHBOARD_HTML = '''
                 <i class='bx bx-edit ms-1'></i> تعديل / إرسال
                 {% endif %}
             </button>
+            {% if letter.content %}
             <button type="button" class="btn btn-sm btn-outline-dark py-1 px-2 fs-7"
                 data-title="{{ letter.title|e }}" data-content-id="letter-text-{{ letter.id }}"
                 data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
@@ -1559,6 +1560,7 @@ DASHBOARD_HTML = '''
                 onclick="previewArchivedLetter(this)">
                 <i class='bx bx-show ms-1'></i> معاينة الخطاب
             </button>
+            {% endif %}
         {% endif %}
         {% if letter.file_path or letter.file_data %}
             <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
@@ -3137,12 +3139,11 @@ def send_file_direct():
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    letter_number = str(consume_next_letter_number(cursor))
 
     cursor.execute('''
         INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, letter_number)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    ''', (title, '', priority, sender_id, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
+    ''', (title, '', priority, sender_id, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), None))
 
     conn.commit()
     cursor.close()
