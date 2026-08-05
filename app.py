@@ -7,72 +7,15 @@ import psycopg2.extras
 from psycopg2 import IntegrityError
 import io
 import zipfile
-import uuid
-from supabase import create_client, Client
 
 app = Flask(__name__)
 app.secret_key = 'fifa_club_archiving_secret_key'
 
-# --- إعدادات الاتصال بقاعدة بيانات Supabase PostgreSQL ---
+# --- إعدادات الاتصال بـ Neon PostgreSQL ---
 NEON_DATABASE_URL = os.environ.get(
     'DATABASE_URL', 
     'postgresql://postgres.wrwlnztmoctufkjjtpxr:Essa12121313$$$$@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres'
 )
-
-# --- إعدادات تخزين الملفات الحقيقية على Supabase Storage ---
-SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://wrwlnztmoctufkjjtpxr.supabase.co')
-SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY')  # مفتاح service_role السري (وليس anon key)
-SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET', 'archive-files')
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-
-
-def upload_file_to_supabase(file_storage, subfolder=''):
-    """
-    يرفع الملف فعلياً إلى Supabase Storage ويرجع:
-    (الاسم الأصلي المعروض, المسار المخزن داخل الـ bucket, نوع الملف)
-    """
-    original_name = secure_filename(file_storage.filename)
-    unique_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}_{original_name}"
-    storage_path = f"{subfolder}/{unique_name}" if subfolder else unique_name
-
-    file_bytes = file_storage.read()
-    mimetype = file_storage.content_type or 'application/octet-stream'
-
-    supabase.storage.from_(SUPABASE_BUCKET).upload(
-        path=storage_path,
-        file=file_bytes,
-        file_options={"content-type": mimetype}
-    )
-    return original_name, storage_path, mimetype
-
-
-def send_supabase_file(file_name, storage_path, mimetype, as_attachment):
-    """يجلب ملفاً حقيقياً من Supabase Storage عبر مساره ويرسله للمستخدم."""
-    if not storage_path:
-        return "الملف غير موجود", 404
-    try:
-        file_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(storage_path)
-    except Exception:
-        return "الملف غير موجود على التخزين", 404
-
-    return send_file(
-        io.BytesIO(file_bytes),
-        mimetype=mimetype or 'application/octet-stream',
-        as_attachment=as_attachment,
-        download_name=file_name or 'file'
-    )
-
-
-def delete_file_from_supabase(storage_path):
-    """يحذف الملف الفعلي من Supabase Storage عند حذف السجل من القاعدة."""
-    if not storage_path:
-        return
-    try:
-        supabase.storage.from_(SUPABASE_BUCKET).remove([storage_path])
-    except Exception:
-        pass
-
 
 ADMIN_ROLES = [
     'الرئيس التنفيذي', 'رئيس تنفيذي', 'CEO',
@@ -215,32 +158,24 @@ def init_db():
     if 'can_page_suggestions' not in dept_columns:
         cursor.execute('ALTER TABLE departments ADD COLUMN can_page_suggestions INTEGER DEFAULT 1')
 
-    # --- ترحيل جداول الملفات لدعم مسار Supabase Storage (file_path) ---
-    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='course_certificates'")
-    cert_columns = [col['column_name'] for col in cursor.fetchall()]
-    if 'file_path' not in cert_columns:
-        cursor.execute('ALTER TABLE course_certificates ADD COLUMN file_path TEXT')
-
     conn.commit()
     cursor.close()
     conn.close()
 
 init_db()
 
-# --- مسارات التحميل والمعاينة لكل ملفات النظام (تُقرأ الآن من Supabase Storage) ---
+# --- مسارات التحميل والمعاينة لكل ملفات النظام ---
 
 @app.route('/download_letter_file/<int:letter_id>')
 def download_letter_file(letter_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data, file_mimetype FROM letters WHERE id = %s', (letter_id,))
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM letters WHERE id = %s', (letter_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
-
-    if row and row.get('file_path'):
-        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], True)
-    if row and row.get('file_data'):
+    
+    if row and row['file_data']:
         return send_file(
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
@@ -282,16 +217,7 @@ def download_archive_zip():
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         used_names = set()
         for row in rows:
-            file_bytes = None
-            if row.get('file_path'):
-                try:
-                    file_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(row['file_path'])
-                except Exception:
-                    file_bytes = None
-            elif row.get('file_data'):
-                file_bytes = bytes(row['file_data'])
-
-            if file_bytes:
+            if row.get('file_data'):
                 base_name = row.get('file_name') or f"file_{row['id']}"
                 name = base_name
                 counter = 1
@@ -299,7 +225,7 @@ def download_archive_zip():
                     name = f"{counter}_{base_name}"
                     counter += 1
                 used_names.add(name)
-                zip_file.writestr(name, file_bytes)
+                zip_file.writestr(name, bytes(row['file_data']))
 
     if len(used_names) == 0:
         return '''<script>alert("لا توجد ملفات لتحميلها."); window.history.back();</script>'''
@@ -316,14 +242,12 @@ def download_archive_zip():
 def view_letter_file(letter_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data, file_mimetype FROM letters WHERE id = %s', (letter_id,))
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM letters WHERE id = %s', (letter_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
-
-    if row and row.get('file_path'):
-        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], False)
-    if row and row.get('file_data'):
+    
+    if row and row['file_data']:
         return send_file(
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
@@ -336,14 +260,12 @@ def view_letter_file(letter_id):
 def download_ach_file(ach_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data, file_mimetype FROM monthly_achievements WHERE id = %s', (ach_id,))
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM monthly_achievements WHERE id = %s', (ach_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
-
-    if row and row.get('file_path'):
-        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], True)
-    if row and row.get('file_data'):
+    
+    if row and row['file_data']:
         return send_file(
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
@@ -358,7 +280,7 @@ def download_all_achievements(dept_id):
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
+    cursor.execute('SELECT file_name, file_data FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -367,16 +289,7 @@ def download_all_achievements(dept_id):
     used_names = set()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for row in rows:
-            file_bytes = None
-            if row.get('file_path'):
-                try:
-                    file_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(row['file_path'])
-                except Exception:
-                    file_bytes = None
-            elif row.get('file_data'):
-                file_bytes = bytes(row['file_data'])
-
-            if file_bytes:
+            if row.get('file_data'):
                 base_name = row.get('file_name') or 'file'
                 name = base_name
                 counter = 1
@@ -384,7 +297,7 @@ def download_all_achievements(dept_id):
                     name = f"{counter}_{base_name}"
                     counter += 1
                 used_names.add(name)
-                zip_file.writestr(name, file_bytes)
+                zip_file.writestr(name, bytes(row['file_data']))
 
     if len(used_names) == 0:
         return '''<script>alert("لا توجد ملفات إنجازات لتحميلها."); window.history.back();</script>'''
@@ -400,14 +313,12 @@ def download_all_achievements(dept_id):
 def view_ach_file(ach_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data, file_mimetype FROM monthly_achievements WHERE id = %s', (ach_id,))
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM monthly_achievements WHERE id = %s', (ach_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
-
-    if row and row.get('file_path'):
-        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], False)
-    if row and row.get('file_data'):
+    
+    if row and row['file_data']:
         return send_file(
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
@@ -420,14 +331,12 @@ def view_ach_file(ach_id):
 def download_cert_file(cert_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data, file_mimetype FROM course_certificates WHERE id = %s', (cert_id,))
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM course_certificates WHERE id = %s', (cert_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
-
-    if row and row.get('file_path'):
-        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], True)
-    if row and row.get('file_data'):
+    
+    if row and row['file_data']:
         return send_file(
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
@@ -443,7 +352,7 @@ def download_all_certificates(dept_id):
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data FROM course_certificates WHERE dept_id = %s', (dept_id,))
+    cursor.execute('SELECT file_name, file_data FROM course_certificates WHERE dept_id = %s', (dept_id,))
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -452,16 +361,7 @@ def download_all_certificates(dept_id):
     used_names = set()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for row in rows:
-            file_bytes = None
-            if row.get('file_path'):
-                try:
-                    file_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(row['file_path'])
-                except Exception:
-                    file_bytes = None
-            elif row.get('file_data'):
-                file_bytes = bytes(row['file_data'])
-
-            if file_bytes:
+            if row.get('file_data'):
                 base_name = row.get('file_name') or 'file'
                 name = base_name
                 counter = 1
@@ -469,7 +369,7 @@ def download_all_certificates(dept_id):
                     name = f"{counter}_{base_name}"
                     counter += 1
                 used_names.add(name)
-                zip_file.writestr(name, file_bytes)
+                zip_file.writestr(name, bytes(row['file_data']))
 
     if len(used_names) == 0:
         return '''<script>alert("لا توجد شهادات دورات لتحميلها."); window.history.back();</script>'''
@@ -486,14 +386,12 @@ def download_all_certificates(dept_id):
 def view_cert_file(cert_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT file_name, file_path, file_data, file_mimetype FROM course_certificates WHERE id = %s', (cert_id,))
+    cursor.execute('SELECT file_name, file_data, file_mimetype FROM course_certificates WHERE id = %s', (cert_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
-
-    if row and row.get('file_path'):
-        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], False)
-    if row and row.get('file_data'):
+    
+    if row and row['file_data']:
         return send_file(
             io.BytesIO(row['file_data']),
             mimetype=row['file_mimetype'] or 'application/octet-stream',
@@ -517,18 +415,11 @@ def delete_letter(letter_id):
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
-
-    cursor.execute('SELECT file_path FROM letters WHERE id = %s', (letter_id,))
-    file_row = cursor.fetchone()
-
+    
     cursor.execute('DELETE FROM letters WHERE id = %s', (letter_id,))
     conn.commit()
     cursor.close()
     conn.close()
-
-    if file_row and file_row.get('file_path'):
-        delete_file_from_supabase(file_row['file_path'])
-
     return '''<script>alert("تم الحذف بنجاح"); window.history.back();</script>'''
 
 @app.route('/delete_selected_letters', methods=['POST'])
@@ -586,14 +477,17 @@ def upload_achievement():
         return '''<script>alert("غير مسموح لك برفع إنجازات لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
     if file and file.filename != '':
-        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='achievements')
-
+        original_name = secure_filename(file.filename)
+        file_name = f"ach_{int(datetime.now().timestamp())}_{original_name}"
+        file_bytes = file.read()
+        file_mimetype = file.content_type or 'application/octet-stream'
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO monthly_achievements (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
+            INSERT INTO monthly_achievements (dept_id, title, file_name, file_data, file_mimetype, uploaded_at)
             VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (dept_id, title, original_name, storage_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+        ''', (dept_id, title, file_name, psycopg2.Binary(file_bytes), file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
         conn.commit()
         cursor.close()
         conn.close()
@@ -614,14 +508,17 @@ def upload_certificate():
         return '''<script>alert("غير مسموح لك برفع شهادات دورات لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
     if file and file.filename != '':
-        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='certificates')
-
+        original_name = secure_filename(file.filename)
+        file_name = f"cert_{int(datetime.now().timestamp())}_{original_name}"
+        file_bytes = file.read()
+        file_mimetype = file.content_type or 'application/octet-stream'
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO course_certificates (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
+            INSERT INTO course_certificates (dept_id, title, file_name, file_data, file_mimetype, uploaded_at)
             VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (dept_id, title, original_name, storage_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+        ''', (dept_id, title, file_name, psycopg2.Binary(file_bytes), file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
         conn.commit()
         cursor.close()
         conn.close()
@@ -650,14 +547,14 @@ def clear_monthly_files(dept_id):
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M')
     for ach in achievements:
         cursor.execute('''
-            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, archive_dept_id)
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, archive_dept_id)
             VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s, %s)
         ''', (
             f"أرشيف إنجازات شهرية: {ach['title']}",
             f"تمت الأرشفة التلقائية من إنجازات الشهر بتاريخ: {current_time}",
             "عادي",
             ach['file_name'],
-            ach.get('file_path'),
+            ach.get('file_data'),
             ach.get('file_mimetype'),
             current_time,
             dept_id
@@ -667,14 +564,14 @@ def clear_monthly_files(dept_id):
     certs = cursor.fetchall()
     for cert in certs:
         cursor.execute('''
-            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, archive_dept_id)
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, archive_dept_id)
             VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s, %s)
         ''', (
             f"أرشيف شهادات دورات: {cert['title']}",
             f"تمت الأرشفة التلقائية من قسم شهادات الدورات بتاريخ: {current_time}",
             "عادي",
             cert['file_name'],
-            cert.get('file_path'),
+            cert.get('file_data'),
             cert.get('file_mimetype'),
             current_time,
             dept_id
@@ -1010,7 +907,7 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for('login'))
-
+    
 @app.route('/suggestions', methods=['GET', 'POST'])
 def suggestions():
     if 'dept_id' not in session:
@@ -1282,7 +1179,7 @@ DASHBOARD_HTML = '''
                 <i class='bx bx-show ms-1'></i> معاينة الخطاب
             </button>
         {% endif %}
-        {% if letter.file_path or letter.file_data %}
+        {% if letter.file_data %}
             <button type="button" class="btn btn-sm btn-info py-1 px-2 fs-7 text-white" onclick="previewFile('/view_letter_file/{{ letter.id }}', '{{ letter.title }}')">
                 <i class='bx bx-show ms-1'></i> معاينة
             </button>
@@ -2311,6 +2208,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
 }
 
         // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون قص أو سكرول أفقي
+        // تصغير ورقة الخطاب تلقائياً لتناسب عرض شاشة الجوال بدون قص أو سكرول أفقي
         function fitWordPaperToScreen() {
             var container = document.querySelector('.word-paper-container');
             if (!container) return;
@@ -2322,6 +2220,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
             if (window.innerWidth <= 860) {
                 var wrapperWidth = container.parentElement.clientWidth;
                 var naturalWidth = container.scrollWidth;
+                // هامش أمان أكبر لتفادي أي قص بسبب تأخر تحميل الخطوط
                 var scale = Math.min(1, (wrapperWidth / naturalWidth) * 0.90);
                 container.style.zoom = scale;
             }
@@ -2329,20 +2228,23 @@ window.addEventListener('resize', updateNavbarHeightVar);
 
         function initPaperFit() {
             fitWordPaperToScreen();
+            // إعادة الحساب بعد اكتمال تحميل كل الخطوط (يحل مشكلة تغيّر عرض النص بعد تحميل الخط)
             if (document.fonts && document.fonts.ready) {
                 document.fonts.ready.then(fitWordPaperToScreen);
             }
+            // إعادة حساب احتياطية بعد نصف ثانية للتأكد التام
             setTimeout(fitWordPaperToScreen, 500);
             setTimeout(fitWordPaperToScreen, 1200);
         }
 
         window.addEventListener('load', initPaperFit);
         window.addEventListener('resize', fitWordPaperToScreen);
+        // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
     var touchStartY = 0;
-    var edgeThreshold = 25;
-    var swipeThreshold = 60;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
 
     document.addEventListener('touchstart', function(e) {
         touchStartX = e.touches[0].clientX;
@@ -2350,7 +2252,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
     }, { passive: true });
 
     document.addEventListener('touchend', function(e) {
-        if (window.innerWidth > 991.98) return;
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
 
         var sidebarEl = document.getElementById('sidebarMenu');
         if (!sidebarEl) return;
@@ -2360,13 +2262,15 @@ window.addEventListener('resize', updateNavbarHeightVar);
         var deltaX = touchEndX - touchStartX;
         var deltaY = touchEndY - touchStartY;
 
-        if (Math.abs(deltaY) > 60) return;
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
 
         var isOpen = sidebarEl.classList.contains('show-sidebar');
 
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
         if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
             toggleSidebar();
         }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
         else if (isOpen && deltaX > swipeThreshold) {
             toggleSidebar();
         }
@@ -2389,6 +2293,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
             }
         }
  
+        // تحميل خطاب في المحرر: يميّز بين "تعديل خطاب أرسلته أنت" (صادر) و"الرد على خطاب وصلك" (وارد)
         function loadLetterToEditor(btn) {
             var id = btn.getAttribute('data-id');
             var title = btn.getAttribute('data-title') || '';
@@ -2408,12 +2313,14 @@ window.addEventListener('resize', updateNavbarHeightVar);
             var editIdInput = document.getElementById('editLetterId');
  
             if (page === 'outbox') {
+                // تعديل خطاب صادر: يبقى نفس السجل ونفس ترتيبه، فقط يتم تحديثه
                 editIdInput.value = id;
                 if (receiverId && receiverSelect) receiverSelect.value = receiverId;
                 if (letterNumber) {
                     document.getElementById('paperLetterNumInput').value = letterNumber;
                 }
             } else {
+                // الرد على خطاب وارد: لا يمكن تعديل خطاب الغير، فيتم إنشاء خطاب صادر جديد كرد
                 editIdInput.value = '';
                 if (senderId && receiverSelect) receiverSelect.value = senderId;
                 if (title && title.indexOf('رد:') !== 0) {
@@ -2430,6 +2337,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
             }
         }
  
+// تحميل PDF: بناء نسخة دقيقة ونظيفة من كل صفحات الخطاب الرسمي (صفحة أو أكثر) وتضمينها بالكامل لتفادي الفراغ
 function downloadLetterPDF() {
     var previewContainer = document.getElementById('previewLetterContainer');
     var sourcePages;
@@ -2676,13 +2584,16 @@ def send_letter():
     
     if letter_id and letter_id.isdigit():
         if file and file.filename != '':
-            file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters')
+            original_name = secure_filename(file.filename)
+            file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+            file_data = psycopg2.Binary(file.read())
+            file_mimetype = file.content_type or 'application/octet-stream'
             
             cursor.execute('''
                 UPDATE letters 
-                SET title = %s, content = %s, priority = %s, receiver_id = %s, file_name = %s, file_path = %s, file_mimetype = %s, created_at = %s
+                SET title = %s, content = %s, priority = %s, receiver_id = %s, file_name = %s, file_data = %s, file_mimetype = %s, created_at = %s
                 WHERE id = %s AND sender_id = %s
-            ''', (title, content, priority, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
+            ''', (title, content, priority, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
         else:
             cursor.execute('''
                 UPDATE letters 
@@ -2691,17 +2602,20 @@ def send_letter():
             ''', (title, content, priority, receiver_id, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
     else:
         file_name = ''
-        file_path = None
+        file_data = None
         file_mimetype = None
         if file and file.filename != '':
-            file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters')
+            original_name = secure_filename(file.filename)
+            file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+            file_data = psycopg2.Binary(file.read())
+            file_mimetype = file.content_type or 'application/octet-stream'
 
         letter_number = str(consume_next_letter_number(cursor))
             
         cursor.execute('''
-            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, letter_number)
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, letter_number)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
+        ''', (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
         
     conn.commit()
     cursor.close()
@@ -2734,6 +2648,7 @@ def archive():
     other_letters = None
 
     if is_admin:
+        # أرشيف الأدمن الخاص فقط
         cursor.execute('''
             SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
             FROM letters l 
@@ -2745,6 +2660,7 @@ def archive():
         ''', (dept_id, dept_id))
         own_letters = cursor.fetchall()
 
+        # أرشيف باقي الإدارات (يستثني أرشيف الأدمن نفسه)
         cursor.execute('''
             SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
             FROM letters l 
@@ -2831,19 +2747,22 @@ def quick_upload():
  
         for file in files:
             if file and file.filename != '':
-                original_name, storage_path, content_type = upload_file_to_supabase(file, subfolder='quick_upload')
+                original_name = secure_filename(file.filename)
+                file_name = f"{int(datetime.now().timestamp())}_{original_name}"
+                file_bytes = file.read()
+                content_type = file.content_type or 'application/octet-stream'
                 
                 file_title = f"{document_title} - {original_name}" if len(files) > 1 else document_title
                 
                 cursor.execute('''
-                    INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, archive_dept_id)
+                    INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_data, file_mimetype, created_at, archive_dept_id)
                     VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s, %s)
                 ''', (
                     file_title, 
                     f"التصنيف: {archive_category} | ملاحظات: {notes}", 
                     "عادي", 
-                    original_name, 
-                    storage_path,
+                    file_name, 
+                    psycopg2.Binary(file_bytes),
                     content_type,
                     datetime.now().strftime('%Y-%m-%d %H:%M'),
                     dept_id
@@ -3004,11 +2923,12 @@ window.addEventListener('resize', updateNavbarHeightVar);
     document.getElementById('mobileOverlay').classList.toggle('active');
 }
 
+  // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
     var touchStartY = 0;
-    var edgeThreshold = 25;
-    var swipeThreshold = 60;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
 
     document.addEventListener('touchstart', function(e) {
         touchStartX = e.touches[0].clientX;
@@ -3016,7 +2936,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
     }, { passive: true });
 
     document.addEventListener('touchend', function(e) {
-        if (window.innerWidth > 991.98) return;
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
 
         var sidebarEl = document.getElementById('sidebarMenu');
         if (!sidebarEl) return;
@@ -3026,13 +2946,15 @@ window.addEventListener('resize', updateNavbarHeightVar);
         var deltaX = touchEndX - touchStartX;
         var deltaY = touchEndY - touchStartY;
 
-        if (Math.abs(deltaY) > 60) return;
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
 
         var isOpen = sidebarEl.classList.contains('show-sidebar');
 
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
         if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
             toggleSidebar();
         }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
         else if (isOpen && deltaX > swipeThreshold) {
             toggleSidebar();
         }
@@ -3354,11 +3276,12 @@ window.addEventListener('resize', updateNavbarHeightVar);
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
 }
+            // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
     var touchStartY = 0;
-    var edgeThreshold = 25;
-    var swipeThreshold = 60;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
 
     document.addEventListener('touchstart', function(e) {
         touchStartX = e.touches[0].clientX;
@@ -3366,7 +3289,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
     }, { passive: true });
 
     document.addEventListener('touchend', function(e) {
-        if (window.innerWidth > 991.98) return;
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
 
         var sidebarEl = document.getElementById('sidebarMenu');
         if (!sidebarEl) return;
@@ -3376,13 +3299,15 @@ window.addEventListener('resize', updateNavbarHeightVar);
         var deltaX = touchEndX - touchStartX;
         var deltaY = touchEndY - touchStartY;
 
-        if (Math.abs(deltaY) > 60) return;
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
 
         var isOpen = sidebarEl.classList.contains('show-sidebar');
 
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
         if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
             toggleSidebar();
         }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
         else if (isOpen && deltaX > swipeThreshold) {
             toggleSidebar();
         }
@@ -3410,17 +3335,10 @@ def delete_achievement(ach_id):
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
 
-    cursor.execute('SELECT file_path FROM monthly_achievements WHERE id = %s', (ach_id,))
-    file_row = cursor.fetchone()
-
     cursor.execute('DELETE FROM monthly_achievements WHERE id = %s', (ach_id,))
     conn.commit()
     cursor.close()
     conn.close()
-
-    if file_row and file_row.get('file_path'):
-        delete_file_from_supabase(file_row['file_path'])
-
     return '''<script>alert("تم حذف الملف بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/delete_certificate/<int:cert_id>')
@@ -3439,17 +3357,10 @@ def delete_certificate(cert_id):
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
 
-    cursor.execute('SELECT file_path FROM course_certificates WHERE id = %s', (cert_id,))
-    file_row = cursor.fetchone()
-
     cursor.execute('DELETE FROM course_certificates WHERE id = %s', (cert_id,))
     conn.commit()
     cursor.close()
     conn.close()
-
-    if file_row and file_row.get('file_path'):
-        delete_file_from_supabase(file_row['file_path'])
-
     return '''<script>alert("تم حذف الملف بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/delete_all_achievements/<int:dept_id>')
@@ -3468,18 +3379,10 @@ def delete_all_achievements(dept_id):
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
 
-    cursor.execute('SELECT file_path FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
-    file_rows = cursor.fetchall()
-
     cursor.execute('DELETE FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
     conn.commit()
     cursor.close()
     conn.close()
-
-    for fr in file_rows:
-        if fr.get('file_path'):
-            delete_file_from_supabase(fr['file_path'])
-
     return '''<script>alert("تم حذف كل ملفات الإنجازات لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/delete_all_certificates/<int:dept_id>')
@@ -3498,18 +3401,10 @@ def delete_all_certificates(dept_id):
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
 
-    cursor.execute('SELECT file_path FROM course_certificates WHERE dept_id = %s', (dept_id,))
-    file_rows = cursor.fetchall()
-
     cursor.execute('DELETE FROM course_certificates WHERE dept_id = %s', (dept_id,))
     conn.commit()
     cursor.close()
     conn.close()
-
-    for fr in file_rows:
-        if fr.get('file_path'):
-            delete_file_from_supabase(fr['file_path'])
-
     return '''<script>alert("تم حذف كل شهادات الدورات لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/admin/dashboard')
@@ -3540,6 +3435,7 @@ def admin_dashboard():
     cursor.execute('SELECT COUNT(*) as count FROM course_certificates')
     total_certs = cursor.fetchone()['count']
 
+    # احصائيات مفصلة لكل إدارة مع ملفاتها في الصفحات المختلفة
     dept_stats = []
     for d in depts:
         d_id = d['id']
@@ -3564,6 +3460,7 @@ def admin_dashboard():
         cursor.execute('SELECT * FROM course_certificates WHERE dept_id = %s', (d_id,))
         cert_files = cursor.fetchall()
 
+        # ملفات الصندوق الوارد لهذه الإدارة (خطابات وصلتها)
         cursor.execute('''
             SELECT l.*, s.name as sender_name 
             FROM letters l 
@@ -3573,6 +3470,7 @@ def admin_dashboard():
         ''', (d_id,))
         inbox_files = cursor.fetchall()
 
+        # ملفات الخطابات الصادرة لهذه الإدارة (خطابات أرسلتها)
         cursor.execute('''
             SELECT l.*, r.name as receiver_name 
             FROM letters l 
@@ -3582,6 +3480,7 @@ def admin_dashboard():
         ''', (d_id,))
         outbox_files = cursor.fetchall()
 
+        # ملفات أرشيف هذه الإدارة (رفع فوري + خطابات مؤرشفة ذاتياً)
         cursor.execute('''
             SELECT l.* 
             FROM letters l 
@@ -3695,6 +3594,7 @@ def admin_dashboard():
                         <h4 class="fw-bold fs-5" style="color: var(--fifa-green-primary);"><i class='bx bxs-cog ms-2' style="color: var(--fifa-gold);"></i>لوحة التحكم والإحصائيات الشاملة</h4>
                     </div>
 
+                    <!-- إحصائيات عامة سريعة -->
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
                             <div class="stat-box">
@@ -3716,6 +3616,7 @@ def admin_dashboard():
                         </div>
                     </div>
 
+                    <!-- قسم إجمالي الإدارات بالتفصيل الكامل للملفات -->
                     <div class="modern-card">
                         <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-group ms-1'></i> إجمالي الإدارات والأقسام وتفصيل ملفاتها</h5>
                         <div class="table-responsive">
@@ -3746,6 +3647,7 @@ def admin_dashboard():
                         </div>
                     </div>
 
+                    <!-- قسم تفصيل الصندوق الوارد لكل إدارة -->
                     <div class="modern-card">
                         <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-inbox ms-1' style="color: var(--fifa-gold);"></i> تفصيل قسم الصندوق الوارد لكل إدارة</h5>
                         <div class="row g-3">
@@ -3758,7 +3660,7 @@ def admin_dashboard():
                                             {% for l in stat.inbox_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
                                                 <span><i class='bx bxs-envelope text-secondary ms-1'></i> {{ l.title }} <small class="text-muted">({{ l.created_at }}) - من: {{ l.sender_name or '-' }}</small></span>
-                                                {% if l.file_path or l.file_data %}
+                                                {% if l.file_data %}
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ l.id }}', '{{ l.title }}')">معاينة</button>
                                                     <a href="/download_letter_file/{{ l.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تنزيل</a>
@@ -3776,6 +3678,7 @@ def admin_dashboard():
                         </div>
                     </div>
 
+                    <!-- قسم تفصيل الخطابات الصادرة لكل إدارة -->
                     <div class="modern-card">
                         <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-paper-plane ms-1' style="color: var(--fifa-gold);"></i> تفصيل قسم الخطابات الصادرة لكل إدارة</h5>
                         <div class="row g-3">
@@ -3788,7 +3691,7 @@ def admin_dashboard():
                                             {% for l in stat.outbox_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
                                                 <span><i class='bx bxs-send text-primary ms-1'></i> {{ l.title }} <small class="text-muted">({{ l.created_at }}) - إلى: {{ l.receiver_name or '-' }}</small></span>
-                                                {% if l.file_path or l.file_data %}
+                                                {% if l.file_data %}
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ l.id }}', '{{ l.title }}')">معاينة</button>
                                                     <a href="/download_letter_file/{{ l.id }}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">تنزيل</a>
@@ -3806,6 +3709,7 @@ def admin_dashboard():
                         </div>
                     </div>
 
+                    <!-- قسم تفصيل أرشيف الإدارة لكل إدارة -->
                     <div class="modern-card">
                         <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-file-archive ms-1' style="color: var(--fifa-gold);"></i> تفصيل قسم أرشيف الإدارة لكل إدارة</h5>
                         <div class="row g-3">
@@ -3818,7 +3722,7 @@ def admin_dashboard():
                                             {% for l in stat.archive_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
                                                 <span><i class='bx bxs-file-archive text-success ms-1'></i> {{ l.title }} <small class="text-muted">({{ l.created_at }})</small></span>
-                                                {% if l.file_path or l.file_data %}
+                                                {% if l.file_data %}
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ l.id }}', '{{ l.title }}')">معاينة</button>
                                                     <a href="/download_letter_file/{{ l.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تنزيل</a>
@@ -3836,6 +3740,7 @@ def admin_dashboard():
                         </div>
                     </div>
 
+                    <!-- قسم إنجازات الشهر المفصل لكل إدارة -->
                     <div class="modern-card">
                         <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-trophy ms-1' style="color: var(--fifa-gold);"></i> تفصيل قسم إنجازات الشهر لكل إدارة</h5>
                         <div class="row g-3">
@@ -3871,6 +3776,7 @@ def admin_dashboard():
                         </div>
                     </div>
 
+                    <!-- قسم شهادات ودورات المفصل لكل إدارة -->
                     <div class="modern-card">
                         <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-certification ms-1' style="color: var(--fifa-gold);"></i> تفصيل قسم شهادات ودورات لكل إدارة</h5>
                         <div class="row g-3">
@@ -3943,11 +3849,12 @@ window.addEventListener('resize', updateNavbarHeightVar);
     document.getElementById('sidebarMenu').classList.toggle('show-sidebar');
     document.getElementById('mobileOverlay').classList.toggle('active');
 }
+            // دعم السحب لفتح/إغلاق القائمة الجانبية على الجوال
 (function() {
     var touchStartX = 0;
     var touchStartY = 0;
-    var edgeThreshold = 25;
-    var swipeThreshold = 60;
+    var edgeThreshold = 25;   // المسافة من حافة الشاشة اليمنى اللي لازم يبدأ منها السحب لفتح القائمة
+    var swipeThreshold = 60;  // أقل مسافة سحب أفقية تعتبر "سحبة" فعلية
 
     document.addEventListener('touchstart', function(e) {
         touchStartX = e.touches[0].clientX;
@@ -3955,7 +3862,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
     }, { passive: true });
 
     document.addEventListener('touchend', function(e) {
-        if (window.innerWidth > 991.98) return;
+        if (window.innerWidth > 991.98) return; // بس على مقاس الجوال/التابلت
 
         var sidebarEl = document.getElementById('sidebarMenu');
         if (!sidebarEl) return;
@@ -3965,13 +3872,15 @@ window.addEventListener('resize', updateNavbarHeightVar);
         var deltaX = touchEndX - touchStartX;
         var deltaY = touchEndY - touchStartY;
 
-        if (Math.abs(deltaY) > 60) return;
+        if (Math.abs(deltaY) > 60) return; // تجاهل السحب الرأسي (سكرول عادي)
 
         var isOpen = sidebarEl.classList.contains('show-sidebar');
 
+        // سحب من الحافة اليمنى لليسار = فتح القائمة
         if (!isOpen && touchStartX > (window.innerWidth - edgeThreshold) && deltaX < -swipeThreshold) {
             toggleSidebar();
         }
+        // سحب لليمين والقائمة مفتوحة = إغلاقها
         else if (isOpen && deltaX > swipeThreshold) {
             toggleSidebar();
         }
