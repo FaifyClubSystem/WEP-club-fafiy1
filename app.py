@@ -1547,7 +1547,7 @@ DASHBOARD_HTML = '''
                 data-letter-number="{{ letter.letter_number or '' }}"
                 data-sender-name="{{ letter.sender_name|e if letter.sender_name else '' }}"
                 data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
-                onclick="loadLetterToEditor(this)">
+                onclick="{% if current_page == 'inbox' %}openQuickReply(this){% else %}loadLetterToEditor(this){% endif %}">
                 {% if current_page == 'inbox' %}
                 <i class='bx bx-reply ms-1'></i> رد
                 {% else %}
@@ -2370,6 +2370,51 @@ DASHBOARD_HTML = '''
         </div>
       </div>
     </div>
+
+    <!-- ============ نافذة الرد السريع (منفصلة تماماً عن نموذج الخطاب الرسمي) ============ -->
+    <div class="modal fade" id="quickReplyModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white py-2">
+            <h6 class="modal-title fw-bold"><i class='bx bx-reply ms-1'></i> رد سريع</h6>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <form id="quickReplyForm" action="/reply_to_letter" method="post" enctype="multipart/form-data">
+            <div class="modal-body">
+                <input type="hidden" name="receiver_id" id="replyReceiverId" value="">
+                <div class="mb-2">
+                    <label class="form-label fw-bold fs-7">الرد إلى:</label>
+                    <input type="text" id="replyToLabel" class="form-control fs-7" disabled>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold fs-7">عنوان الرد:</label>
+                    <input type="text" name="title" id="replyTitleInput" class="form-control fs-7" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold fs-7">نص الرد:</label>
+                    <textarea name="content" class="form-control fs-7" rows="6" required placeholder="اكتب ردك هنا..."></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold fs-7">مرفق (اختياري):</label>
+                    <input type="file" name="file" class="form-control fs-7">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold fs-7">الأهمية:</label>
+                    <select name="priority" class="form-select fs-7">
+                        <option value="عادي">عادي</option>
+                        <option value="عاجل">عاجل</option>
+                        <option value="سري للغاية">سري للغاية</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="submit" class="btn btn-fifa-primary fw-bold"><i class='bx bx-send ms-1'></i> إرسال الرد</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
  
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -2756,6 +2801,19 @@ window.addEventListener('resize', updateNavbarHeightVar);
             }
         }
  
+        function openQuickReply(btn) {
+            var senderId = btn.getAttribute('data-sender-id') || '';
+            var senderName = btn.getAttribute('data-sender-name') || '';
+            var title = btn.getAttribute('data-title') || '';
+
+            document.getElementById('replyReceiverId').value = senderId;
+            document.getElementById('replyToLabel').value = senderName;
+            document.getElementById('replyTitleInput').value = (title.indexOf('رد:') === 0) ? title : ('رد: ' + title);
+
+            var modal = new bootstrap.Modal(document.getElementById('quickReplyModal'));
+            modal.show();
+        }
+
         function loadLetterToEditor(btn) {
             var id = btn.getAttribute('data-id');
             var title = btn.getAttribute('data-title') || '';
@@ -3172,6 +3230,42 @@ def send_file_direct():
         INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, letter_number)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ''', (title, '', priority, sender_id, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), None))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return redirect(url_for('outbox'))
+
+@app.route('/reply_to_letter', methods=['POST'])
+def reply_to_letter():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    sender_id = session['dept_id']
+    receiver_id = request.form.get('receiver_id')
+    title = request.form.get('title')
+    content = request.form.get('content', '')
+    priority = request.form.get('priority', 'عادي')
+    file = request.files.get('file')
+
+    if not receiver_id:
+        return '''<script>alert("تعذر تحديد الجهة المستلمة للرد."); window.history.back();</script>'''
+
+    file_name = ''
+    file_path = None
+    file_mimetype = None
+    if file and file.filename != '':
+        file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters', dept_folder=session.get('dept_username'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    letter_number = str(consume_next_letter_number(cursor))
+
+    cursor.execute('''
+        INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, letter_number)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ''', (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
 
     conn.commit()
     cursor.close()
