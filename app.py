@@ -2500,24 +2500,27 @@ DASHBOARD_HTML = '''
             var hasValidSelectionInPaper = range && paperBody.contains(range.commonAncestorContainer) && !range.collapsed;
 
             if (hasValidSelectionInPaper) {
-                // تكبير/تصغير النص المحدد فقط عبر عنصر span
-                var span = document.createElement('span');
-                var selectedElement = range.commonAncestorContainer.parentElement;
-
-                var currentSize = 18;
-                if (selectedElement && selectedElement !== paperBody && selectedElement.style.fontSize) {
-                    currentSize = parseInt(selectedElement.style.fontSize);
-                } else {
-                    currentSize = currentPaperFontSize;
+                // تحديد الحجم الحالي التقريبي للنص المحدد
+                var refNode = range.startContainer;
+                var refElement = (refNode.nodeType === 3) ? refNode.parentElement : refNode;
+                var currentSize = currentPaperFontSize;
+                if (refElement) {
+                    var computed = parseInt(window.getComputedStyle(refElement).fontSize);
+                    if (!isNaN(computed)) currentSize = computed;
                 }
 
                 var newSize = currentSize + (step * 2);
                 if (newSize < 10) newSize = 10;
                 if (newSize > 72) newSize = 72;
 
-                span.style.fontSize = newSize + 'px';
-                span.appendChild(range.extractContents());
-                range.insertNode(span);
+                // تقنية موثوقة: نغلّف التحديد أولاً بعنصر <font size="7"> عبر execCommand
+                // (يتعامل صح مع أي تحديد معقّد يمتد على أكثر من سطر/عنصر)، ثم نحوّله لحجم بالبكسل الفعلي
+                document.execCommand('fontSize', false, '7');
+                var fontElements = paperBody.querySelectorAll('font[size="7"]');
+                fontElements.forEach(function (el) {
+                    el.removeAttribute('size');
+                    el.style.fontSize = newSize + 'px';
+                });
 
                 document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
             } else {
