@@ -1520,7 +1520,7 @@ DASHBOARD_HTML = '''
                 {% if current_page == 'inbox' and letter.is_read == 0 %}<span class="badge bg-danger">جديد</span>{% endif %}
                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
             </div>
-            {% if letter.content %}<div class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %}
+            {% if letter.content %}<div class="text-secondary small mb-2 d-none" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %}
             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
                 <span class="fs-7 text-muted">
                     {% if current_page == 'outbox' %}إلى: <strong>{{ letter.receiver_name }}</strong>
