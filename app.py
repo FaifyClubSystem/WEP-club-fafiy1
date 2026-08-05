@@ -199,6 +199,17 @@ def init_db():
         
     ''')
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS shawahid (
+            id SERIAL PRIMARY KEY,
+            dept_id INTEGER,
+            title TEXT,
+            file_name TEXT,
+            file_path TEXT,
+            file_mimetype TEXT,
+            uploaded_at TEXT
+        )
+    ''')
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS suggestions (
             id SERIAL PRIMARY KEY,
             dept_id INTEGER,
@@ -528,6 +539,171 @@ def view_cert_file(cert_id):
         )
     return "الملف غير موجود", 404
 
+# --- مسارات قسم شواهد (مطابقة لقسم شهادات الدورات) ---
+
+@app.route('/download_shahid_file/<int:shahid_id>')
+def download_shahid_file(shahid_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_path, file_mimetype FROM shawahid WHERE id = %s', (shahid_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if row and row.get('file_path'):
+        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], True)
+    return "الملف غير موجود", 404
+
+@app.route('/view_shahid_file/<int:shahid_id>')
+def view_shahid_file(shahid_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_path, file_mimetype FROM shawahid WHERE id = %s', (shahid_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if row and row.get('file_path'):
+        return send_supabase_file(row['file_name'], row['file_path'], row['file_mimetype'], False)
+    return "الملف غير موجود", 404
+
+@app.route('/download_all_shawahid/<int:dept_id>')
+def download_all_shawahid(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT file_name, file_path FROM shawahid WHERE dept_id = %s', (dept_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    zip_buffer = io.BytesIO()
+    used_names = set()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for row in rows:
+            file_bytes = None
+            if row.get('file_path'):
+                try:
+                    file_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(row['file_path'])
+                except Exception:
+                    file_bytes = None
+            if file_bytes:
+                base_name = row.get('file_name') or 'file'
+                name = base_name
+                counter = 1
+                while name in used_names:
+                    name = f"{counter}_{base_name}"
+                    counter += 1
+                used_names.add(name)
+                zip_file.writestr(name, file_bytes)
+
+    if len(used_names) == 0:
+        return '''<script>alert("لا توجد شواهد لتحميلها."); window.history.back();</script>'''
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f"shawahid_dept_{dept_id}.zip"
+    )
+
+@app.route('/upload_shahid', methods=['POST'])
+def upload_shahid():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    dept_id = request.form.get('dept_id')
+    title = request.form.get('title')
+    files = request.files.getlist('file')
+
+    is_admin = is_admin_user(session.get('dept_name'))
+    if str(session['dept_id']) != str(dept_id) and not is_admin:
+        return '''<script>alert("غير مسموح لك برفع شواهد لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
+
+    valid_files = [f for f in files if f and f.filename != '']
+    if valid_files:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT username FROM departments WHERE id = %s', (dept_id,))
+        dept_row = cursor.fetchone()
+        dept_folder = dept_row['username'] if dept_row else f"dept_{dept_id}"
+
+        for file in valid_files:
+            original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='shawahid', dept_folder=dept_folder)
+            file_title = f"{title} - {original_name}" if len(valid_files) > 1 else title
+
+            cursor.execute('''
+                INSERT INTO shawahid (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (dept_id, file_title, original_name, storage_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('monthly_achievements'))
+
+@app.route('/delete_shahid/<int:shahid_id>')
+def delete_shahid(shahid_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    cursor.execute('SELECT file_path FROM shawahid WHERE id = %s', (shahid_id,))
+    file_row = cursor.fetchone()
+
+    cursor.execute('DELETE FROM shawahid WHERE id = %s', (shahid_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    if file_row and file_row.get('file_path'):
+        delete_file_from_supabase(file_row['file_path'])
+
+    return '''<script>alert("تم حذف الشاهد بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
+@app.route('/delete_all_shawahid/<int:dept_id>')
+def delete_all_shawahid(dept_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    cursor.execute('SELECT file_path FROM shawahid WHERE dept_id = %s', (dept_id,))
+    file_rows = cursor.fetchall()
+
+    cursor.execute('DELETE FROM shawahid WHERE dept_id = %s', (dept_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    for fr in file_rows:
+        if fr.get('file_path'):
+            delete_file_from_supabase(fr['file_path'])
+
+    return '''<script>alert("تم حذف كل الشواهد لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
 @app.route('/delete_letter/<int:letter_id>')
 def delete_letter(letter_id):
     if 'dept_id' not in session:
@@ -719,9 +895,27 @@ def clear_monthly_files(dept_id):
             current_time,
             dept_id
         ))
+
+    cursor.execute('SELECT * FROM shawahid WHERE dept_id = %s', (dept_id,))
+    shawahid_rows = cursor.fetchall()
+    for sh in shawahid_rows:
+        cursor.execute('''
+            INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, archive_dept_id)
+            VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s, %s)
+        ''', (
+            f"أرشيف شواهد: {sh['title']}",
+            f"تمت الأرشفة التلقائية من قسم شواهد بتاريخ: {current_time}",
+            "عادي",
+            sh['file_name'],
+            sh.get('file_path'),
+            sh.get('file_mimetype'),
+            current_time,
+            dept_id
+        ))
     
     cursor.execute('DELETE FROM monthly_achievements WHERE dept_id = %s', (dept_id,))
     cursor.execute('DELETE FROM course_certificates WHERE dept_id = %s', (dept_id,))
+    cursor.execute('DELETE FROM shawahid WHERE dept_id = %s', (dept_id,))
     conn.commit()
     cursor.close()
     conn.close()
@@ -1923,7 +2117,7 @@ DASHBOARD_HTML = '''
  
 <div class="modern-card p-2 p-sm-3">
                     {% if current_page == 'archive' and is_admin and own_letters is not none %}
-                        {% if own_letters or other_letters %}
+                        {% if own_letters or other_letters or own_monthly_letters or other_monthly_letters %}
                             {% if can_delete == 1 or is_admin %}
                             <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
                                 <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
@@ -1943,6 +2137,18 @@ DASHBOARD_HTML = '''
                                 </div>
                             {% endif %}
 
+                            {% if own_monthly_letters %}
+                            <div class="alert alert-light border mb-4">
+                                <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
+                                    <i class='bx bxs-calendar-check' style="color: var(--fifa-gold);"></i> أرشيف إنجازات الشهر (أرشيفي الخاص)
+                                    <span class="badge bg-warning text-dark">{{ own_monthly_letters|length }}</span>
+                                </h6>
+                                <div class="letters-list">
+                                    {% for letter in own_monthly_letters %}{{ render_letter_item(letter) }}{% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
                             <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
                                 <i class='bx bxs-folder-open' style="color: var(--fifa-gold);"></i> أرشيفي الخاص
                                 <span class="badge bg-success">{{ own_letters|length }}</span>
@@ -1954,6 +2160,18 @@ DASHBOARD_HTML = '''
                                     <div class="text-center py-3 text-muted"><p class="fs-8 m-0">لا توجد ملفات في أرشيفك الخاص.</p></div>
                                 {% endif %}
                             </div>
+
+                            {% if other_monthly_letters %}
+                            <div class="alert alert-light border mb-4">
+                                <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
+                                    <i class='bx bxs-calendar-check' style="color: var(--fifa-gold);"></i> أرشيف إنجازات الشهر (باقي الإدارات)
+                                    <span class="badge bg-warning text-dark">{{ other_monthly_letters|length }}</span>
+                                </h6>
+                                <div class="letters-list">
+                                    {% for letter in other_monthly_letters %}{{ render_letter_item(letter) }}{% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
 
                             <h6 class="fw-bold mb-2 mt-3 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
                                 <i class='bx bxs-buildings' style="color: var(--fifa-gold);"></i> أرشيف باقي الإدارات
@@ -1975,7 +2193,7 @@ DASHBOARD_HTML = '''
                         {% endif %}
 
                     {% else %}
-                        {% if letters %}
+                        {% if letters or monthly_letters %}
                             {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
                             <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
                                 <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
@@ -1993,6 +2211,18 @@ DASHBOARD_HTML = '''
                                         </button>
                                     </div>
                                 </div>
+                            {% endif %}
+
+                            {% if monthly_letters %}
+                            <div class="alert alert-light border mb-4">
+                                <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
+                                    <i class='bx bxs-calendar-check' style="color: var(--fifa-gold);"></i> أرشيف إنجازات الشهر
+                                    <span class="badge bg-warning text-dark">{{ monthly_letters|length }}</span>
+                                </h6>
+                                <div class="letters-list">
+                                    {% for letter in monthly_letters %}{{ render_letter_item(letter) }}{% endfor %}
+                                </div>
+                            </div>
                             {% endif %}
 
                             <div class="letters-list">
@@ -2824,13 +3054,35 @@ def archive():
         letters = cursor.fetchall()
     cursor.close()
     conn.close()
+
+    MONTHLY_ARCHIVE_PREFIXES = ('أرشيف إنجازات شهرية:', 'أرشيف شهادات دورات:', 'أرشيف شواهد:')
+
+    def split_monthly(letters_list):
+        if letters_list is None:
+            return None, None
+        monthly = [l for l in letters_list if l.get('title') and l['title'].startswith(MONTHLY_ARCHIVE_PREFIXES)]
+        rest = [l for l in letters_list if not (l.get('title') and l['title'].startswith(MONTHLY_ARCHIVE_PREFIXES))]
+        return monthly, rest
+
+    own_monthly_letters = None
+    other_monthly_letters = None
+    monthly_letters = None
+
+    if is_admin:
+        own_monthly_letters, own_letters = split_monthly(own_letters)
+        other_monthly_letters, other_letters = split_monthly(other_letters)
+    else:
+        monthly_letters, letters = split_monthly(letters)
     
     return render_template_string(DASHBOARD_HTML, 
                                   page_title="أرشيف الإدارة",
                                   current_page="archive",
                                   letters=letters,
                                   own_letters=own_letters,
-                                  other_letters=other_letters, 
+                                  other_letters=other_letters,
+                                  own_monthly_letters=own_monthly_letters,
+                                  other_monthly_letters=other_monthly_letters,
+                                  monthly_letters=monthly_letters,
                                   depts=depts, 
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
@@ -3125,6 +3377,14 @@ def monthly_achievements():
         ORDER BY cc.id DESC
     ''')
     certificates = cursor.fetchall()
+
+    cursor.execute('''
+        SELECT sh.*, d.name as dept_name 
+        FROM shawahid sh
+        JOIN departments d ON sh.dept_id = d.id
+        ORDER BY sh.id DESC
+    ''')
+    shawahid_list = cursor.fetchall()
     
     cursor.close()
     conn.close()
@@ -3353,6 +3613,58 @@ def monthly_achievements():
                                         </div>
                                     </form>
                                     {% endif %}
+
+                                    <div class="sub-section-title d-flex justify-content-between align-items-center">
+                                         <span><i class='bx bxs-badge-check ms-1'></i> شواهد</span>
+                                         <div class="d-flex gap-1">
+                                         {% if shawahid_list|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
+                                         <a href="/download_all_shawahid/{{ d.id }}" class="btn btn-sm btn-outline-dark py-0 px-2 fs-8">
+                                             <i class='bx bx-download ms-1'></i> تحميل الكل
+                                         </a>
+                                         {% if is_admin or can_delete == 1 %}
+                                         <a href="/delete_all_shawahid/{{ d.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('تأكيد حذف كل الشواهد لهذه الإدارة نهائياً؟');">
+                                             <i class='bx bx-trash-alt ms-1'></i> حذف الكل
+                                         </a>
+                                         {% endif %}
+                                         {% endif %}
+                                         </div>
+                                    </div>
+                                    <div class="list-group mb-3 fs-7" id="dept-shawahid-{{ d.id }}">
+                                        {% set ns_s = namespace(found=false) %}
+                                        {% for s in shawahid_list %}
+                                            {% if s.dept_id == d.id %}
+                                                {% set ns_s.found = true %}
+                                                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent p-2">
+                                                    <div>
+                                                        <i class='bx bxs-badge-check text-dark fs-5 align-middle ms-1'></i>
+                                                        <strong class="text-dark fs-7">{{ s.title }}</strong>
+                                                        <span class="text-muted d-block fs-8">{{ s.uploaded_at }}</span>
+                                                    </div>
+                                                    <div class="d-flex gap-1">
+                                                        <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_shahid_file/{{ s.id }}', '{{ s.title }}')">معاينة</button>
+                                                        <a href="/download_shahid_file/{{ s.id }}" target="_blank" class="btn btn-sm btn-outline-dark py-0 px-2 fs-8">تنزيل</a>
+                                                        {% if is_admin or can_delete == 1 %}
+                                                        <a href="/delete_shahid/{{ s.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف هذا الشاهد؟');">حذف</a>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if not ns_s.found %}
+                                            <div class="text-center py-2 text-muted fs-8">لا توجد شواهد مرفوعة.</div>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if session['dept_id'] == d.id or is_admin %}
+                                    <form action="/upload_shahid" method="post" enctype="multipart/form-data" class="bg-white p-2 rounded border">
+                                        <input type="hidden" name="dept_id" value="{{ d.id }}">
+                                        <div class="d-flex flex-column flex-sm-row gap-2">
+                                            <input type="text" name="title" class="form-control fs-8" placeholder="عنوان الشاهد..." required>
+                                            <input type="file" name="file" class="form-control fs-8" multiple required>
+                                            <button class="btn btn-dark fs-8 text-nowrap" type="submit">رفع شاهد</button>
+                                        </div>
+                                    </form>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -3433,7 +3745,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
     </body>
     </html>
     '''
-    return render_template_string(html_code, depts=depts, achievements=achievements, certificates=certificates, dept_name=session['dept_name'], can_delete=current_dept['can_delete'], can_add_user=current_dept['can_add_user'], current_dept=current_dept, is_admin=is_admin)
+    return render_template_string(html_code, depts=depts, achievements=achievements, certificates=certificates, shawahid_list=shawahid_list, dept_name=session['dept_name'], can_delete=current_dept['can_delete'], can_add_user=current_dept['can_add_user'], current_dept=current_dept, is_admin=is_admin)
 
 @app.route('/delete_achievement/<int:ach_id>')
 def delete_achievement(ach_id):
