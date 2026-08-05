@@ -4112,6 +4112,9 @@ def admin_dashboard():
     cursor.execute('SELECT COUNT(*) as count FROM course_certificates')
     total_certs = cursor.fetchone()['count']
 
+    cursor.execute('SELECT COUNT(*) as count FROM shawahid')
+    total_shawahid = cursor.fetchone()['count']
+
     dept_stats = []
     for d in depts:
         d_id = d['id']
@@ -4135,6 +4138,12 @@ def admin_dashboard():
         
         cursor.execute('SELECT * FROM course_certificates WHERE dept_id = %s', (d_id,))
         cert_files = cursor.fetchall()
+
+        cursor.execute('SELECT COUNT(*) as count FROM shawahid WHERE dept_id = %s', (d_id,))
+        shahid_count = cursor.fetchone()['count']
+
+        cursor.execute('SELECT * FROM shawahid WHERE dept_id = %s', (d_id,))
+        shahid_files = cursor.fetchall()
 
         cursor.execute('''
             SELECT l.*, s.name as sender_name 
@@ -4172,6 +4181,8 @@ def admin_dashboard():
             'ach_files': ach_files,
             'cert_count': cert_count,
             'cert_files': cert_files,
+            'shahid_count': shahid_count,
+            'shahid_files': shahid_files,
             'inbox_files': inbox_files,
             'outbox_files': outbox_files,
             'archive_files': archive_files
@@ -4282,8 +4293,8 @@ def admin_dashboard():
                         </div>
                         <div class="col-md-4">
                             <div class="stat-box">
-                                <h3 class="fw-bold text-warning">{{ total_ach + total_certs }}</h3>
-                                <p class="text-muted fs-7 mb-0">إجمالي الإنجازات والشهادات</p>
+                                <h3 class="fw-bold text-warning">{{ total_ach + total_certs + total_shawahid }}</h3>
+                                <p class="text-muted fs-7 mb-0">إجمالي الإنجازات والشهادات والشواهد</p>
                             </div>
                         </div>
                     </div>
@@ -4300,6 +4311,7 @@ def admin_dashboard():
                                         <th class="text-center">أرشيف الإدارة</th>
                                         <th class="text-center">إنجازات الشهر</th>
                                         <th class="text-center">شهادات الدورات</th>
+                                        <th class="text-center">شواهد</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -4311,6 +4323,7 @@ def admin_dashboard():
                                         <td class="text-center"><span class="badge bg-success px-2 py-1">{{ stat.archive_count }} ملفات</span></td>
                                         <td class="text-center"><span class="badge bg-warning text-dark px-2 py-1">{{ stat.ach_count }} ملفات</span></td>
                                         <td class="text-center"><span class="badge bg-info text-white px-2 py-1">{{ stat.cert_count }} ملفات</span></td>
+                                        <td class="text-center"><span class="badge bg-dark px-2 py-1">{{ stat.shahid_count }} ملفات</span></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -4478,6 +4491,42 @@ def admin_dashboard():
                         </div>
                     </div>
 
+                    <!-- قسم تفصيل الشواهد لكل إدارة -->
+                    <div class="modern-card">
+                        <h5 class="fw-bold mb-3" style="color: var(--fifa-green-primary);"><i class='bx bxs-badge-check ms-1' style="color: var(--fifa-gold);"></i> تفصيل قسم شواهد لكل إدارة</h5>
+                        <div class="row g-3">
+                            {% for stat in dept_stats %}
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 bg-light">
+                                   <h6 class="fw-bold text-dark border-bottom pb-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+                                       <span>{{ stat.name }} ({{ stat.shahid_count }} شواهد)</span>
+                                       {% if stat.shahid_count > 0 %}
+                                       <a href="/download_all_shawahid/{{ stat.id }}" class="btn btn-sm btn-outline-dark py-0 px-2 fs-8">
+                                           <i class='bx bx-download ms-1'></i> تحميل الكل
+                                       </a>
+                                       {% endif %}
+                                    </h6>
+                                    {% if stat.shahid_files %}
+                                        <ul class="list-unstyled mb-0 fs-8 mt-2">
+                                            {% for sh in stat.shahid_files %}
+                                            <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
+                                                <span><i class='bx bxs-badge-check text-dark ms-1'></i> {{ sh.title }} <small class="text-muted">({{ sh.uploaded_at }})</small></span>
+                                                <div class="d-flex gap-1">
+                                                    <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_shahid_file/{{ sh.id }}', '{{ sh.title }}')">معاينة</button>
+                                                    <a href="/download_shahid_file/{{ sh.id }}" class="btn btn-sm btn-outline-dark py-0 px-2 fs-8">تنزيل</a>
+                                                </div>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="text-muted fs-8 mb-0 mt-2">لا توجد شواهد مرفوعة لهذه الإدارة.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
                 </div>
             </main>
         </div>
@@ -4553,7 +4602,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
     </body>
     </html>
     '''
-    return render_template_string(html_code, depts=depts, total_letters=total_letters, total_ach=total_ach, total_certs=total_certs, dept_stats=dept_stats, dept_name=session['dept_name'])
+    return render_template_string(html_code, depts=depts, total_letters=total_letters, total_ach=total_ach, total_certs=total_certs, total_shawahid=total_shawahid, dept_stats=dept_stats, dept_name=session['dept_name'])
 
 @app.route('/admin/delete_department/<int:dept_id>')
 def delete_department(dept_id):
