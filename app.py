@@ -2165,6 +2165,46 @@ DASHBOARD_HTML = '''
                         </div>
                     </form>
                 </div>
+
+                <!-- ============ قسم مستقل لإرسال ملف من الجهاز مباشرة بدون نموذج الخطاب ============ -->
+                <div class="modern-card p-4 mb-4">
+                    <h5 class="fw-bold mb-2" style="color: var(--fifa-green-primary);"><i class='bx bxs-file-plus ms-1' style="color: var(--fifa-gold);"></i> إرسال ملف مباشر (بدون خطاب)</h5>
+                    <p class="text-muted fs-7 mb-3">استخدم هذا الخيار لإرسال ملف أو مستند من جهازك مباشرة لإدارة أخرى، بدون تعبئة نموذج الخطاب الرسمي أعلاه.</p>
+                    <form action="/send_file_direct" method="post" enctype="multipart/form-data">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">الإدارة المستلمة:</label>
+                                <select name="receiver_id" class="form-select fs-7" required>
+                                    <option value="" selected disabled>اختر الإدارة المستلمة...</option>
+                                    {% for d in depts %}
+                                        <option value="{{ d.id }}">{{ d.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">عنوان / وصف الملف:</label>
+                                <input type="text" name="title" class="form-control fs-7" required placeholder="مثال: تقرير الصيانة الشهري">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">الأهمية:</label>
+                                <select name="priority" class="form-select fs-7">
+                                    <option value="عادي">عادي</option>
+                                    <option value="عاجل">عاجل</option>
+                                    <option value="سري للغاية">سري للغاية</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold fs-7">الملف:</label>
+                                <input type="file" name="file" class="form-control fs-7" required>
+                            </div>
+                            <div class="col-12 text-end mt-2">
+                                <button type="submit" class="btn btn-outline-dark px-4 py-2 fw-bold">
+                                    <i class='bx bx-send ms-1'></i> إرسال الملف
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
                 {% endif %}
  
 <div class="modern-card p-2 p-sm-3">
@@ -3075,7 +3115,41 @@ def send_letter():
     conn.close()
     
     return redirect(url_for('outbox'))
- 
+
+@app.route('/send_file_direct', methods=['POST'])
+def send_file_direct():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    sender_id = session['dept_id']
+    receiver_id = request.form.get('receiver_id')
+    title = request.form.get('title')
+    priority = request.form.get('priority', 'عادي')
+    file = request.files.get('file')
+
+    if not file or file.filename == '':
+        return '''<script>alert("الرجاء اختيار ملف للإرسال."); window.history.back();</script>'''
+
+    if not receiver_id:
+        return '''<script>alert("الرجاء اختيار الإدارة المستلمة."); window.history.back();</script>'''
+
+    file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters', dept_folder=session.get('dept_username'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    letter_number = str(consume_next_letter_number(cursor))
+
+    cursor.execute('''
+        INSERT INTO letters (title, content, priority, sender_id, receiver_id, file_name, file_path, file_mimetype, created_at, letter_number)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    ''', (title, '', priority, sender_id, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_number))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return redirect(url_for('outbox'))
+
 @app.route('/archive')
 def archive():
     if 'dept_id' not in session:
