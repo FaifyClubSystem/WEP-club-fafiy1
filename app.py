@@ -1539,7 +1539,7 @@ DASHBOARD_HTML = '''
         </div>
     </div>
     <div class="d-flex align-items-center gap-2 w-100 justify-content-end mt-2 mt-sm-0 flex-wrap">
-        {% if current_page == 'inbox' or current_page == 'outbox' %}
+        {% if current_page == 'inbox' or (current_page == 'outbox' and letter.content) %}
             <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2 fs-7"
                 data-id="{{ letter.id }}" data-title="{{ letter.title|e }}"
                 data-sender-id="{{ letter.sender_id or '' }}" data-receiver-id="{{ letter.receiver_id or '' }}"
