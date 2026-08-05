@@ -27,14 +27,36 @@ SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET', 'archive-files')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
-def upload_file_to_supabase(file_storage, subfolder=''):
+import re
+
+def sanitize_folder_name(name):
+    """يحوّل اسم الإدارة إلى صيغة آمنة كاسم مجلد (يحافظ على الحروف العربية)."""
+    if not name:
+        return "unknown"
+    name = name.strip()
+    name = re.sub(r'\s+', '_', name)
+    name = re.sub(r'[^\w\u0600-\u06FF_-]', '', name)
+    return name or "unknown"
+
+
+def upload_file_to_supabase(file_storage, subfolder='', dept_name=None):
     """
     يرفع الملف فعلياً إلى Supabase Storage ويرجع:
     (الاسم الأصلي المعروض, المسار المخزن داخل الـ bucket, نوع الملف)
+
+    التنظيم داخل الـ bucket: <اسم_الإدارة>/<نوع الملف>/اسم_الملف
+    بهذا الشكل كل إدارة يكون لها مجلد باسمها، ما تختلط ملفاتها مع باقي الإدارات.
     """
     original_name = secure_filename(file_storage.filename)
     unique_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}_{original_name}"
-    storage_path = f"{subfolder}/{unique_name}" if subfolder else unique_name
+
+    path_parts = []
+    if dept_name:
+        path_parts.append(sanitize_folder_name(dept_name))
+    if subfolder:
+        path_parts.append(subfolder)
+    path_parts.append(unique_name)
+    storage_path = "/".join(path_parts)
 
     file_bytes = file_storage.read()
     mimetype = file_storage.content_type or 'application/octet-stream'
@@ -586,10 +608,14 @@ def upload_achievement():
         return '''<script>alert("غير مسموح لك برفع إنجازات لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
     if file and file.filename != '':
-        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='achievements')
-
         conn = get_db_connection()
         cursor = conn.cursor()
+        cursor.execute('SELECT name FROM departments WHERE id = %s', (dept_id,))
+        dept_row = cursor.fetchone()
+        dept_name_for_path = dept_row['name'] if dept_row else None
+
+        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='achievements', dept_name=dept_name_for_path)
+
         cursor.execute('''
             INSERT INTO monthly_achievements (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -614,10 +640,14 @@ def upload_certificate():
         return '''<script>alert("غير مسموح لك برفع شهادات دورات لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
     if file and file.filename != '':
-        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='certificates')
-
         conn = get_db_connection()
         cursor = conn.cursor()
+        cursor.execute('SELECT name FROM departments WHERE id = %s', (dept_id,))
+        dept_row = cursor.fetchone()
+        dept_name_for_path = dept_row['name'] if dept_row else None
+
+        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='certificates', dept_name=dept_name_for_path)
+
         cursor.execute('''
             INSERT INTO course_certificates (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -2676,7 +2706,7 @@ def send_letter():
     
     if letter_id and letter_id.isdigit():
         if file and file.filename != '':
-            file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters')
+            file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters', dept_name=session.get('dept_name'))
             
             cursor.execute('''
                 UPDATE letters 
@@ -2694,7 +2724,7 @@ def send_letter():
         file_path = None
         file_mimetype = None
         if file and file.filename != '':
-            file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters')
+            file_name, file_path, file_mimetype = upload_file_to_supabase(file, subfolder='letters', dept_name=session.get('dept_name'))
 
         letter_number = str(consume_next_letter_number(cursor))
             
@@ -2831,7 +2861,7 @@ def quick_upload():
  
         for file in files:
             if file and file.filename != '':
-                original_name, storage_path, content_type = upload_file_to_supabase(file, subfolder='quick_upload')
+                original_name, storage_path, content_type = upload_file_to_supabase(file, subfolder='quick_upload', dept_name=session.get('dept_name'))
                 
                 file_title = f"{document_title} - {original_name}" if len(files) > 1 else document_title
                 
