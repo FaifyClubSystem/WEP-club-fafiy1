@@ -1545,6 +1545,8 @@ DASHBOARD_HTML = '''
                 data-sender-id="{{ letter.sender_id or '' }}" data-receiver-id="{{ letter.receiver_id or '' }}"
                 data-priority="{{ letter.priority }}" data-page="{{ current_page }}"
                 data-letter-number="{{ letter.letter_number or '' }}"
+                data-sender-name="{{ letter.sender_name|e if letter.sender_name else '' }}"
+                data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
                 onclick="loadLetterToEditor(this)">
                 {% if current_page == 'inbox' %}
                 <i class='bx bx-reply ms-1'></i> رد
@@ -2762,6 +2764,8 @@ window.addEventListener('resize', updateNavbarHeightVar);
             var priority = btn.getAttribute('data-priority') || 'عادي';
             var page = btn.getAttribute('data-page');
             var letterNumber = btn.getAttribute('data-letter-number') || '';
+            var senderName = btn.getAttribute('data-sender-name') || '';
+            var letterDate = btn.getAttribute('data-date') || '';
  
             var textElem = document.getElementById('letter-text-' + id);
             var contentHTML = textElem ? textElem.innerHTML : '';
@@ -2771,6 +2775,7 @@ window.addEventListener('resize', updateNavbarHeightVar);
  
             var receiverSelect = document.getElementById('receiverSelect');
             var editIdInput = document.getElementById('editLetterId');
+            var isReply = false;
  
             if (page === 'outbox') {
                 editIdInput.value = id;
@@ -2779,15 +2784,38 @@ window.addEventListener('resize', updateNavbarHeightVar);
                     document.getElementById('paperLetterNumInput').value = letterNumber;
                 }
             } else {
+                isReply = true;
                 editIdInput.value = '';
                 if (senderId && receiverSelect) receiverSelect.value = senderId;
                 if (title && title.indexOf('رد:') !== 0) {
                     document.getElementById('letterTitleInput').value = 'رد: ' + title;
                 }
+                // أسلوب الرد على إيميل: محرر فاضي لكتابة الرد، مع اقتباس الرسالة الأصلية أسفله
+                var quoteHeader = 'بتاريخ ' + letterDate + (senderName ? '، كتب ' + senderName : '') + ':';
+                contentHTML = '<p><br></p>'
+                    + '<div style="border-right: 3px solid #c5a059; padding-right: 12px; margin-top: 10px; color: #555;">'
+                    + '<p style="font-weight:bold; margin-bottom:6px;">' + quoteHeader + '</p>'
+                    + contentHTML
+                    + '</div>';
             }
  
             document.getElementById('letterContentInput').value = contentHTML;
             syncPaperWithTextarea(contentHTML);
+ 
+            if (isReply) {
+                setTimeout(function () {
+                    var pb = document.getElementById('paperBodyText');
+                    if (pb) {
+                        pb.focus();
+                        var range = document.createRange();
+                        var sel = window.getSelection();
+                        range.setStart(pb, 0);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }, 250);
+            }
  
             var paperBody = document.getElementById('officialPaper');
             if (paperBody) {
