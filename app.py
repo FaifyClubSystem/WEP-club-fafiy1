@@ -2270,7 +2270,7 @@ DASHBOARD_HTML = '''
                             {% endif %}
 
                             <h6 class="fw-bold mb-2 mt-3 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
-                                <i class='bx bxs-buildings' style="color: var(--fifa-gold);"></i> أرشيف باقي الإدارات
+                                <i class='bx bxs-buildings' style="color: var(--fifa-gold);"></i> أرشيف باقي الإدارات (رفع فوري)
                                 <span class="badge bg-secondary">{{ other_letters|length }}</span>
                             </h6>
                             <div class="letters-list">
@@ -2490,47 +2490,43 @@ DASHBOARD_HTML = '''
         }
  
         // دالة تكبير وتصغير حجم الخط للنص المحدد فقط
+        var currentPaperFontSize = 18;
         function changeFontSize(step) {
-            var selection = window.getSelection();
-            if (!selection.rangeCount) return;
- 
-            var range = selection.getRangeAt(0);
             var paperBody = document.getElementById('paperBodyText');
- 
-            if (!paperBody.contains(range.commonAncestorContainer)) {
-                alert('يرجى تحديد النص المراد تكبيره أو تصغيره داخل ورقة الخطاب أولاً.');
-                return;
-            }
- 
-            if (range.collapsed) {
-                // إذا لم يحدد نصاً معيناً، يطبق التغيير على حاوية الخطاب بالكامل
-                var currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
-                var newSize = currentSize + (step * 2);
-                if (newSize >= 10 && newSize <= 50) {
-                    paperBody.style.fontSize = newSize + 'px';
-                    document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
-                }
-            } else {
+            if (!paperBody) return;
+
+            var selection = window.getSelection();
+            var range = (selection && selection.rangeCount) ? selection.getRangeAt(0) : null;
+            var hasValidSelectionInPaper = range && paperBody.contains(range.commonAncestorContainer) && !range.collapsed;
+
+            if (hasValidSelectionInPaper) {
                 // تكبير/تصغير النص المحدد فقط عبر عنصر span
                 var span = document.createElement('span');
                 var selectedElement = range.commonAncestorContainer.parentElement;
-                
+
                 var currentSize = 18;
                 if (selectedElement && selectedElement !== paperBody && selectedElement.style.fontSize) {
                     currentSize = parseInt(selectedElement.style.fontSize);
                 } else {
-                    currentSize = parseInt(window.getComputedStyle(paperBody).fontSize) || 18;
+                    currentSize = currentPaperFontSize;
                 }
- 
+
                 var newSize = currentSize + (step * 2);
                 if (newSize < 10) newSize = 10;
-                if (newSize > 50) newSize = 50;
- 
+                if (newSize > 72) newSize = 72;
+
                 span.style.fontSize = newSize + 'px';
                 span.appendChild(range.extractContents());
                 range.insertNode(span);
-                
+
                 document.getElementById('currentFontSizeLabel').innerText = newSize + 'px';
+            } else {
+                // لا يوجد تحديد نص: يكبّر/يصغّر حاوية الورقة كاملة، ويعمل مهما تكررت الضغطات
+                currentPaperFontSize += (step * 2);
+                if (currentPaperFontSize < 10) currentPaperFontSize = 10;
+                if (currentPaperFontSize > 72) currentPaperFontSize = 72;
+                paperBody.style.fontSize = currentPaperFontSize + 'px';
+                document.getElementById('currentFontSizeLabel').innerText = currentPaperFontSize + 'px';
             }
             syncTextareaWithPaper();
         }
