@@ -258,6 +258,12 @@ def init_db():
     if 'file_path' not in cert_columns:
         cursor.execute('ALTER TABLE course_certificates ADD COLUMN file_path TEXT')
 
+    cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='letters'")
+    letters_columns = [col['column_name'] for col in cursor.fetchall()]
+    if 'is_read' not in letters_columns:
+        cursor.execute('ALTER TABLE letters ADD COLUMN is_read INTEGER DEFAULT 0')
+        cursor.execute('UPDATE letters SET is_read = 1')
+
     conn.commit()
     cursor.close()
     conn.close()
@@ -1511,6 +1517,7 @@ DASHBOARD_HTML = '''
         <div class="w-100">
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
                 <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
+                {% if current_page == 'inbox' and letter.is_read == 0 %}<span class="badge bg-danger">جديد</span>{% endif %}
                 <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
             </div>
             {% if letter.content %}<div class="text-secondary small mb-2" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %}
@@ -1539,7 +1546,11 @@ DASHBOARD_HTML = '''
                 data-priority="{{ letter.priority }}" data-page="{{ current_page }}"
                 data-letter-number="{{ letter.letter_number or '' }}"
                 onclick="loadLetterToEditor(this)">
+                {% if current_page == 'inbox' %}
+                <i class='bx bx-reply ms-1'></i> رد
+                {% else %}
                 <i class='bx bx-edit ms-1'></i> تعديل / إرسال
+                {% endif %}
             </button>
             <button type="button" class="btn btn-sm btn-outline-dark py-1 px-2 fs-7"
                 data-title="{{ letter.title|e }}" data-content-id="letter-text-{{ letter.id }}"
@@ -1951,7 +1962,9 @@ DASHBOARD_HTML = '''
                 <button class="btn text-white fs-3 p-0" onclick="toggleSidebar()">&times;</button>
             </div>
             {% if can_page_inbox == 1 or is_admin %}
-            <a href="/dashboard" class="sidebar-link {{ 'active' if current_page == 'inbox' else '' }}"><i class='bx bxs-inbox'></i>الصندوق الوارد</a>
+            <a href="/dashboard" class="sidebar-link {{ 'active' if current_page == 'inbox' else '' }}"><i class='bx bxs-inbox'></i>الصندوق الوارد
+                {% if unread_count and unread_count > 0 %}<span class="badge bg-danger rounded-pill ms-1" id="inboxUnreadBadge">{{ unread_count }}</span>{% endif %}
+            </a>
             {% endif %}
             {% if can_page_outbox == 1 or is_admin %}
             <a href="/outbox" class="sidebar-link {{ 'active' if current_page == 'outbox' else '' }}"><i class='bx bxs-paper-plane'></i>الخطابات الصادرة</a>
@@ -1980,6 +1993,13 @@ DASHBOARD_HTML = '''
         </aside>
  
         <main class="content-body">
+            {% if current_page == 'inbox' %}
+            <div id="newLetterToast" class="alert alert-success d-none position-fixed top-0 start-50 translate-middle-x mt-3 shadow d-flex align-items-center gap-2" style="z-index: 2000;" role="alert">
+                <i class='bx bx-envelope fs-5'></i>
+                <span>وصلك خطاب جديد في الصندوق الوارد!</span>
+                <button type="button" class="btn btn-sm btn-success" onclick="location.reload()">تحديث</button>
+            </div>
+            {% endif %}
             <div class="container-fluid p-0">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                     <h4 class="section-header m-0">{{ page_title }}</h4>
@@ -2847,11 +2867,44 @@ function downloadLetterPDF() {
         window.addEventListener('DOMContentLoaded', function() {
             syncTextareaWithPaper();
         });
+
+        {% if current_page == 'inbox' %}
+        // فحص دوري لوجود خطابات جديدة وصلت أثناء تصفح صفحة الوارد
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+        function checkForNewLetters() {
+            fetch('/api/unread_count').then(function (r) { return r.json(); }).then(function (data) {
+                if (data.count > 0) {
+                    var toastEl = document.getElementById('newLetterToast');
+                    if (toastEl) toastEl.classList.remove('d-none');
+                    var badgeEl = document.getElementById('inboxUnreadBadge');
+                    if (badgeEl) { badgeEl.innerText = data.count; badgeEl.classList.remove('d-none'); }
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('نظام أرشفة نادي فيفا', { body: 'وصلك خطاب جديد بالصندوق الوارد' });
+                    }
+                }
+            }).catch(function () {});
+        }
+        setInterval(checkForNewLetters, 20000);
+        {% endif %}
     </script>
 </body>
 </html>
 '''
  
+@app.route('/api/unread_count')
+def api_unread_count():
+    if 'dept_id' not in session:
+        return {'count': 0}
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) as count FROM letters WHERE receiver_id = %s AND is_read = 0', (session['dept_id'],))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return {'count': row['count'] if row else 0}
+
 @app.route('/dashboard')
 def dashboard():
     if 'dept_id' not in session:
@@ -2883,6 +2936,12 @@ def dashboard():
         ORDER BY l.id DESC
     ''', (dept_id,))
     letters = cursor.fetchall()
+
+    cursor.execute('SELECT COUNT(*) as count FROM letters WHERE receiver_id = %s AND is_read = 0', (dept_id,))
+    unread_count = cursor.fetchone()['count']
+
+    cursor.execute('UPDATE letters SET is_read = 1 WHERE receiver_id = %s AND is_read = 0', (dept_id,))
+    conn.commit()
     
     cursor.close()
     conn.close()
@@ -2891,6 +2950,7 @@ def dashboard():
                                   page_title="الصندوق الوارد",
                                   current_page="inbox",
                                   letters=letters, 
+                                  unread_count=unread_count,
                                   depts=depts, 
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
@@ -2937,6 +2997,9 @@ def outbox():
         ORDER BY l.id DESC
     ''', (dept_id,))
     letters = cursor.fetchall()
+
+    cursor.execute('SELECT COUNT(*) as count FROM letters WHERE receiver_id = %s AND is_read = 0', (dept_id,))
+    unread_count = cursor.fetchone()['count']
     
     cursor.close()
     conn.close()
@@ -2945,6 +3008,7 @@ def outbox():
                                   page_title="الخطابات الصادرة",
                                   current_page="outbox",
                                   letters=letters, 
+                                  unread_count=unread_count,
                                   depts=depts, 
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
@@ -2983,13 +3047,13 @@ def send_letter():
             
             cursor.execute('''
                 UPDATE letters 
-                SET title = %s, content = %s, priority = %s, receiver_id = %s, file_name = %s, file_path = %s, file_mimetype = %s, created_at = %s
+                SET title = %s, content = %s, priority = %s, receiver_id = %s, file_name = %s, file_path = %s, file_mimetype = %s, created_at = %s, is_read = 0
                 WHERE id = %s AND sender_id = %s
             ''', (title, content, priority, receiver_id, file_name, file_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
         else:
             cursor.execute('''
                 UPDATE letters 
-                SET title = %s, content = %s, priority = %s, receiver_id = %s, created_at = %s
+                SET title = %s, content = %s, priority = %s, receiver_id = %s, created_at = %s, is_read = 0
                 WHERE id = %s AND sender_id = %s
             ''', (title, content, priority, receiver_id, datetime.now().strftime('%Y-%m-%d %H:%M'), letter_id, sender_id))
     else:
@@ -3084,6 +3148,10 @@ def archive():
             ORDER BY l.id DESC
         ''', (dept_id, dept_id))
         letters = cursor.fetchall()
+
+    cursor.execute('SELECT COUNT(*) as count FROM letters WHERE receiver_id = %s AND is_read = 0', (dept_id,))
+    unread_count = cursor.fetchone()['count']
+
     cursor.close()
     conn.close()
 
@@ -3110,6 +3178,7 @@ def archive():
                                   page_title="أرشيف الإدارة",
                                   current_page="archive",
                                   letters=letters,
+                                  unread_count=unread_count,
                                   own_letters=own_letters,
                                   other_letters=other_letters,
                                   own_monthly_letters=own_monthly_letters,
