@@ -704,6 +704,38 @@ def delete_all_shawahid(dept_id):
 
     return '''<script>alert("تم حذف كل الشواهد لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
+@app.route('/delete_selected_shawahid', methods=['POST'])
+def delete_selected_shawahid():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    item_ids_raw = request.form.getlist('item_ids')
+    item_ids = [int(i) for i in item_ids_raw if i.isdigit()]
+
+    if item_ids:
+        cursor.execute('SELECT file_path FROM shawahid WHERE id = ANY(%s)', (item_ids,))
+        file_rows = cursor.fetchall()
+        cursor.execute('DELETE FROM shawahid WHERE id = ANY(%s)', (item_ids,))
+        conn.commit()
+        for fr in file_rows:
+            if fr.get('file_path'):
+                delete_file_from_supabase(fr['file_path'])
+
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف الشواهد المحددة بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
 @app.route('/delete_letter/<int:letter_id>')
 def delete_letter(letter_id):
     if 'dept_id' not in session:
@@ -3510,31 +3542,42 @@ def monthly_achievements():
                                     </div>
                                 </div>
                                 <div class="p-3">
-                                    <div class="sub-section-title d-flex justify-content-between align-items-center">
+                                    <div class="sub-section-title d-flex justify-content-between align-items-center flex-wrap gap-1">
                                          <span><i class='bx bxs-award ms-1'></i> ملفات الإنجازات الشهرية</span>
-                                         <div class="d-flex gap-1">
+                                         <div class="d-flex align-items-center gap-2 flex-wrap">
                                          {% if achievements|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
                                          <a href="/download_all_achievements/{{ d.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">
                                              <i class='bx bx-download ms-1'></i> تحميل الكل
                                          </a>
                                          {% if is_admin or can_delete == 1 %}
-                                         <a href="/delete_all_achievements/{{ d.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('تأكيد حذف كل ملفات الإنجازات لهذه الإدارة نهائياً؟');">
-                                             <i class='bx bx-trash-alt ms-1'></i> حذف الكل
-                                         </a>
+                                         <div class="form-check form-check-inline m-0">
+                                             <input class="form-check-input" type="checkbox" id="selectAllAch_{{ d.id }}" onclick="toggleAllCheckboxes('achForm_{{ d.id }}', this)">
+                                             <label class="form-check-label fs-8" for="selectAllAch_{{ d.id }}">تحديد الكل</label>
+                                         </div>
+                                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="submitDeleteSelected('achForm_{{ d.id }}')">
+                                             <i class='bx bx-trash-alt ms-1'></i> حذف المحدد
+                                         </button>
                                          {% endif %}
                                          {% endif %}
                                          </div>
                                  </div>
+                                    <form id="achForm_{{ d.id }}" action="/delete_selected_achievements" method="post">
+                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
                                     <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
                                         {% set ns = namespace(found=false) %}
                                         {% for a in achievements %}
                                             {% if a.dept_id == d.id %}
                                                 {% set ns.found = true %}
                                                 <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent p-2">
-                                                    <div>
-                                                        <i class='bx bxs-file-pdf text-danger fs-5 align-middle ms-1'></i>
-                                                        <strong class="text-dark fs-7">{{ a.title }}</strong>
-                                                        <span class="text-muted d-block fs-8">{{ a.uploaded_at }}</span>
+                                                    <div class="d-flex align-items-start gap-2">
+                                                        {% if is_admin or can_delete == 1 %}
+                                                        <input class="form-check-input item-checkbox mt-1" type="checkbox" name="item_ids" value="{{ a.id }}">
+                                                        {% endif %}
+                                                        <div>
+                                                            <i class='bx bxs-file-pdf text-danger fs-5 align-middle ms-1'></i>
+                                                            <strong class="text-dark fs-7">{{ a.title }}</strong>
+                                                            <span class="text-muted d-block fs-8">{{ a.uploaded_at }}</span>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex gap-1">
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_ach_file/{{ a.id }}', '{{ a.title }}')">معاينة</button>
@@ -3550,6 +3593,7 @@ def monthly_achievements():
                                             <div class="text-center py-2 text-muted fs-8">لا توجد إنجازات مرفوعة.</div>
                                         {% endif %}
                                     </div>
+                                    </form>
 
                                     {% if session['dept_id'] == d.id or is_admin %}
                                     <form action="/upload_achievement" method="post" enctype="multipart/form-data" class="bg-white p-2 rounded border mb-3">
@@ -3562,31 +3606,42 @@ def monthly_achievements():
                                     </form>
                                     {% endif %}
 
-                                    <div class="sub-section-title d-flex justify-content-between align-items-center">
+                                    <div class="sub-section-title d-flex justify-content-between align-items-center flex-wrap gap-1">
                                          <span><i class='bx bxs-certification ms-1'></i> شهادات الدورات التدريبية</span>
-                                         <div class="d-flex gap-1">
+                                         <div class="d-flex align-items-center gap-2 flex-wrap">
                                          {% if certificates|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
                                          <a href="/download_all_certificates/{{ d.id }}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">
                                              <i class='bx bx-download ms-1'></i> تحميل الكل
                                          </a>
                                          {% if is_admin or can_delete == 1 %}
-                                         <a href="/delete_all_certificates/{{ d.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('تأكيد حذف كل شهادات الدورات لهذه الإدارة نهائياً؟');">
-                                             <i class='bx bx-trash-alt ms-1'></i> حذف الكل
-                                         </a>
+                                         <div class="form-check form-check-inline m-0">
+                                             <input class="form-check-input" type="checkbox" id="selectAllCert_{{ d.id }}" onclick="toggleAllCheckboxes('certForm_{{ d.id }}', this)">
+                                             <label class="form-check-label fs-8" for="selectAllCert_{{ d.id }}">تحديد الكل</label>
+                                         </div>
+                                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="submitDeleteSelected('certForm_{{ d.id }}')">
+                                             <i class='bx bx-trash-alt ms-1'></i> حذف المحدد
+                                         </button>
                                          {% endif %}
                                          {% endif %}
                                          </div>
                                     </div>
+                                    <form id="certForm_{{ d.id }}" action="/delete_selected_certificates" method="post">
+                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
                                     <div class="list-group mb-3 fs-7" id="dept-certs-{{ d.id }}">
                                         {% set ns_c = namespace(found=false) %}
                                         {% for c in certificates %}
                                             {% if c.dept_id == d.id %}
                                                 {% set ns_c.found = true %}
                                                 <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent p-2">
-                                                    <div>
-                                                        <i class='bx bxs-certification text-primary fs-5 align-middle ms-1'></i>
-                                                        <strong class="text-dark fs-7">{{ c.title }}</strong>
-                                                        <span class="text-muted d-block fs-8">{{ c.uploaded_at }}</span>
+                                                    <div class="d-flex align-items-start gap-2">
+                                                        {% if is_admin or can_delete == 1 %}
+                                                        <input class="form-check-input item-checkbox mt-1" type="checkbox" name="item_ids" value="{{ c.id }}">
+                                                        {% endif %}
+                                                        <div>
+                                                            <i class='bx bxs-certification text-primary fs-5 align-middle ms-1'></i>
+                                                            <strong class="text-dark fs-7">{{ c.title }}</strong>
+                                                            <span class="text-muted d-block fs-8">{{ c.uploaded_at }}</span>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex gap-1">
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_cert_file/{{ c.id }}', '{{ c.title }}')">معاينة</button>
@@ -3602,6 +3657,7 @@ def monthly_achievements():
                                             <div class="text-center py-2 text-muted fs-8">لا توجد شهادات دورات مرفوعة.</div>
                                         {% endif %}
                                     </div>
+                                    </form>
 
                                     {% if session['dept_id'] == d.id or is_admin %}
                                     <form action="/upload_certificate" method="post" enctype="multipart/form-data" class="bg-light p-2 rounded border">
@@ -3614,31 +3670,42 @@ def monthly_achievements():
                                     </form>
                                     {% endif %}
 
-                                    <div class="sub-section-title d-flex justify-content-between align-items-center">
+                                    <div class="sub-section-title d-flex justify-content-between align-items-center flex-wrap gap-1">
                                          <span><i class='bx bxs-badge-check ms-1'></i> شواهد</span>
-                                         <div class="d-flex gap-1">
+                                         <div class="d-flex align-items-center gap-2 flex-wrap">
                                          {% if shawahid_list|selectattr('dept_id', 'equalto', d.id)|list|length > 0 %}
                                          <a href="/download_all_shawahid/{{ d.id }}" class="btn btn-sm btn-outline-dark py-0 px-2 fs-8">
                                              <i class='bx bx-download ms-1'></i> تحميل الكل
                                          </a>
                                          {% if is_admin or can_delete == 1 %}
-                                         <a href="/delete_all_shawahid/{{ d.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('تأكيد حذف كل الشواهد لهذه الإدارة نهائياً؟');">
-                                             <i class='bx bx-trash-alt ms-1'></i> حذف الكل
-                                         </a>
+                                         <div class="form-check form-check-inline m-0">
+                                             <input class="form-check-input" type="checkbox" id="selectAllShahid_{{ d.id }}" onclick="toggleAllCheckboxes('shahidForm_{{ d.id }}', this)">
+                                             <label class="form-check-label fs-8" for="selectAllShahid_{{ d.id }}">تحديد الكل</label>
+                                         </div>
+                                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="submitDeleteSelected('shahidForm_{{ d.id }}')">
+                                             <i class='bx bx-trash-alt ms-1'></i> حذف المحدد
+                                         </button>
                                          {% endif %}
                                          {% endif %}
                                          </div>
                                     </div>
+                                    <form id="shahidForm_{{ d.id }}" action="/delete_selected_shawahid" method="post">
+                                    <input type="hidden" name="dept_id" value="{{ d.id }}">
                                     <div class="list-group mb-3 fs-7" id="dept-shawahid-{{ d.id }}">
                                         {% set ns_s = namespace(found=false) %}
                                         {% for s in shawahid_list %}
                                             {% if s.dept_id == d.id %}
                                                 {% set ns_s.found = true %}
                                                 <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent p-2">
-                                                    <div>
-                                                        <i class='bx bxs-badge-check text-dark fs-5 align-middle ms-1'></i>
-                                                        <strong class="text-dark fs-7">{{ s.title }}</strong>
-                                                        <span class="text-muted d-block fs-8">{{ s.uploaded_at }}</span>
+                                                    <div class="d-flex align-items-start gap-2">
+                                                        {% if is_admin or can_delete == 1 %}
+                                                        <input class="form-check-input item-checkbox mt-1" type="checkbox" name="item_ids" value="{{ s.id }}">
+                                                        {% endif %}
+                                                        <div>
+                                                            <i class='bx bxs-badge-check text-dark fs-5 align-middle ms-1'></i>
+                                                            <strong class="text-dark fs-7">{{ s.title }}</strong>
+                                                            <span class="text-muted d-block fs-8">{{ s.uploaded_at }}</span>
+                                                        </div>
                                                     </div>
                                                     <div class="d-flex gap-1">
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_shahid_file/{{ s.id }}', '{{ s.title }}')">معاينة</button>
@@ -3654,6 +3721,7 @@ def monthly_achievements():
                                             <div class="text-center py-2 text-muted fs-8">لا توجد شواهد مرفوعة.</div>
                                         {% endif %}
                                     </div>
+                                    </form>
 
                                     {% if session['dept_id'] == d.id or is_admin %}
                                     <form action="/upload_shahid" method="post" enctype="multipart/form-data" class="bg-white p-2 rounded border">
@@ -3693,6 +3761,24 @@ def monthly_achievements():
                 document.getElementById('previewFrame').src = url;
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
+            }
+            function toggleAllCheckboxes(formId, sourceCheckbox) {
+                var form = document.getElementById(formId);
+                if (!form) return;
+                var boxes = form.querySelectorAll('.item-checkbox');
+                boxes.forEach(function (cb) { cb.checked = sourceCheckbox.checked; });
+            }
+            function submitDeleteSelected(formId) {
+                var form = document.getElementById(formId);
+                if (!form) return;
+                var checked = form.querySelectorAll('.item-checkbox:checked');
+                if (checked.length === 0) {
+                    alert('الرجاء تحديد ملف واحد على الأقل للحذف.');
+                    return;
+                }
+                if (confirm('هل أنت متأكد من حذف الملفات المحددة؟ (' + checked.length + ' ملف)')) {
+                    form.submit();
+                }
             }
             function updateNavbarHeightVar() {
     var nav = document.querySelector('.top-navbar');
@@ -3835,6 +3921,38 @@ def delete_all_achievements(dept_id):
 
     return '''<script>alert("تم حذف كل ملفات الإنجازات لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
+@app.route('/delete_selected_achievements', methods=['POST'])
+def delete_selected_achievements():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    item_ids_raw = request.form.getlist('item_ids')
+    item_ids = [int(i) for i in item_ids_raw if i.isdigit()]
+
+    if item_ids:
+        cursor.execute('SELECT file_path FROM monthly_achievements WHERE id = ANY(%s)', (item_ids,))
+        file_rows = cursor.fetchall()
+        cursor.execute('DELETE FROM monthly_achievements WHERE id = ANY(%s)', (item_ids,))
+        conn.commit()
+        for fr in file_rows:
+            if fr.get('file_path'):
+                delete_file_from_supabase(fr['file_path'])
+
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف الملفات المحددة بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
 @app.route('/delete_all_certificates/<int:dept_id>')
 def delete_all_certificates(dept_id):
     if 'dept_id' not in session:
@@ -3864,6 +3982,38 @@ def delete_all_certificates(dept_id):
             delete_file_from_supabase(fr['file_path'])
 
     return '''<script>alert("تم حذف كل شهادات الدورات لهذه الإدارة بنجاح"); window.location.href="/monthly_achievements";</script>'''
+
+@app.route('/delete_selected_certificates', methods=['POST'])
+def delete_selected_certificates():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+    is_admin = is_admin_user(session.get('dept_name'))
+
+    if current_dept['can_delete'] != 1 and not is_admin:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
+
+    item_ids_raw = request.form.getlist('item_ids')
+    item_ids = [int(i) for i in item_ids_raw if i.isdigit()]
+
+    if item_ids:
+        cursor.execute('SELECT file_path FROM course_certificates WHERE id = ANY(%s)', (item_ids,))
+        file_rows = cursor.fetchall()
+        cursor.execute('DELETE FROM course_certificates WHERE id = ANY(%s)', (item_ids,))
+        conn.commit()
+        for fr in file_rows:
+            if fr.get('file_path'):
+                delete_file_from_supabase(fr['file_path'])
+
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف الملفات المحددة بنجاح"); window.location.href="/monthly_achievements";</script>'''
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
