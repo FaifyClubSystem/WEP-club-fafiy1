@@ -605,25 +605,28 @@ def upload_achievement():
         
     dept_id = request.form.get('dept_id')
     title = request.form.get('title')
-    file = request.files.get('file')
+    files = request.files.getlist('file')
     
     is_admin = is_admin_user(session.get('dept_name'))
     if str(session['dept_id']) != str(dept_id) and not is_admin:
         return '''<script>alert("غير مسموح لك برفع إنجازات لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
-    if file and file.filename != '':
+    valid_files = [f for f in files if f and f.filename != '']
+    if valid_files:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT username FROM departments WHERE id = %s', (dept_id,))
         dept_row = cursor.fetchone()
         dept_folder = dept_row['username'] if dept_row else f"dept_{dept_id}"
 
-        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='achievements', dept_folder=dept_folder)
+        for file in valid_files:
+            original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='achievements', dept_folder=dept_folder)
+            file_title = f"{title} - {original_name}" if len(valid_files) > 1 else title
 
-        cursor.execute('''
-            INSERT INTO monthly_achievements (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (dept_id, title, original_name, storage_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+            cursor.execute('''
+                INSERT INTO monthly_achievements (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (dept_id, file_title, original_name, storage_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
         conn.commit()
         cursor.close()
         conn.close()
@@ -637,25 +640,28 @@ def upload_certificate():
         
     dept_id = request.form.get('dept_id')
     title = request.form.get('title')
-    file = request.files.get('file')
+    files = request.files.getlist('file')
     
     is_admin = is_admin_user(session.get('dept_name'))
     if str(session['dept_id']) != str(dept_id) and not is_admin:
         return '''<script>alert("غير مسموح لك برفع شهادات دورات لهذه الإدارة."); window.location.href="/monthly_achievements";</script>'''
     
-    if file and file.filename != '':
+    valid_files = [f for f in files if f and f.filename != '']
+    if valid_files:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT username FROM departments WHERE id = %s', (dept_id,))
         dept_row = cursor.fetchone()
         dept_folder = dept_row['username'] if dept_row else f"dept_{dept_id}"
 
-        original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='certificates', dept_folder=dept_folder)
+        for file in valid_files:
+            original_name, storage_path, file_mimetype = upload_file_to_supabase(file, subfolder='certificates', dept_folder=dept_folder)
+            file_title = f"{title} - {original_name}" if len(valid_files) > 1 else title
 
-        cursor.execute('''
-            INSERT INTO course_certificates (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (dept_id, title, original_name, storage_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
+            cursor.execute('''
+                INSERT INTO course_certificates (dept_id, title, file_name, file_path, file_mimetype, uploaded_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (dept_id, file_title, original_name, storage_path, file_mimetype, datetime.now().strftime('%Y-%m-%d %H:%M')))
         conn.commit()
         cursor.close()
         conn.close()
@@ -3290,7 +3296,7 @@ def monthly_achievements():
                                         <input type="hidden" name="dept_id" value="{{ d.id }}">
                                         <div class="d-flex flex-column flex-sm-row gap-2">
                                             <input type="text" name="title" class="form-control fs-8" placeholder="عنوان الإنجاز..." required>
-                                            <input type="file" name="file" class="form-control fs-8" required>
+                                            <input type="file" name="file" class="form-control fs-8" multiple required>
                                             <button class="btn btn-fifa-gold fs-8 text-nowrap" type="submit">رفع إنجاز</button>
                                         </div>
                                     </form>
@@ -3342,7 +3348,7 @@ def monthly_achievements():
                                         <input type="hidden" name="dept_id" value="{{ d.id }}">
                                         <div class="d-flex flex-column flex-sm-row gap-2">
                                             <input type="text" name="title" class="form-control fs-8" placeholder="عنوان أو اسم شهادة الدورة..." required>
-                                            <input type="file" name="file" class="form-control fs-8" required>
+                                            <input type="file" name="file" class="form-control fs-8" multiple required>
                                             <button class="btn btn-primary fs-8 text-nowrap" type="submit">رفع شهادة</button>
                                         </div>
                                     </form>
