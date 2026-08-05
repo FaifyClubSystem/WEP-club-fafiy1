@@ -2037,8 +2037,8 @@ DASHBOARD_HTML = '''
                     <!-- شريط أدوات التنسيق وتكبير/تصغير الخط للنص المحدد -->
                     <div class="paper-toolbar">
                         <span class="fw-bold fs-8 text-muted me-1"><i class='bx bx-font'></i> تنسيق الخط المحدد:</span>
-                        <button type="button" onclick="changeFontSize(1)" title="تكبير النص المحدد"><i class='bx bx-font-plus fs-6'></i> A+</button>
-                        <button type="button" onclick="changeFontSize(-1)" title="تصغير النص المحدد"><i class='bx bx-font-minus fs-6'></i> A-</button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="changeFontSize(1)" title="تكبير النص المحدد"><i class='bx bx-font-plus fs-6'></i> A+</button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="changeFontSize(-1)" title="تصغير النص المحدد"><i class='bx bx-font-minus fs-6'></i> A-</button>
                         <span id="currentFontSizeLabel" class="badge bg-light text-dark border fs-8">18px</span>
                         
                         <div class="vr mx-1"></div>
@@ -2053,16 +2053,16 @@ DASHBOARD_HTML = '''
  
                         <div class="vr mx-1"></div>
  
-                        <button type="button" onclick="formatDoc('bold')" title="تغميق (Bold)"><i class='bx bx-bold fs-6'></i></button>
-                        <button type="button" onclick="formatDoc('underline')" title="تحته خط"><i class='bx bx-underline fs-6'></i></button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="formatDoc('bold')" title="تغميق (Bold)"><i class='bx bx-bold fs-6'></i></button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="formatDoc('underline')" title="تحته خط"><i class='bx bx-underline fs-6'></i></button>
                         <input type="color" id="textColorPicker" onchange="formatDoc('foreColor', this.value)" title="لون الخط" style="width: 32px; height: 28px; padding: 2px;">
  
                         <div class="vr mx-1"></div>
  
-                        <button type="button" onclick="formatDoc('justifyRight')" title="محاذاة لليمين"><i class='bx bx-align-right fs-6'></i></button>
-                        <button type="button" onclick="formatDoc('justifyCenter')" title="محاذاة للوسط"><i class='bx bx-align-middle fs-6'></i></button>
-                        <button type="button" onclick="formatDoc('justifyLeft')" title="محاذاة لليصار"><i class='bx bx-align-left fs-6'></i></button>
-                        <button type="button" onclick="formatDoc('justifyFull')" title="ضبط المحاذاة"><i class='bx bx-align-justify fs-6'></i></button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="formatDoc('justifyRight')" title="محاذاة لليمين"><i class='bx bx-align-right fs-6'></i></button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="formatDoc('justifyCenter')" title="محاذاة للوسط"><i class='bx bx-align-middle fs-6'></i></button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="formatDoc('justifyLeft')" title="محاذاة لليصار"><i class='bx bx-align-left fs-6'></i></button>
+                        <button type="button" onmousedown="event.preventDefault()" onclick="formatDoc('justifyFull')" title="ضبط المحاذاة"><i class='bx bx-align-justify fs-6'></i></button>
  
                         <div class="vr mx-1"></div>
  
