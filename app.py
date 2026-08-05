@@ -2182,7 +2182,7 @@ DASHBOARD_HTML = '''
                             {% endif %}
 
                             <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
-                                <i class='bx bxs-folder-open' style="color: var(--fifa-gold);"></i> أرشيفي الخاص
+                                <i class='bx bxs-folder-open' style="color: var(--fifa-gold);"></i> أرشيفي الخاص رفع فوري
                                 <span class="badge bg-success">{{ own_letters|length }}</span>
                             </h6>
                             <div class="letters-list mb-4">
