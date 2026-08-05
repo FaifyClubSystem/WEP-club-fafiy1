@@ -1547,7 +1547,7 @@ DASHBOARD_HTML = '''
                 data-letter-number="{{ letter.letter_number or '' }}"
                 data-sender-name="{{ letter.sender_name|e if letter.sender_name else '' }}"
                 data-date="{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}"
-                onclick="{% if current_page == 'inbox' %}openQuickReply(this){% else %}loadLetterToEditor(this){% endif %}">
+                onclick="{% if current_page == 'inbox' %}{% if letter.content %}loadLetterToEditor(this){% else %}openQuickReply(this){% endif %}{% else %}loadLetterToEditor(this){% endif %}">
                 {% if current_page == 'inbox' %}
                 <i class='bx bx-reply ms-1'></i> رد
                 {% else %}
@@ -2848,13 +2848,8 @@ window.addEventListener('resize', updateNavbarHeightVar);
                 if (title && title.indexOf('رد:') !== 0) {
                     document.getElementById('letterTitleInput').value = 'رد: ' + title;
                 }
-                // أسلوب الرد على إيميل: محرر فاضي لكتابة الرد، مع اقتباس الرسالة الأصلية أسفله
-                var quoteHeader = 'بتاريخ ' + letterDate + (senderName ? '، كتب ' + senderName : '') + ':';
-                contentHTML = '<p><br></p>'
-                    + '<div style="border-right: 3px solid #c5a059; padding-right: 12px; margin-top: 10px; color: #555;">'
-                    + '<p style="font-weight:bold; margin-bottom:6px;">' + quoteHeader + '</p>'
-                    + contentHTML
-                    + '</div>';
+                // صفحة أولى فاضية لكتابة نص الرد + صفحة ثانية فيها الخطاب المستقبل الأصلي كاملاً كمرجع
+                contentHTML = '' + '<!--PAGE_BREAK-->' + contentHTML;
             }
  
             document.getElementById('letterContentInput').value = contentHTML;
