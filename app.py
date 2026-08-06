@@ -5161,9 +5161,11 @@ def admin_permissions():
                                     <input type="password" name="new_password" class="form-control fs-8" placeholder="كلمة مرور جديدة...">
                                 </div>
                                 {% if d.is_locked == 1 %}
-                                <div class="form-check form-switch fs-7 mb-3 bg-light border border-danger rounded p-2">
-                                    <input class="form-check-input" type="checkbox" name="unlock_account">
-                                    <label class="form-check-label text-danger fw-bold">فتح القفل عن هذا الحساب (مقفل حالياً بعد 5 محاولات دخول خاطئة)</label>
+                                <div class="mb-3 bg-light border border-danger rounded p-2">
+                                    <div class="form-check form-switch fs-7 m-0">
+                                        <input class="form-check-input" type="checkbox" name="unlock_account" id="unlockCheck_{{ d.id }}">
+                                        <label class="form-check-label text-danger fw-bold" for="unlockCheck_{{ d.id }}">فتح القفل عن هذا الحساب (مقفل حالياً بعد 5 محاولات دخول خاطئة)</label>
+                                    </div>
                                 </div>
                                 {% endif %}
  
