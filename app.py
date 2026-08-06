@@ -1546,9 +1546,9 @@ DASHBOARD_HTML = '''
         <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
         <div class="w-100">
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
-                <span class="fw-bold text-dark fs-6">{{ letter.title }}</span>
+                <span class="fw-bold text-dark fs-6"><bdi>{{ letter.title }}</bdi></span>
                 {% if current_page == 'inbox' and letter.is_read == 0 %}<span class="badge bg-danger">جديد</span>{% endif %}
-                <small class="text-muted fs-8">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
+                <small class="text-muted fs-8" dir="ltr">{{ letter.created_at.split(' ')[0] if letter.created_at else '' }}</small>
             </div>
             {% if letter.content %}<div class="text-secondary small mb-2 d-none" id="letter-text-{{ letter.id }}">{{ letter.content|safe }}</div>{% endif %}
             <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
@@ -3871,8 +3871,8 @@ def monthly_achievements():
                                                         {% endif %}
                                                         <div>
                                                             <i class='bx bxs-file-pdf text-danger fs-5 align-middle ms-1'></i>
-                                                            <strong class="text-dark fs-7">{{ a.title }}</strong>
-                                                            <span class="text-muted d-block fs-8">{{ a.uploaded_at }}</span>
+                                                            <strong class="text-dark fs-7"><bdi>{{ a.title }}</bdi></strong>
+                                                            <span class="text-muted d-block fs-8" dir="ltr">{{ a.uploaded_at }}</span>
                                                         </div>
                                                     </div>
                                                     <div class="d-flex gap-1">
@@ -3935,8 +3935,8 @@ def monthly_achievements():
                                                         {% endif %}
                                                         <div>
                                                             <i class='bx bxs-certification text-primary fs-5 align-middle ms-1'></i>
-                                                            <strong class="text-dark fs-7">{{ c.title }}</strong>
-                                                            <span class="text-muted d-block fs-8">{{ c.uploaded_at }}</span>
+                                                            <strong class="text-dark fs-7"><bdi>{{ c.title }}</bdi></strong>
+                                                            <span class="text-muted d-block fs-8" dir="ltr">{{ c.uploaded_at }}</span>
                                                         </div>
                                                     </div>
                                                     <div class="d-flex gap-1">
@@ -3999,8 +3999,8 @@ def monthly_achievements():
                                                         {% endif %}
                                                         <div>
                                                             <i class='bx bxs-badge-check text-dark fs-5 align-middle ms-1'></i>
-                                                            <strong class="text-dark fs-7">{{ s.title }}</strong>
-                                                            <span class="text-muted d-block fs-8">{{ s.uploaded_at }}</span>
+                                                            <strong class="text-dark fs-7"><bdi>{{ s.title }}</bdi></strong>
+                                                            <span class="text-muted d-block fs-8" dir="ltr">{{ s.uploaded_at }}</span>
                                                         </div>
                                                     </div>
                                                     <div class="d-flex gap-1">
@@ -4569,7 +4569,7 @@ def admin_dashboard():
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for l in stat.inbox_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
-                                                <span><i class='bx bxs-envelope text-secondary ms-1'></i> {{ l.title }} <small class="text-muted">({{ l.created_at }}) - من: {{ l.sender_name or '-' }}</small></span>
+                                                <span><i class='bx bxs-envelope text-secondary ms-1'></i> <bdi>{{ l.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ l.created_at }}</bdi>) - من: {{ l.sender_name or '-' }}</small></span>
                                                 {% if l.file_path or l.file_data %}
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ l.id }}', '{{ l.title }}')">معاينة</button>
@@ -4599,7 +4599,7 @@ def admin_dashboard():
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for l in stat.outbox_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
-                                                <span><i class='bx bxs-send text-primary ms-1'></i> {{ l.title }} <small class="text-muted">({{ l.created_at }}) - إلى: {{ l.receiver_name or '-' }}</small></span>
+                                                <span><i class='bx bxs-send text-primary ms-1'></i> <bdi>{{ l.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ l.created_at }}</bdi>) - إلى: {{ l.receiver_name or '-' }}</small></span>
                                                 {% if l.file_path or l.file_data %}
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ l.id }}', '{{ l.title }}')">معاينة</button>
@@ -4629,7 +4629,7 @@ def admin_dashboard():
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for l in stat.archive_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
-                                                <span><i class='bx bxs-file-archive text-success ms-1'></i> {{ l.title }} <small class="text-muted">({{ l.created_at }})</small></span>
+                                                <span><i class='bx bxs-file-archive text-success ms-1'></i> <bdi>{{ l.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ l.created_at }}</bdi>)</small></span>
                                                 {% if l.file_path or l.file_data %}
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_letter_file/{{ l.id }}', '{{ l.title }}')">معاينة</button>
@@ -4666,7 +4666,7 @@ def admin_dashboard():
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for ach in stat.ach_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
-                                                <span><i class='bx bxs-file-pdf text-danger ms-1'></i> {{ ach.title }} <small class="text-muted">({{ ach.uploaded_at }})</small></span>
+                                                <span><i class='bx bxs-file-pdf text-danger ms-1'></i> <bdi>{{ ach.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ ach.uploaded_at }}</bdi>)</small></span>
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_ach_file/{{ ach.id }}', '{{ ach.title }}')">معاينة</button>
                                                     <a href="/download_ach_file/{{ ach.id }}" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تنزيل</a>
@@ -4701,7 +4701,7 @@ def admin_dashboard():
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for cert in stat.cert_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
-                                                <span><i class='bx bxs-file-pdf text-primary ms-1'></i> {{ cert.title }} <small class="text-muted">({{ cert.uploaded_at }})</small></span>
+                                                <span><i class='bx bxs-file-pdf text-primary ms-1'></i> <bdi>{{ cert.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ cert.uploaded_at }}</bdi>)</small></span>
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_cert_file/{{ cert.id }}', '{{ cert.title }}')">معاينة</button>
                                                     <a href="/download_cert_file/{{ cert.id }}" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">تنزيل</a>
@@ -4737,7 +4737,7 @@ def admin_dashboard():
                                         <ul class="list-unstyled mb-0 fs-8 mt-2">
                                             {% for sh in stat.shahid_files %}
                                             <li class="d-flex justify-content-between align-items-center mb-1 bg-white p-2 rounded border">
-                                                <span><i class='bx bxs-badge-check text-dark ms-1'></i> {{ sh.title }} <small class="text-muted">({{ sh.uploaded_at }})</small></span>
+                                                <span><i class='bx bxs-badge-check text-dark ms-1'></i> <bdi>{{ sh.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ sh.uploaded_at }}</bdi>)</small></span>
                                                 <div class="d-flex gap-1">
                                                     <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_shahid_file/{{ sh.id }}', '{{ sh.title }}')">معاينة</button>
                                                     <a href="/download_shahid_file/{{ sh.id }}" class="btn btn-sm btn-outline-dark py-0 px-2 fs-8">تنزيل</a>
