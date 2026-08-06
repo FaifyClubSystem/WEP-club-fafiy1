@@ -310,7 +310,7 @@ def download_archive_zip():
 
     scope = request.args.get('scope', 'own')  # own = أرشيفي فقط | all = كل الأرشيف
 
-    if scope == 'all' and (is_admin or current_dept['can_view_all_archive'] == 1):
+    if scope == 'all' and current_dept['can_view_all_archive'] == 1:
         cursor.execute('''
             SELECT * FROM letters 
             WHERE (sender_id = receiver_id AND sender_id IS NOT NULL) OR (sender_id IS NULL AND receiver_id IS NULL)
@@ -666,7 +666,7 @@ def delete_shahid(shahid_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -695,7 +695,7 @@ def delete_all_shawahid(dept_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -725,7 +725,7 @@ def delete_selected_shawahid():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -757,7 +757,7 @@ def delete_letter(letter_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
     
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
@@ -786,7 +786,7 @@ def delete_selected_letters():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
     
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
@@ -796,7 +796,7 @@ def delete_selected_letters():
     dept_id = session['dept_id']
 
     if action_type == 'all':
-        if current_dept['can_view_all_archive'] == 1 or is_admin:
+        if current_dept['can_view_all_archive'] == 1:
             cursor.execute('''
                 DELETE FROM letters 
                 WHERE (sender_id = receiver_id AND sender_id IS NOT NULL) OR (sender_id IS NULL AND receiver_id IS NULL)
@@ -1103,7 +1103,7 @@ def register():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
     
-    if current_dept['can_add_user'] != 1 and not is_admin:
+    if current_dept['can_add_user'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك الصلاحية لإضافة إدارة أو مستخدم جديد."); window.location.href="/dashboard";</script>'''
@@ -1225,7 +1225,7 @@ def register():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                {% if current_dept['can_add_user'] == 1 %}
                 <a href="/register" class="sidebar-link active"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -1437,7 +1437,7 @@ def suggestions():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                {% if current_dept['can_add_user'] == 1 %}
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -1540,7 +1540,7 @@ DASHBOARD_HTML = '''
 {% macro render_letter_item(letter) %}
 <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
     <div class="d-flex align-items-start gap-2 w-100">
-        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+        {% if current_page == 'archive' and can_delete == 1 %}
             <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
         {% endif %}
         <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
@@ -1601,7 +1601,7 @@ DASHBOARD_HTML = '''
             <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
         {% endif %}
         <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
-        {% if can_delete == 1 or is_admin %}
+        {% if can_delete == 1 %}
             <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
         {% endif %}
     </div>
@@ -2019,7 +2019,7 @@ DASHBOARD_HTML = '''
             <a href="/admin/dashboard" class="sidebar-link {{ 'active' if current_page == 'admin_dashboard' else '' }}" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
             <a href="/admin/permissions" class="sidebar-link {{ 'active' if current_page == 'permissions' else '' }}"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
             {% endif %}
-            {% if can_add_user == 1 or is_admin %}
+            {% if can_add_user == 1 %}
             <a href="/register" class="sidebar-link {{ 'active' if current_page == 'register' else '' }}"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
             {% endif %}
             <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -2051,7 +2051,7 @@ DASHBOARD_HTML = '''
                         <a href="/download_archive_zip?scope=own" class="btn btn-success d-flex align-items-center gap-2 shadow-sm fw-bold">
                             <i class='bx bx-download fs-5'></i> تحميل الكل (أرشيفي)
                         </a>
-                        {% if is_admin or can_view_all_archive == 1 %}
+                        {% if can_view_all_archive == 1 %}
                         <a href="/download_archive_zip?scope=all" class="btn btn-outline-success d-flex align-items-center gap-2 shadow-sm fw-bold">
                             <i class='bx bx-download fs-5'></i> تحميل كل الأرشيف
                         </a>
@@ -2244,7 +2244,7 @@ DASHBOARD_HTML = '''
 <div class="modern-card p-2 p-sm-3">
                     {% if current_page == 'archive' and is_admin and own_letters is not none %}
                         {% if own_letters or other_letters or own_monthly_letters or other_monthly_letters %}
-                            {% if can_delete == 1 or is_admin %}
+                            {% if can_delete == 1 %}
                             <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
                                 <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
@@ -2311,7 +2311,7 @@ DASHBOARD_HTML = '''
                                 {% endif %}
                             </div>
 
-                            {% if can_delete == 1 or is_admin %}
+                            {% if can_delete == 1 %}
                             </form>
                             {% endif %}
                         {% else %}
@@ -2320,7 +2320,7 @@ DASHBOARD_HTML = '''
 
                     {% else %}
                         {% if letters or monthly_letters %}
-                            {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                            {% if current_page == 'archive' and can_delete == 1 %}
                             <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
                                 <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
@@ -2361,7 +2361,7 @@ DASHBOARD_HTML = '''
                                 {% for letter in letters %}{{ render_letter_item(letter) }}{% endfor %}
                             </div>
 
-                            {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
+                            {% if current_page == 'archive' and can_delete == 1 %}
                             </form>
                             {% endif %}
                         {% else %}
@@ -3327,43 +3327,43 @@ def archive():
     own_letters = None
     other_letters = None
 
-    if is_admin:
-        cursor.execute('''
-            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
-            FROM letters l 
-            LEFT JOIN departments s ON l.sender_id = s.id 
-            LEFT JOIN departments r ON l.receiver_id = r.id 
-            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
-            WHERE (l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s)
-            ORDER BY l.id DESC
-        ''', (dept_id, dept_id))
-        own_letters = cursor.fetchall()
+    if current_dept['can_view_all_archive'] == 1:
+        if is_admin:
+            cursor.execute('''
+                SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+                FROM letters l 
+                LEFT JOIN departments s ON l.sender_id = s.id 
+                LEFT JOIN departments r ON l.receiver_id = r.id 
+                LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+                WHERE (l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s)
+                ORDER BY l.id DESC
+            ''', (dept_id, dept_id))
+            own_letters = cursor.fetchall()
 
-        cursor.execute('''
-            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
-            FROM letters l 
-            LEFT JOIN departments s ON l.sender_id = s.id 
-            LEFT JOIN departments r ON l.receiver_id = r.id 
-            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
-            WHERE ((l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL AND l.sender_id != %s)
-                OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND (l.archive_dept_id IS NULL OR l.archive_dept_id != %s)))
-            ORDER BY l.id DESC
-        ''', (dept_id, dept_id))
-        other_letters = cursor.fetchall()
+            cursor.execute('''
+                SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+                FROM letters l 
+                LEFT JOIN departments s ON l.sender_id = s.id 
+                LEFT JOIN departments r ON l.receiver_id = r.id 
+                LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+                WHERE ((l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL AND l.sender_id != %s)
+                    OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND (l.archive_dept_id IS NULL OR l.archive_dept_id != %s)))
+                ORDER BY l.id DESC
+            ''', (dept_id, dept_id))
+            other_letters = cursor.fetchall()
 
-        letters = own_letters + other_letters
-
-    elif current_dept['can_view_all_archive'] == 1:
-        cursor.execute('''
-            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
-            FROM letters l 
-            LEFT JOIN departments s ON l.sender_id = s.id 
-            LEFT JOIN departments r ON l.receiver_id = r.id 
-            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
-            WHERE (l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL) OR (l.sender_id IS NULL AND l.receiver_id IS NULL)
-            ORDER BY l.id DESC
-        ''')
-        letters = cursor.fetchall()
+            letters = own_letters + other_letters
+        else:
+            cursor.execute('''
+                SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+                FROM letters l 
+                LEFT JOIN departments s ON l.sender_id = s.id 
+                LEFT JOIN departments r ON l.receiver_id = r.id 
+                LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+                WHERE (l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL) OR (l.sender_id IS NULL AND l.receiver_id IS NULL)
+                ORDER BY l.id DESC
+            ''')
+            letters = cursor.fetchall()
     else:
         cursor.execute('''
             SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
@@ -3395,7 +3395,7 @@ def archive():
     other_monthly_letters = None
     monthly_letters = None
 
-    if is_admin:
+    if own_letters is not None:
         own_monthly_letters, own_letters = split_monthly(own_letters)
         other_monthly_letters, other_letters = split_monthly(other_letters)
     else:
@@ -3576,7 +3576,7 @@ def quick_upload():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                {% if current_dept['can_add_user'] == 1 %}
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -3681,7 +3681,7 @@ def monthly_achievements():
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة إنجازات الشهر."); window.location.href="/dashboard";</script>'''
     
-    can_view_all_ach = current_dept['can_view_all_achievements'] == 1 or is_admin
+    can_view_all_ach = current_dept['can_view_all_achievements'] == 1
 
     if can_view_all_ach:
         cursor.execute('SELECT * FROM departments')
@@ -3812,7 +3812,7 @@ def monthly_achievements():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 or is_admin %}
+                {% if current_dept['can_add_user'] == 1 %}
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -4140,7 +4140,7 @@ def delete_achievement(ach_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4169,7 +4169,7 @@ def delete_certificate(cert_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4198,7 +4198,7 @@ def delete_all_achievements(dept_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4228,7 +4228,7 @@ def delete_selected_achievements():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4260,7 +4260,7 @@ def delete_all_certificates(dept_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4290,7 +4290,7 @@ def delete_selected_certificates():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1 and not is_admin:
+    if current_dept['can_delete'] != 1:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
