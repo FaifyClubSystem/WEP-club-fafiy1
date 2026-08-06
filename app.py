@@ -310,7 +310,7 @@ def download_archive_zip():
 
     scope = request.args.get('scope', 'own')  # own = أرشيفي فقط | all = كل الأرشيف
 
-    if scope == 'all' and current_dept['can_view_all_archive'] == 1:
+    if scope == 'all' and (is_admin or current_dept['can_view_all_archive'] == 1):
         cursor.execute('''
             SELECT * FROM letters 
             WHERE (sender_id = receiver_id AND sender_id IS NOT NULL) OR (sender_id IS NULL AND receiver_id IS NULL)
@@ -666,7 +666,7 @@ def delete_shahid(shahid_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -695,7 +695,7 @@ def delete_all_shawahid(dept_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -725,7 +725,7 @@ def delete_selected_shawahid():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -757,7 +757,7 @@ def delete_letter(letter_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
     
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
@@ -786,7 +786,7 @@ def delete_selected_letters():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
     
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.history.back();</script>'''
@@ -796,7 +796,7 @@ def delete_selected_letters():
     dept_id = session['dept_id']
 
     if action_type == 'all':
-        if current_dept['can_view_all_archive'] == 1:
+        if current_dept['can_view_all_archive'] == 1 or is_admin:
             cursor.execute('''
                 DELETE FROM letters 
                 WHERE (sender_id = receiver_id AND sender_id IS NOT NULL) OR (sender_id IS NULL AND receiver_id IS NULL)
@@ -1103,7 +1103,7 @@ def register():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
     
-    if current_dept['can_add_user'] != 1:
+    if current_dept['can_add_user'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك الصلاحية لإضافة إدارة أو مستخدم جديد."); window.location.href="/dashboard";</script>'''
@@ -1225,7 +1225,7 @@ def register():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
                 <a href="/register" class="sidebar-link active"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -1437,7 +1437,7 @@ def suggestions():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -1540,7 +1540,7 @@ DASHBOARD_HTML = '''
 {% macro render_letter_item(letter) %}
 <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
     <div class="d-flex align-items-start gap-2 w-100">
-        {% if current_page == 'archive' and can_delete == 1 %}
+        {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
             <input class="form-check-input letter-checkbox mt-2" type="checkbox" name="letter_ids" value="{{ letter.id }}" form="bulkDeleteForm">
         {% endif %}
         <i class='bx bxs-file-archive fs-3 text-success mt-1 d-none d-sm-block'></i>
@@ -1601,7 +1601,7 @@ DASHBOARD_HTML = '''
             <a href="/download_letter_file/{{ letter.id }}" class="btn btn-sm btn-outline-success py-1 px-2 fs-7">تحميل</a>
         {% endif %}
         <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
-        {% if can_delete == 1 %}
+        {% if can_delete == 1 or is_admin %}
             <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
         {% endif %}
     </div>
@@ -2019,7 +2019,7 @@ DASHBOARD_HTML = '''
             <a href="/admin/dashboard" class="sidebar-link {{ 'active' if current_page == 'admin_dashboard' else '' }}" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
             <a href="/admin/permissions" class="sidebar-link {{ 'active' if current_page == 'permissions' else '' }}"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
             {% endif %}
-            {% if can_add_user == 1 %}
+            {% if can_add_user == 1 or is_admin %}
             <a href="/register" class="sidebar-link {{ 'active' if current_page == 'register' else '' }}"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
             {% endif %}
             <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -2051,7 +2051,7 @@ DASHBOARD_HTML = '''
                         <a href="/download_archive_zip?scope=own" class="btn btn-success d-flex align-items-center gap-2 shadow-sm fw-bold">
                             <i class='bx bx-download fs-5'></i> تحميل الكل (أرشيفي)
                         </a>
-                        {% if can_view_all_archive == 1 %}
+                        {% if is_admin or can_view_all_archive == 1 %}
                         <a href="/download_archive_zip?scope=all" class="btn btn-outline-success d-flex align-items-center gap-2 shadow-sm fw-bold">
                             <i class='bx bx-download fs-5'></i> تحميل كل الأرشيف
                         </a>
@@ -2097,6 +2097,7 @@ DASHBOARD_HTML = '''
                         <div class="vr mx-1"></div>
  
                         <button type="button" onclick="addNewPage()" title="إضافة صفحة ثانية لإكمال الخطاب" style="background:#123826; color:#fff;"><i class='bx bx-file-plus fs-6'></i> صفحة جديدة</button>
+                        <button type="button" id="removePageBtnToolbar" onclick="removeLastPage()" title="حذف آخر صفحة مضافة" style="background:#dc3545; color:#fff; display:none;"><i class='bx bx-file-minus fs-6'></i> حذف الصفحة</button>
  
                     </div>
  
@@ -2244,7 +2245,7 @@ DASHBOARD_HTML = '''
 <div class="modern-card p-2 p-sm-3">
                     {% if current_page == 'archive' and is_admin and own_letters is not none %}
                         {% if own_letters or other_letters or own_monthly_letters or other_monthly_letters %}
-                            {% if can_delete == 1 %}
+                            {% if can_delete == 1 or is_admin %}
                             <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
                                 <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
@@ -2311,7 +2312,7 @@ DASHBOARD_HTML = '''
                                 {% endif %}
                             </div>
 
-                            {% if can_delete == 1 %}
+                            {% if can_delete == 1 or is_admin %}
                             </form>
                             {% endif %}
                         {% else %}
@@ -2320,7 +2321,7 @@ DASHBOARD_HTML = '''
 
                     {% else %}
                         {% if letters or monthly_letters %}
-                            {% if current_page == 'archive' and can_delete == 1 %}
+                            {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
                             <form id="bulkDeleteForm" action="/delete_selected_letters" method="post">
                                 <input type="hidden" name="action_type" id="actionTypeInput" value="selected">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
@@ -2361,7 +2362,7 @@ DASHBOARD_HTML = '''
                                 {% for letter in letters %}{{ render_letter_item(letter) }}{% endfor %}
                             </div>
 
-                            {% if current_page == 'archive' and can_delete == 1 %}
+                            {% if current_page == 'archive' and (can_delete == 1 or is_admin) %}
                             </form>
                             {% endif %}
                         {% else %}
@@ -2505,14 +2506,36 @@ DASHBOARD_HTML = '''
             removeBtn.onclick = function () {
                 clone.remove();
                 renumberPages();
+                updateRemovePageBtnVisibility();
                 syncTextareaWithPaper();
             };
             clone.appendChild(removeBtn);
 
             container.appendChild(clone);
             renumberPages();
+            updateRemovePageBtnVisibility();
             syncTextareaWithPaper();
             clone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function removeLastPage() {
+            var container = document.querySelector('.word-paper-container');
+            if (!container) return;
+            var extraPages = container.querySelectorAll('.word-paper.extra-page');
+            if (extraPages.length === 0) return;
+            var lastPage = extraPages[extraPages.length - 1];
+            lastPage.remove();
+            renumberPages();
+            updateRemovePageBtnVisibility();
+            syncTextareaWithPaper();
+        }
+
+        function updateRemovePageBtnVisibility() {
+            var container = document.querySelector('.word-paper-container');
+            var btn = document.getElementById('removePageBtnToolbar');
+            if (!container || !btn) return;
+            var extraPages = container.querySelectorAll('.word-paper.extra-page');
+            btn.style.display = extraPages.length > 0 ? 'inline-flex' : 'none';
         }
 
         function renumberPages() {
@@ -2604,6 +2627,7 @@ DASHBOARD_HTML = '''
             // إزالة أي صفحات إضافية سابقة قبل إعادة البناء
             document.querySelectorAll('.word-paper.extra-page').forEach(function (p) { p.remove(); });
             pageCounter = 1;
+            updateRemovePageBtnVisibility();
 
             var paperBody = document.getElementById('paperBodyText');
             if (!paperBody) return;
@@ -3327,43 +3351,43 @@ def archive():
     own_letters = None
     other_letters = None
 
-    if current_dept['can_view_all_archive'] == 1:
-        if is_admin:
-            cursor.execute('''
-                SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
-                FROM letters l 
-                LEFT JOIN departments s ON l.sender_id = s.id 
-                LEFT JOIN departments r ON l.receiver_id = r.id 
-                LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
-                WHERE (l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s)
-                ORDER BY l.id DESC
-            ''', (dept_id, dept_id))
-            own_letters = cursor.fetchall()
+    if is_admin:
+        cursor.execute('''
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+            FROM letters l 
+            LEFT JOIN departments s ON l.sender_id = s.id 
+            LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+            WHERE (l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s)
+            ORDER BY l.id DESC
+        ''', (dept_id, dept_id))
+        own_letters = cursor.fetchall()
 
-            cursor.execute('''
-                SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
-                FROM letters l 
-                LEFT JOIN departments s ON l.sender_id = s.id 
-                LEFT JOIN departments r ON l.receiver_id = r.id 
-                LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
-                WHERE ((l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL AND l.sender_id != %s)
-                    OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND (l.archive_dept_id IS NULL OR l.archive_dept_id != %s)))
-                ORDER BY l.id DESC
-            ''', (dept_id, dept_id))
-            other_letters = cursor.fetchall()
+        cursor.execute('''
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+            FROM letters l 
+            LEFT JOIN departments s ON l.sender_id = s.id 
+            LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+            WHERE ((l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL AND l.sender_id != %s)
+                OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND (l.archive_dept_id IS NULL OR l.archive_dept_id != %s)))
+            ORDER BY l.id DESC
+        ''', (dept_id, dept_id))
+        other_letters = cursor.fetchall()
 
-            letters = own_letters + other_letters
-        else:
-            cursor.execute('''
-                SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
-                FROM letters l 
-                LEFT JOIN departments s ON l.sender_id = s.id 
-                LEFT JOIN departments r ON l.receiver_id = r.id 
-                LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
-                WHERE (l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL) OR (l.sender_id IS NULL AND l.receiver_id IS NULL)
-                ORDER BY l.id DESC
-            ''')
-            letters = cursor.fetchall()
+        letters = own_letters + other_letters
+
+    elif current_dept['can_view_all_archive'] == 1:
+        cursor.execute('''
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+            FROM letters l 
+            LEFT JOIN departments s ON l.sender_id = s.id 
+            LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+            WHERE (l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL) OR (l.sender_id IS NULL AND l.receiver_id IS NULL)
+            ORDER BY l.id DESC
+        ''')
+        letters = cursor.fetchall()
     else:
         cursor.execute('''
             SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
@@ -3395,7 +3419,7 @@ def archive():
     other_monthly_letters = None
     monthly_letters = None
 
-    if own_letters is not None:
+    if is_admin:
         own_monthly_letters, own_letters = split_monthly(own_letters)
         other_monthly_letters, other_letters = split_monthly(other_letters)
     else:
@@ -3576,7 +3600,7 @@ def quick_upload():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -3681,7 +3705,7 @@ def monthly_achievements():
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الوصول لصفحة إنجازات الشهر."); window.location.href="/dashboard";</script>'''
     
-    can_view_all_ach = current_dept['can_view_all_achievements'] == 1
+    can_view_all_ach = current_dept['can_view_all_achievements'] == 1 or is_admin
 
     if can_view_all_ach:
         cursor.execute('SELECT * FROM departments')
@@ -3750,6 +3774,10 @@ def monthly_achievements():
             .dept-header { background-color: var(--fifa-green-primary); color: #fff; border-radius: 11px 11px 0 0; padding: 0.8rem 1rem; }
             .btn-fifa-gold { background-color: var(--fifa-gold); color: #ffffff; font-weight: 700; border: none; }
             .sub-section-title { font-weight: 700; font-size: 0.85rem; color: var(--fifa-green-primary); border-bottom: 2px solid var(--fifa-gold); padding-bottom: 3px; margin-bottom: 10px; }
+            .scroll-list-box { max-height: 320px; overflow-y: auto; padding-left: 4px; border: 1px solid #eef2ef; border-radius: 8px; }
+            .scroll-list-box::-webkit-scrollbar { width: 6px; }
+            .scroll-list-box::-webkit-scrollbar-track { background: #f4f8f6; border-radius: 10px; }
+            .scroll-list-box::-webkit-scrollbar-thumb { background: #c5a059; border-radius: 10px; }
         </style>
     </head>
     <body>
@@ -3812,7 +3840,7 @@ def monthly_achievements():
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
                 {% endif %}
-                {% if current_dept['can_add_user'] == 1 %}
+                {% if current_dept['can_add_user'] == 1 or is_admin %}
                 <a href="/register" class="sidebar-link"><i class='bx bxs-user-plus'></i>إضافة إدارة جديدة</a>
                 {% endif %}
                 <div class="border-top border-secondary my-3 opacity-25"></div>
@@ -3859,7 +3887,7 @@ def monthly_achievements():
                                  </div>
                                     <form id="achForm_{{ d.id }}" action="/delete_selected_achievements" method="post">
                                     <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                    <div class="list-group mb-3 fs-7" id="dept-files-{{ d.id }}">
+                                    <div class="list-group mb-3 fs-7 scroll-list-box" id="dept-files-{{ d.id }}">
                                         {% set ns = namespace(found=false) %}
                                         {% for a in achievements %}
                                             {% if a.dept_id == d.id %}
@@ -3923,7 +3951,7 @@ def monthly_achievements():
                                     </div>
                                     <form id="certForm_{{ d.id }}" action="/delete_selected_certificates" method="post">
                                     <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                    <div class="list-group mb-3 fs-7" id="dept-certs-{{ d.id }}">
+                                    <div class="list-group mb-3 fs-7 scroll-list-box" id="dept-certs-{{ d.id }}">
                                         {% set ns_c = namespace(found=false) %}
                                         {% for c in certificates %}
                                             {% if c.dept_id == d.id %}
@@ -3987,7 +4015,7 @@ def monthly_achievements():
                                     </div>
                                     <form id="shahidForm_{{ d.id }}" action="/delete_selected_shawahid" method="post">
                                     <input type="hidden" name="dept_id" value="{{ d.id }}">
-                                    <div class="list-group mb-3 fs-7" id="dept-shawahid-{{ d.id }}">
+                                    <div class="list-group mb-3 fs-7 scroll-list-box" id="dept-shawahid-{{ d.id }}">
                                         {% set ns_s = namespace(found=false) %}
                                         {% for s in shawahid_list %}
                                             {% if s.dept_id == d.id %}
@@ -4140,7 +4168,7 @@ def delete_achievement(ach_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4169,7 +4197,7 @@ def delete_certificate(cert_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4198,7 +4226,7 @@ def delete_all_achievements(dept_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4228,7 +4256,7 @@ def delete_selected_achievements():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4260,7 +4288,7 @@ def delete_all_certificates(dept_id):
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4290,7 +4318,7 @@ def delete_selected_certificates():
     current_dept = cursor.fetchone()
     is_admin = is_admin_user(session.get('dept_name'))
 
-    if current_dept['can_delete'] != 1:
+    if current_dept['can_delete'] != 1 and not is_admin:
         cursor.close()
         conn.close()
         return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/monthly_achievements";</script>'''
@@ -4449,6 +4477,10 @@ def admin_dashboard():
             .content-body { flex: 1; padding: 1.25rem; width: 100%; min-width: 0; overflow-x: hidden; }
             .stat-box { background: rgba(255, 255, 255, 0.95); border-radius: 12px; border: 1px solid var(--fifa-card-border); padding: 1.2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03); text-align: center; }
             .modern-card { background: rgba(255, 255, 255, 0.95); border-radius: 12px; border: 1px solid var(--fifa-card-border); padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+            .scroll-list-box { max-height: 320px; overflow-y: auto; padding-left: 4px; border: 1px solid #eef2ef; border-radius: 8px; }
+            .scroll-list-box::-webkit-scrollbar { width: 6px; }
+            .scroll-list-box::-webkit-scrollbar-track { background: #f4f8f6; border-radius: 10px; }
+            .scroll-list-box::-webkit-scrollbar-thumb { background: #c5a059; border-radius: 10px; }
         </style>
     </head>
     <body>
@@ -4566,7 +4598,7 @@ def admin_dashboard():
                                 <div class="border rounded p-3 bg-light">
                                     <h6 class="fw-bold text-success border-bottom pb-2">{{ stat.name }} ({{ stat.inbox_count }} خطابات واردة)</h6>
                                     {% if stat.inbox_files %}
-                                        <ul class="list-unstyled mb-0 fs-8 mt-2">
+                                        <ul class="list-unstyled mb-0 fs-8 mt-2 scroll-list-box">
                                             {% for l in stat.inbox_files %}
                                             <li class="d-flex justify-content-between align-items-center gap-2 mb-1 bg-white p-2 rounded border">
                                                 <span class="text-truncate" style="min-width:0; flex:1 1 auto;" title="{{ l.title }}"><i class='bx bxs-envelope text-secondary ms-1'></i> <bdi>{{ l.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ l.created_at }}</bdi>) - من: {{ l.sender_name or '-' }}</small></span>
@@ -4596,7 +4628,7 @@ def admin_dashboard():
                                 <div class="border rounded p-3 bg-light">
                                     <h6 class="fw-bold text-primary border-bottom pb-2">{{ stat.name }} ({{ stat.outbox_count }} خطابات صادرة)</h6>
                                     {% if stat.outbox_files %}
-                                        <ul class="list-unstyled mb-0 fs-8 mt-2">
+                                        <ul class="list-unstyled mb-0 fs-8 mt-2 scroll-list-box">
                                             {% for l in stat.outbox_files %}
                                             <li class="d-flex justify-content-between align-items-center gap-2 mb-1 bg-white p-2 rounded border">
                                                 <span class="text-truncate" style="min-width:0; flex:1 1 auto;" title="{{ l.title }}"><i class='bx bxs-send text-primary ms-1'></i> <bdi>{{ l.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ l.created_at }}</bdi>) - إلى: {{ l.receiver_name or '-' }}</small></span>
@@ -4626,7 +4658,7 @@ def admin_dashboard():
                                 <div class="border rounded p-3 bg-light">
                                     <h6 class="fw-bold text-success border-bottom pb-2">{{ stat.name }} ({{ stat.archive_count }} ملفات مؤرشفة)</h6>
                                     {% if stat.archive_files %}
-                                        <ul class="list-unstyled mb-0 fs-8 mt-2">
+                                        <ul class="list-unstyled mb-0 fs-8 mt-2 scroll-list-box">
                                             {% for l in stat.archive_files %}
                                             <li class="d-flex justify-content-between align-items-center gap-2 mb-1 bg-white p-2 rounded border">
                                                 <span class="text-truncate" style="min-width:0; flex:1 1 auto;" title="{{ l.title }}"><i class='bx bxs-file-archive text-success ms-1'></i> <bdi>{{ l.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ l.created_at }}</bdi>)</small></span>
@@ -4663,7 +4695,7 @@ def admin_dashboard():
                                         {% endif %}
                                     </h6>
                                     {% if stat.ach_files %}
-                                        <ul class="list-unstyled mb-0 fs-8 mt-2">
+                                        <ul class="list-unstyled mb-0 fs-8 mt-2 scroll-list-box">
                                             {% for ach in stat.ach_files %}
                                             <li class="d-flex justify-content-between align-items-center gap-2 mb-1 bg-white p-2 rounded border">
                                                 <span class="text-truncate" style="min-width:0; flex:1 1 auto;" title="{{ ach.title }}"><i class='bx bxs-file-pdf text-danger ms-1'></i> <bdi>{{ ach.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ ach.uploaded_at }}</bdi>)</small></span>
@@ -4698,7 +4730,7 @@ def admin_dashboard():
                                        {% endif %}
                                     </h6>
                                     {% if stat.cert_files %}
-                                        <ul class="list-unstyled mb-0 fs-8 mt-2">
+                                        <ul class="list-unstyled mb-0 fs-8 mt-2 scroll-list-box">
                                             {% for cert in stat.cert_files %}
                                             <li class="d-flex justify-content-between align-items-center gap-2 mb-1 bg-white p-2 rounded border">
                                                 <span class="text-truncate" style="min-width:0; flex:1 1 auto;" title="{{ cert.title }}"><i class='bx bxs-file-pdf text-primary ms-1'></i> <bdi>{{ cert.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ cert.uploaded_at }}</bdi>)</small></span>
@@ -4734,7 +4766,7 @@ def admin_dashboard():
                                        {% endif %}
                                     </h6>
                                     {% if stat.shahid_files %}
-                                        <ul class="list-unstyled mb-0 fs-8 mt-2">
+                                        <ul class="list-unstyled mb-0 fs-8 mt-2 scroll-list-box">
                                             {% for sh in stat.shahid_files %}
                                             <li class="d-flex justify-content-between align-items-center gap-2 mb-1 bg-white p-2 rounded border">
                                                 <span class="text-truncate" style="min-width:0; flex:1 1 auto;" title="{{ sh.title }}"><i class='bx bxs-badge-check text-dark ms-1'></i> <bdi>{{ sh.title }}</bdi> <small class="text-muted">(<bdi dir="ltr">{{ sh.uploaded_at }}</bdi>)</small></span>
@@ -4898,6 +4930,7 @@ def admin_permissions():
         can_page_suggestions = 1 if request.form.get('can_page_suggestions') else 0
         new_password = request.form.get('new_password')
         new_username = request.form.get('new_username', '').strip()
+        new_dept_name = request.form.get('new_dept_name', '').strip()
         unlock_account = 1 if request.form.get('unlock_account') else 0
 
         if new_username:
@@ -4906,6 +4939,13 @@ def admin_permissions():
                 cursor.close()
                 conn.close()
                 return '''<script>alert("خطأ: اسم المستخدم الجديد مستخدم بالفعل من قبل إدارة أخرى."); window.location.href="/admin/permissions";</script>'''
+
+        if new_dept_name:
+            cursor.execute('SELECT id FROM departments WHERE name = %s AND id != %s', (new_dept_name, dept_id))
+            if cursor.fetchone():
+                cursor.close()
+                conn.close()
+                return '''<script>alert("خطأ: اسم الإدارة الجديد مستخدم بالفعل من قبل إدارة أخرى."); window.location.href="/admin/permissions";</script>'''
 
         set_clauses = [
             'can_delete = %s', 'can_view_all_archive = %s', 'can_view_all_achievements = %s', 'can_add_user = %s',
@@ -4923,6 +4963,10 @@ def admin_permissions():
         if new_username:
             set_clauses.append('username = %s')
             params.append(new_username)
+
+        if new_dept_name:
+            set_clauses.append('name = %s')
+            params.append(new_dept_name)
 
         if unlock_account == 1:
             set_clauses.append('is_locked = 0')
@@ -5152,6 +5196,10 @@ def admin_permissions():
                                 </div>
 
                                 <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-user-circle ms-1'></i>بيانات الدخول:</h6>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green);">اسم الإدارة / القسم:</label>
+                                    <input type="text" name="new_dept_name" class="form-control fs-8" value="{{ d.name }}">
+                                </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green);">اسم المستخدم:</label>
                                     <input type="text" name="new_username" class="form-control fs-8" value="{{ d.username }}">
