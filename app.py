@@ -251,6 +251,10 @@ def init_db():
         cursor.execute('ALTER TABLE departments ADD COLUMN can_page_quick_upload INTEGER DEFAULT 1')
     if 'can_page_suggestions' not in dept_columns:
         cursor.execute('ALTER TABLE departments ADD COLUMN can_page_suggestions INTEGER DEFAULT 1')
+    if 'failed_login_attempts' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN failed_login_attempts INTEGER DEFAULT 0')
+    if 'is_locked' not in dept_columns:
+        cursor.execute('ALTER TABLE departments ADD COLUMN is_locked INTEGER DEFAULT 0')
 
     # --- ترحيل جداول الملفات لدعم مسار Supabase Storage (file_path) ---
     cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='course_certificates'")
@@ -965,22 +969,30 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM departments WHERE username = %s AND password = %s', 
-                       (username, password))
+        cursor.execute('SELECT * FROM departments WHERE username = %s', (username,))
         dept = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        if dept:
+
+        # الحساب مقفل مسبقاً بسبب محاولات دخول خاطئة
+        if dept and dept.get('is_locked') == 1:
+            cursor.close()
+            conn.close()
+            return '''<script>alert("تم قفل هذا الحساب بسبب تجاوز عدد محاولات الدخول الخاطئة. الرجاء التواصل مع مدير تقنية المعلومات لإعادة فتح الحساب."); window.location.href="/";</script>'''
+
+        if dept and dept['password'] == password:
+            cursor.execute('UPDATE departments SET failed_login_attempts = 0 WHERE id = %s', (dept['id'],))
+            conn.commit()
+            cursor.close()
+            conn.close()
+
             session['dept_id'] = dept['id']
             session['dept_name'] = dept['name']
             session['dept_username'] = dept['username']
-            
+
             is_admin = is_admin_user(dept['name'])
-            
+
             if dept.get('can_page_inbox') == 1 or is_admin:
                 return redirect(url_for('dashboard'))
             elif dept.get('can_page_outbox') == 1 or is_admin:
@@ -995,7 +1007,25 @@ def login():
                 session.clear()
                 return '''<script>alert("عذراً، لا تملك صلاحية الوصول لأي صفحة في النظام."); window.location.href="/";</script>'''
         else:
-            return '''<script>alert("خطأ في اسم المستخدم أو كلمة المرور"); window.location.href="/";</script>'''
+            if dept:
+                attempts = (dept.get('failed_login_attempts') or 0) + 1
+                if attempts >= 5:
+                    cursor.execute('UPDATE departments SET failed_login_attempts = %s, is_locked = 1 WHERE id = %s', (attempts, dept['id']))
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+                    return '''<script>alert("تم قفل هذا الحساب بسبب تجاوز عدد محاولات الدخول المسموح بها (5 محاولات). الرجاء التواصل مع مدير تقنية المعلومات لإعادة فتح الحساب."); window.location.href="/";</script>'''
+                else:
+                    cursor.execute('UPDATE departments SET failed_login_attempts = %s WHERE id = %s', (attempts, dept['id']))
+                    conn.commit()
+                    remaining = 5 - attempts
+                    cursor.close()
+                    conn.close()
+                    return f'''<script>alert("خطأ في اسم المستخدم أو كلمة المرور. المحاولات المتبقية قبل قفل الحساب: {remaining}"); window.location.href="/";</script>'''
+            else:
+                cursor.close()
+                conn.close()
+                return '''<script>alert("خطأ في اسم المستخدم أو كلمة المرور"); window.location.href="/";</script>'''
             
     html_code = '''
     <!DOCTYPE html>
@@ -2246,7 +2276,7 @@ DASHBOARD_HTML = '''
                             {% endif %}
 
                             <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
-                                <i class='bx bxs-folder-open' style="color: var(--fifa-gold);"></i> أرشيفي الخاص رفع فوري
+                                <i class='bx bxs-folder-open' style="color: var(--fifa-gold);"></i> أرشيف الرفع الفوري
                                 <span class="badge bg-success">{{ own_letters|length }}</span>
                             </h6>
                             <div class="letters-list mb-4">
@@ -2270,7 +2300,7 @@ DASHBOARD_HTML = '''
                             {% endif %}
 
                             <h6 class="fw-bold mb-2 mt-3 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
-                                <i class='bx bxs-buildings' style="color: var(--fifa-gold);"></i> أرشيف باقي الإدارات (رفع فوري)
+                                <i class='bx bxs-buildings' style="color: var(--fifa-gold);"></i> أرشيف الرفع الفوري - باقي الإدارات
                                 <span class="badge bg-secondary">{{ other_letters|length }}</span>
                             </h6>
                             <div class="letters-list">
@@ -2321,6 +2351,12 @@ DASHBOARD_HTML = '''
                             </div>
                             {% endif %}
 
+                            {% if letters %}
+                            <h6 class="fw-bold mb-2 d-flex align-items-center gap-1" style="color: var(--fifa-green-primary);">
+                                <i class='bx bxs-folder-open' style="color: var(--fifa-gold);"></i> أرشيف الرفع الفوري
+                                <span class="badge bg-success">{{ letters|length }}</span>
+                            </h6>
+                            {% endif %}
                             <div class="letters-list">
                                 {% for letter in letters %}{{ render_letter_item(letter) }}{% endfor %}
                             </div>
@@ -4861,23 +4897,40 @@ def admin_permissions():
         can_page_quick_upload = 1 if request.form.get('can_page_quick_upload') else 0
         can_page_suggestions = 1 if request.form.get('can_page_suggestions') else 0
         new_password = request.form.get('new_password')
-        
+        new_username = request.form.get('new_username', '').strip()
+        unlock_account = 1 if request.form.get('unlock_account') else 0
+
+        if new_username:
+            cursor.execute('SELECT id FROM departments WHERE username = %s AND id != %s', (new_username, dept_id))
+            if cursor.fetchone():
+                cursor.close()
+                conn.close()
+                return '''<script>alert("خطأ: اسم المستخدم الجديد مستخدم بالفعل من قبل إدارة أخرى."); window.location.href="/admin/permissions";</script>'''
+
+        set_clauses = [
+            'can_delete = %s', 'can_view_all_archive = %s', 'can_view_all_achievements = %s', 'can_add_user = %s',
+            'can_page_inbox = %s', 'can_page_outbox = %s', 'can_page_achievements = %s', 'can_page_archive = %s',
+            'can_page_quick_upload = %s', 'can_page_suggestions = %s'
+        ]
+        params = [can_delete, can_view_all_archive, can_view_all_achievements, can_add_user,
+                  can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive,
+                  can_page_quick_upload, can_page_suggestions]
+
         if new_password and new_password.strip() != '':
-            cursor.execute('''
-                UPDATE departments 
-                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s, can_page_suggestions = %s,
-                    password = %s
-                WHERE id = %s
-            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, can_page_suggestions, new_password.strip(), dept_id))
-        else:
-            cursor.execute('''
-                UPDATE departments 
-                SET can_delete = %s, can_view_all_archive = %s, can_view_all_achievements = %s, can_add_user = %s,
-                    can_page_inbox = %s, can_page_outbox = %s, can_page_achievements = %s, can_page_archive = %s, can_page_quick_upload = %s, can_page_suggestions = %s
-                WHERE id = %s
-            ''', (can_delete, can_view_all_archive, can_view_all_achievements, can_add_user, can_page_inbox, can_page_outbox, can_page_achievements, can_page_archive, can_page_quick_upload, can_page_suggestions, dept_id))
-            
+            set_clauses.append('password = %s')
+            params.append(new_password.strip())
+
+        if new_username:
+            set_clauses.append('username = %s')
+            params.append(new_username)
+
+        if unlock_account == 1:
+            set_clauses.append('is_locked = 0')
+            set_clauses.append('failed_login_attempts = 0')
+
+        params.append(dept_id)
+        cursor.execute('UPDATE departments SET ' + ', '.join(set_clauses) + ' WHERE id = %s', tuple(params))
+
         conn.commit()
         cursor.close()
         conn.close()
@@ -5021,7 +5074,10 @@ def admin_permissions():
                     <div class="perm-card">
                         <div class="perm-header d-flex justify-content-between align-items-center">
                             <span><i class='bx bxs-building ms-2'></i>{{ d.name }}</span>
-                            <span class="badge bg-warning text-dark fs-8">{{ d.username }}</span>
+                            <span class="d-flex align-items-center gap-1">
+                                <span class="badge bg-warning text-dark fs-8">{{ d.username }}</span>
+                                {% if d.is_locked == 1 %}<span class="badge bg-danger fs-8">مقفل</span>{% endif %}
+                            </span>
                         </div>
                         <div class="p-3">
                             <form action="/admin/permissions" method="post">
@@ -5094,11 +5150,22 @@ def admin_permissions():
                                         </div>
                                     </div>
                                 </div>
- 
+
+                                <h6 class="fw-bold text-success mb-2 fs-7 border-bottom pb-1"><i class='bx bx-user-circle ms-1'></i>بيانات الدخول:</h6>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green);">اسم المستخدم:</label>
+                                    <input type="text" name="new_username" class="form-control fs-8" value="{{ d.username }}">
+                                </div>
                                 <div class="mb-3">
                                     <label class="form-label fw-bold fs-8 mb-1" style="color: var(--fifa-green);">تغيير كلمة المرور (اتركه فارغاً للإبقاء):</label>
                                     <input type="password" name="new_password" class="form-control fs-8" placeholder="كلمة مرور جديدة...">
                                 </div>
+                                {% if d.is_locked == 1 %}
+                                <div class="form-check form-switch fs-7 mb-3 bg-light border border-danger rounded p-2">
+                                    <input class="form-check-input" type="checkbox" name="unlock_account">
+                                    <label class="form-check-label text-danger fw-bold">فتح القفل عن هذا الحساب (مقفل حالياً بعد 5 محاولات دخول خاطئة)</label>
+                                </div>
+                                {% endif %}
  
                                 <button type="submit" class="btn btn-fifa-gold w-100 fs-7 shadow-sm py-2">تحديث صلاحيات {{ d.name }}</button>
                             </form>
