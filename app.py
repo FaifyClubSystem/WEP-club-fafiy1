@@ -1728,22 +1728,7 @@ DASHBOARD_HTML = '''
             z-index: 5;
             font-family: 'Almarai', sans-serif;
         }
-        .remove-page-btn {
-            position: absolute;
-            bottom: 6mm;
-            left: 6mm;
-            background: #dc3545;
-            color: #ffffff;
-            border: none;
-            border-radius: 6px;
-            padding: 5px 12px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            z-index: 5;
-            cursor: pointer;
-            font-family: 'Almarai', sans-serif;
-        }
-        .remove-page-btn:hover { background: #b02a37; }
+        
         .word-paper-header {
             display: flex;
             justify-content: space-between;
@@ -2498,18 +2483,6 @@ DASHBOARD_HTML = '''
             badge.className = 'page-number-badge';
             badge.innerText = 'صفحة ' + pageCounter;
             clone.appendChild(badge);
-
-            var removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'remove-page-btn';
-            removeBtn.innerHTML = '<i class="bx bx-trash"></i> حذف الصفحة';
-            removeBtn.onclick = function () {
-                clone.remove();
-                renumberPages();
-                updateRemovePageBtnVisibility();
-                syncTextareaWithPaper();
-            };
-            clone.appendChild(removeBtn);
 
             container.appendChild(clone);
             renumberPages();
