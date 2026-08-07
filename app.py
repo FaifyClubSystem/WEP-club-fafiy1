@@ -1033,6 +1033,58 @@ def login():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
         <title>تسجيل الدخول - نظام أرشفة نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -1053,6 +1105,9 @@ def login():
         </style>
     </head>
     <body>
+        <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn" style="position:fixed; top:15px; left:15px; z-index:2000;">
+            <i class='bx bxs-moon' id="themeToggleIcon"></i>
+        </button>
         <div class="login-card text-center">
             <div class="brand-logo-box">
                 <img src="{{ url_for('static', filename='logo.png') }}" alt="شعار نادي فيفا" onerror="this.style.display='none'; document.getElementById('alt-icon').style.display='inline-block';">
@@ -1087,6 +1142,22 @@ def login():
                 جميع الحقوق محفوظة &copy; نادي فيفا الرياضي 2026
             </div>
         </div>
+        <script>
+            function updateFifaThemeIcon() {
+                var icon = document.getElementById('themeToggleIcon');
+                if (!icon) return;
+                var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+            }
+            function toggleFifaTheme() {
+                var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+                var next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+                updateFifaThemeIcon();
+            }
+            updateFifaThemeIcon();
+        </script>
     </body>
     </html>
     '''
@@ -1147,6 +1218,58 @@ def register():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
         <title>إنشاء حساب إدارة - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -1188,6 +1311,9 @@ def register():
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
+                <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+                    <i class='bx bxs-moon' id="themeToggleIcon"></i>
+                </button>
                 <div class="dropdown">
                     <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                         <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
@@ -1257,6 +1383,22 @@ def register():
             </main>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateFifaThemeIcon() {
+            var icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+        }
+        function toggleFifaTheme() {
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+            updateFifaThemeIcon();
+        }
+        updateFifaThemeIcon();
+    </script>
         <script>
             function updateNavbarHeightVar() {
                 var nav = document.querySelector('.top-navbar');
@@ -1358,6 +1500,58 @@ def suggestions():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
         <title>مشاكل واقتراحات - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -1400,6 +1594,9 @@ def suggestions():
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
+                <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+                    <i class='bx bxs-moon' id="themeToggleIcon"></i>
+                </button>
                 <div class="dropdown">
                     <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                         <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
@@ -1432,7 +1629,9 @@ def suggestions():
                 {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
                 <a href="/quick_upload" class="sidebar-link"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
                 {% endif %}
+                {% if current_dept['can_page_suggestions'] == 1 or is_admin %}
                 <a href="/suggestions" class="sidebar-link active"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+                {% endif %}
                 {% if is_admin %}
                 <a href="/admin/dashboard" class="sidebar-link" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
                 <a href="/admin/permissions" class="sidebar-link"><i class='bx bxs-shield'></i>إدارة الصلاحيات</a>
@@ -1485,6 +1684,22 @@ def suggestions():
             </main>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateFifaThemeIcon() {
+            var icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+        }
+        function toggleFifaTheme() {
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+            updateFifaThemeIcon();
+        }
+        updateFifaThemeIcon();
+    </script>
         <script>
             function updateNavbarHeightVar() {
                 var nav = document.querySelector('.top-navbar');
@@ -1612,6 +1827,58 @@ DASHBOARD_HTML = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
     <title>{{ page_title }} - نظام أرشفة نادي فيفا</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -1961,6 +2228,9 @@ DASHBOARD_HTML = '''
                     <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
                 </a>
                 {% endif %}
+                <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+                    <i class='bx bxs-moon' id="themeToggleIcon"></i>
+                </button>
                 <div class="dropdown">
                     <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                         <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
@@ -2439,6 +2709,22 @@ DASHBOARD_HTML = '''
     </div>
  
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateFifaThemeIcon() {
+            var icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+        }
+        function toggleFifaTheme() {
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+            updateFifaThemeIcon();
+        }
+        updateFifaThemeIcon();
+    </script>
     <script>
         // دالة تنفيذ تنسيقات النص العامة
         function formatDoc(cmd, value = null) {
@@ -3486,6 +3772,58 @@ def quick_upload():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
         <title>رفع ملفات متعددة للأرشفة - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -3533,8 +3871,11 @@ def quick_upload():
                         <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
                     </a>
                     {% endif %}
-                    <div class="dropdown">
-                        <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
+                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+                    <i class='bx bxs-moon' id="themeToggleIcon"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                             <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
                             <span class="fw-bold fs-7" style="color: var(--fifa-green-primary);">{{ dept_name }}</span>
                         </button>
@@ -3607,6 +3948,22 @@ def quick_upload():
             </main>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateFifaThemeIcon() {
+            var icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+        }
+        function toggleFifaTheme() {
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+            updateFifaThemeIcon();
+        }
+        updateFifaThemeIcon();
+    </script>
         <script>
         function updateNavbarHeightVar() {
     var nav = document.querySelector('.top-navbar');
@@ -3720,6 +4077,58 @@ def monthly_achievements():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
         <title>إنجازات وشهادات الدورات - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -3773,8 +4182,11 @@ def monthly_achievements():
                         <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
                     </a>
                     {% endif %}
-                    <div class="dropdown">
-                        <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
+                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+                    <i class='bx bxs-moon' id="themeToggleIcon"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                             <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
                             <span class="fw-bold fs-7" style="color: var(--fifa-green-primary);">{{ dept_name }}</span>
                         </button>
@@ -4052,6 +4464,22 @@ def monthly_achievements():
           </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateFifaThemeIcon() {
+            var icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+        }
+        function toggleFifaTheme() {
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+            updateFifaThemeIcon();
+        }
+        updateFifaThemeIcon();
+    </script>
         <script>
             function previewFile(url, title) {
                 document.getElementById('previewFileTitle').innerText = 'معاينة: ' + title;
@@ -4425,6 +4853,58 @@ def admin_dashboard():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
         <title>لوحة التحكم الشاملة - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -4474,8 +4954,11 @@ def admin_dashboard():
                         <i class='bx bx-cloud-upload fs-5'></i>
                         <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
                     </a>
-                    <div class="dropdown">
-                        <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
+                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+                    <i class='bx bxs-moon' id="themeToggleIcon"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                             <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
                             <span class="fw-bold fs-7" style="color: var(--fifa-green-primary);">{{ dept_name }}</span>
                         </button>
@@ -4776,6 +5259,22 @@ def admin_dashboard():
           </div>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateFifaThemeIcon() {
+            var icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+        }
+        function toggleFifaTheme() {
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+            updateFifaThemeIcon();
+        }
+        updateFifaThemeIcon();
+    </script>
         <script>
             function previewFile(url, title) {
                 document.getElementById('previewFileTitle').innerText = 'معاينة: ' + title;
@@ -4968,6 +5467,58 @@ def admin_permissions():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem('fifa_theme');
+                    if (!t) { t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+                    document.documentElement.setAttribute('data-theme', t);
+                } catch (e) {}
+            })();
+        </script>
+        <style>
+            [data-theme="dark"] { color-scheme: dark; }
+            [data-theme="dark"] body { background: linear-gradient(135deg, #0e1712 0%, #131f19 100%) !important; background-color: #0f1712 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .top-navbar { background-color: rgba(20, 28, 24, 0.95) !important; border-bottom-color: #c5a059 !important; }
+            [data-theme="dark"] .modern-card, [data-theme="dark"] .login-card, [data-theme="dark"] .register-card,
+            [data-theme="dark"] .upload-card, [data-theme="dark"] .perm-card, [data-theme="dark"] .dept-card,
+            [data-theme="dark"] .stat-box, [data-theme="dark"] .paper-toolbar { background: #16211a !important; border-color: #2a3a30 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .letter-item, [data-theme="dark"] .suggestion-item { border-bottom-color: #2a3a30 !important; }
+            [data-theme="dark"] .letter-item:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .section-header, [data-theme="dark"] h3, [data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+            [data-theme="dark"] .fw-bold, [data-theme="dark"] label, [data-theme="dark"] .text-dark { color: #e7f0ea !important; }
+            [data-theme="dark"] .text-muted, [data-theme="dark"] .text-secondary { color: #9fb0a7 !important; }
+            [data-theme="dark"] .form-control, [data-theme="dark"] .form-select, [data-theme="dark"] textarea {
+                background-color: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important;
+            }
+            [data-theme="dark"] .form-control::placeholder { color: #7c8c82 !important; }
+            [data-theme="dark"] .form-control:focus, [data-theme="dark"] .form-select:focus { background-color: #1b2620 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .btn-light { background-color: #24332a !important; color: #e7f0ea !important; border-color: #33463a !important; }
+            [data-theme="dark"] .dropdown-menu { background-color: #16211a !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .dropdown-item { color: #dbe6e0 !important; }
+            [data-theme="dark"] .dropdown-item:hover { background-color: #24332a !important; }
+            [data-theme="dark"] .table { color: #dbe6e0 !important; }
+            [data-theme="dark"] .table-bordered, [data-theme="dark"] .table-bordered td, [data-theme="dark"] .table-bordered th { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+            [data-theme="dark"] .table-success { background-color: #1c2c22 !important; color: #e7f0ea !important; }
+            [data-theme="dark"] .bg-light { background-color: #1b2620 !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .border { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .modal-content { background-color: #16211a !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .scroll-list-box { border-color: #2a3a30 !important; }
+            [data-theme="dark"] .list-group-item { background-color: transparent !important; color: #dbe6e0 !important; }
+            [data-theme="dark"] .alert-light { background-color: #1b2620 !important; color: #dbe6e0 !important; border-color: #2a3a30 !important; }
+            [data-theme="dark"] .bg-white { background-color: #1b2620 !important; }
+            /* ورقة الخطاب الرسمية تبقى بيضاء دائماً لأنها تمثل ورقة مطبوعة رسمية */
+            [data-theme="dark"] .word-paper { background: #ffffff !important; color: #000 !important; }
+            .theme-toggle-btn {
+                border: 1px solid #d5e2d8; background: #f8faf9; border-radius: 8px;
+                width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+                color: #123826; font-size: 1.15rem; transition: all 0.2s; cursor: pointer;
+            }
+            [data-theme="dark"] .theme-toggle-btn { background: #1b2620 !important; border-color: #33463a !important; color: #e7f0ea !important; }
+            .theme-toggle-btn:hover { background: #123826; color: #fff; }
+            [data-theme="dark"] .theme-toggle-btn:hover { background: #24332a !important; }
+        </style>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo1.png') }}">
         <title>إدارة الصلاحيات - نادي فيفا</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
@@ -5013,8 +5564,11 @@ def admin_permissions():
                         <i class='bx bx-cloud-upload fs-5'></i>
                         <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
                     </a>
-                    <div class="dropdown">
-                        <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
+                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+                    <i class='bx bxs-moon' id="themeToggleIcon"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-light dropdown-toggle border py-1 px-2" type="button" data-bs-toggle="dropdown">
                             <i class='bx bxs-user-circle fs-4 ms-1' style="color: var(--fifa-gold);"></i>
                             <span class="fw-bold fs-7" style="color: var(--fifa-green);">{{ dept_name }}</span>
                         </button>
@@ -5208,6 +5762,22 @@ def admin_permissions():
             </main>
         </div>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateFifaThemeIcon() {
+            var icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            icon.className = isDark ? 'bx bxs-sun' : 'bx bxs-moon';
+        }
+        function toggleFifaTheme() {
+            var current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('fifa_theme', next); } catch (e) {}
+            updateFifaThemeIcon();
+        }
+        updateFifaThemeIcon();
+    </script>
         <script>
             function updateNavbarHeightVar() {
                 var nav = document.querySelector('.top-navbar');
