@@ -1311,6 +1311,7 @@ def register():
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
+                <div class="d-flex align-items-center gap-2">
                 <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
                     <i class='bx bxs-moon' id="themeToggleIcon"></i>
                 </button>
@@ -1323,6 +1324,7 @@ def register():
                         <li><a class="dropdown-item text-danger py-2" href="/logout"><i class='bx bx-log-out ms-2'></i>تسجيل الخروج</a></li>
                     </ul>
                 </div>
+            </div>
             </div>
         </nav>
         <div class="main-wrapper">
@@ -1594,6 +1596,7 @@ def suggestions():
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
+                <div class="d-flex align-items-center gap-2">
                 <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
                     <i class='bx bxs-moon' id="themeToggleIcon"></i>
                 </button>
@@ -1606,6 +1609,7 @@ def suggestions():
                         <li><a class="dropdown-item text-danger py-2" href="/logout"><i class='bx bx-log-out ms-2'></i>تسجيل الخروج</a></li>
                     </ul>
                 </div>
+            </div>
             </div>
         </nav>
         <div class="main-wrapper">
@@ -2222,13 +2226,7 @@ DASHBOARD_HTML = '''
             </div>
             
             <div class="d-flex align-items-center gap-2">
-                {% if can_page_quick_upload == 1 or is_admin %}
-                <a href="/quick_upload" class="btn btn-sm btn-warning fw-bold text-dark d-flex align-items-center gap-1 shadow-sm px-2">
-                    <i class='bx bx-cloud-upload fs-5'></i> 
-                    <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
-                </a>
-                {% endif %}
-                <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+<button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
                     <i class='bx bxs-moon' id="themeToggleIcon"></i>
                 </button>
                 <div class="dropdown">
@@ -3865,13 +3863,7 @@ def quick_upload():
                     </a>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
-                    <a href="/quick_upload" class="btn btn-sm btn-warning fw-bold text-dark d-flex align-items-center gap-1 shadow-sm px-2">
-                        <i class='bx bx-cloud-upload fs-5'></i>
-                        <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
-                    </a>
-                    {% endif %}
-                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+<button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
                     <i class='bx bxs-moon' id="themeToggleIcon"></i>
                 </button>
                 <div class="dropdown">
@@ -4176,13 +4168,7 @@ def monthly_achievements():
                     </a>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    {% if current_dept['can_page_quick_upload'] == 1 or is_admin %}
-                    <a href="/quick_upload" class="btn btn-sm btn-warning fw-bold text-dark d-flex align-items-center gap-1 shadow-sm px-2">
-                        <i class='bx bx-cloud-upload fs-5'></i>
-                        <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
-                    </a>
-                    {% endif %}
-                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+<button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
                     <i class='bx bxs-moon' id="themeToggleIcon"></i>
                 </button>
                 <div class="dropdown">
@@ -4950,11 +4936,7 @@ def admin_dashboard():
                     </a>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <a href="/quick_upload" class="btn btn-sm btn-warning fw-bold text-dark d-flex align-items-center gap-1 shadow-sm px-2">
-                        <i class='bx bx-cloud-upload fs-5'></i>
-                        <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
-                    </a>
-                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+<button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
                     <i class='bx bxs-moon' id="themeToggleIcon"></i>
                 </button>
                 <div class="dropdown">
@@ -5560,11 +5542,7 @@ def admin_permissions():
                     </a>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <a href="/quick_upload" class="btn btn-sm btn-warning fw-bold text-dark d-flex align-items-center gap-1 shadow-sm px-2">
-                        <i class='bx bx-cloud-upload fs-5'></i>
-                        <span class="d-none d-sm-inline">رفع وتوثيق فوري</span>
-                    </a>
-                    <button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
+<button type="button" class="theme-toggle-btn" onclick="toggleFifaTheme()" title="تبديل الوضع الليلي/النهاري" id="themeToggleBtn">
                     <i class='bx bxs-moon' id="themeToggleIcon"></i>
                 </button>
                 <div class="dropdown">
