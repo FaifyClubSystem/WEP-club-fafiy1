@@ -121,6 +121,11 @@ def peek_next_letter_number(cursor):
     row = cursor.fetchone()
     return row['next_letter_number'] if row else 1
 
+def count_unread_suggestions(cursor):
+    cursor.execute('SELECT COUNT(*) as count FROM suggestions WHERE is_read = 0')
+    row = cursor.fetchone()
+    return row['count'] if row else 0
+
 def consume_next_letter_number(cursor):
     number = peek_next_letter_number(cursor)
     cursor.execute('''
@@ -1307,7 +1312,7 @@ def register():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <img src="{{ url_for('static', filename='logo1.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -1490,6 +1495,8 @@ def suggestions():
     if is_admin:
         cursor.execute('SELECT * FROM suggestions ORDER BY id DESC')
         all_suggestions = cursor.fetchall()
+        cursor.execute('UPDATE suggestions SET is_read = 1 WHERE is_read = 0')
+        conn.commit()
 
     cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
     current_dept = cursor.fetchone()
@@ -1592,7 +1599,7 @@ def suggestions():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <img src="{{ url_for('static', filename='logo1.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -1821,7 +1828,7 @@ DASHBOARD_HTML = '''
         {% endif %}
         <span class="priority-badge bg-fifa-green">{{ letter.priority }}</span>
         {% if can_delete == 1 %}
-            <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return confirm('حذف المعاملة؟');">حذف</a>
+            <a href="/delete_letter/{{ letter.id }}" class="btn btn-sm btn-outline-danger py-1 px-2 fs-7" onclick="return ajaxDeleteItem(event, this.href, this.closest('.letter-item'), 'حذف المعاملة؟');">حذف</a>
         {% endif %}
     </div>
 </div>
@@ -2217,7 +2224,7 @@ DASHBOARD_HTML = '''
                     <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                 </button>
                 <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                    <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                    <img src="{{ url_for('static', filename='logo1.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                     <div class="d-flex flex-column">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                         <span class="text-muted fs-8 d-none d-sm-block mt-1">نظام الأرشفة والخطابات الإلكتروني</span>
@@ -2266,7 +2273,9 @@ DASHBOARD_HTML = '''
             <a href="/quick_upload" class="sidebar-link {{ 'active' if current_page == 'quick_upload' else '' }}"><i class='bx bx-cloud-upload' style="color: var(--fifa-gold);"></i>رفع وتوثيق فوري</a>
             {% endif %}
             {% if can_page_suggestions == 1 or is_admin %}
-            <a href="/suggestions" class="sidebar-link {{ 'active' if current_page == 'suggestions' else '' }}"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات</a>
+            <a href="/suggestions" class="sidebar-link {{ 'active' if current_page == 'suggestions' else '' }}"><i class='bx bxs-message-square-detail'></i>مشاكل واقتراحات
+                {% if is_admin and unread_suggestions_count and unread_suggestions_count > 0 %}<span class="badge bg-danger rounded-pill ms-1" id="suggestionsUnreadBadge">{{ unread_suggestions_count }}</span>{% endif %}
+            </a>
             {% endif %}
             {% if is_admin %}
             <a href="/admin/dashboard" class="sidebar-link {{ 'active' if current_page == 'admin_dashboard' else '' }}" style="background-color: rgba(197, 160, 89, 0.2);"><i class='bx bxs-cog' style="color: var(--fifa-gold);"></i>لوحة التحكم الشاملة</a>
@@ -2285,6 +2294,13 @@ DASHBOARD_HTML = '''
                 <i class='bx bx-envelope fs-5'></i>
                 <span>وصلك خطاب جديد في الصندوق الوارد!</span>
                 <button type="button" class="btn btn-sm btn-success" onclick="location.reload()">تحديث</button>
+            </div>
+            {% endif %}
+            {% if is_admin %}
+            <div id="newSuggestionToast" class="alert alert-warning d-none position-fixed top-0 start-50 translate-middle-x mt-3 shadow d-flex align-items-center gap-2" style="z-index: 2000;" role="alert">
+                <i class='bx bxs-message-square-detail fs-5'></i>
+                <span>وصلت مشكلة أو اقتراح جديد!</span>
+                <a href="/suggestions" class="btn btn-sm btn-warning fw-bold">عرض</a>
             </div>
             {% endif %}
             <div class="container-fluid p-0">
@@ -3101,6 +3117,30 @@ window.addEventListener('resize', updateNavbarHeightVar);
     }, { passive: true });
 })();
  
+        // حذف فوري عبر AJAX بدون إعادة تحميل الصفحة - يختفي العنصر مباشرة عند نجاح الحذف
+        function ajaxDeleteItem(event, url, itemEl, confirmMsg) {
+            event.preventDefault();
+            if (confirmMsg && !confirm(confirmMsg)) return false;
+            fetch(url, { credentials: 'same-origin' })
+                .then(function (r) { return r.text(); })
+                .then(function (text) {
+                    if (text.indexOf('لا تملك صلاحية') !== -1) {
+                        alert('عذراً، لا تملك صلاحية الحذف.');
+                        return;
+                    }
+                    if (itemEl) {
+                        itemEl.style.transition = 'opacity 0.25s, transform 0.25s';
+                        itemEl.style.opacity = '0';
+                        itemEl.style.transform = 'scale(0.97)';
+                        setTimeout(function () { itemEl.remove(); }, 250);
+                    }
+                })
+                .catch(function () {
+                    alert('حدث خطأ أثناء الحذف، الرجاء إعادة المحاولة.');
+                });
+            return false;
+        }
+
         function toggleSelectAll(source) {
             checkboxes = document.querySelectorAll('.letter-checkbox');
             for(var i=0, n=checkboxes.length; i<n; i++) {
@@ -3327,11 +3367,44 @@ function downloadLetterPDF() {
         }
         setInterval(checkForNewLetters, 20000);
         {% endif %}
+
+        {% if is_admin %}
+        // فحص دوري لوجود مشاكل/اقتراحات جديدة وصلت لمدير تقنية المعلومات
+        function checkForNewSuggestions() {
+            fetch('/api/unread_suggestions_count').then(function (r) { return r.json(); }).then(function (data) {
+                if (data.count > 0) {
+                    var toastEl = document.getElementById('newSuggestionToast');
+                    if (toastEl) toastEl.classList.remove('d-none');
+                    var badgeEl = document.getElementById('suggestionsUnreadBadge');
+                    if (badgeEl) { badgeEl.innerText = data.count; badgeEl.classList.remove('d-none'); }
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('نظام أرشفة نادي فيفا', { body: 'وصلت مشكلة أو اقتراح جديد' });
+                    }
+                }
+            }).catch(function () {});
+        }
+        setInterval(checkForNewSuggestions, 20000);
+        {% endif %}
     </script>
 </body>
 </html>
 '''
  
+@app.route('/api/unread_suggestions_count')
+def api_unread_suggestions_count():
+    if 'dept_id' not in session:
+        return {'count': 0}
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return {'count': 0}
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) as count FROM suggestions WHERE is_read = 0')
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return {'count': row['count'] if row else 0}
+
 @app.route('/api/unread_count')
 def api_unread_count():
     if 'dept_id' not in session:
@@ -3381,6 +3454,8 @@ def dashboard():
 
     cursor.execute('UPDATE letters SET is_read = 1 WHERE receiver_id = %s AND is_read = 0', (dept_id,))
     conn.commit()
+
+    unread_suggestions_count = count_unread_suggestions(cursor) if is_admin else 0
     
     cursor.close()
     conn.close()
@@ -3390,6 +3465,7 @@ def dashboard():
                                   current_page="inbox",
                                   letters=letters, 
                                   unread_count=unread_count,
+                                  unread_suggestions_count=unread_suggestions_count,
                                   depts=depts, 
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
@@ -3439,6 +3515,8 @@ def outbox():
 
     cursor.execute('SELECT COUNT(*) as count FROM letters WHERE receiver_id = %s AND is_read = 0', (dept_id,))
     unread_count = cursor.fetchone()['count']
+
+    unread_suggestions_count = count_unread_suggestions(cursor) if is_admin else 0
     
     cursor.close()
     conn.close()
@@ -3448,6 +3526,7 @@ def outbox():
                                   current_page="outbox",
                                   letters=letters, 
                                   unread_count=unread_count,
+                                  unread_suggestions_count=unread_suggestions_count,
                                   depts=depts, 
                                   dept_name=session['dept_name'],
                                   can_delete=current_dept['can_delete'],
@@ -3661,6 +3740,8 @@ def archive():
     cursor.execute('SELECT COUNT(*) as count FROM letters WHERE receiver_id = %s AND is_read = 0', (dept_id,))
     unread_count = cursor.fetchone()['count']
 
+    unread_suggestions_count = count_unread_suggestions(cursor) if is_admin else 0
+
     cursor.close()
     conn.close()
 
@@ -3688,6 +3769,7 @@ def archive():
                                   current_page="archive",
                                   letters=letters,
                                   unread_count=unread_count,
+                                  unread_suggestions_count=unread_suggestions_count,
                                   own_letters=own_letters,
                                   other_letters=other_letters,
                                   own_monthly_letters=own_monthly_letters,
@@ -3859,7 +3941,7 @@ def quick_upload():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <img src="{{ url_for('static', filename='logo1.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -4164,7 +4246,7 @@ def monthly_achievements():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <img src="{{ url_for('static', filename='logo1.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -4279,7 +4361,7 @@ def monthly_achievements():
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_ach_file/{{ a.id }}', '{{ a.title }}')">معاينة</button>
                                                         <a href="/download_ach_file/{{ a.id }}" target="_blank" class="btn btn-sm btn-outline-success py-0 px-2 fs-8">تنزيل</a>
                                                         {% if can_delete == 1 %}
-                                                        <a href="/delete_achievement/{{ a.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف هذا الملف؟');">حذف</a>
+                                                        <a href="/delete_achievement/{{ a.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return ajaxDeleteItem(event, this.href, this.closest('.list-group-item'), 'حذف هذا الملف؟');">حذف</a>
                                                         {% endif %}
                                                     </div>
                                                 </div>
@@ -4343,7 +4425,7 @@ def monthly_achievements():
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_cert_file/{{ c.id }}', '{{ c.title }}')">معاينة</button>
                                                         <a href="/download_cert_file/{{ c.id }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 fs-8">تنزيل</a>
                                                         {% if can_delete == 1 %}
-                                                        <a href="/delete_certificate/{{ c.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف هذا الملف؟');">حذف</a>
+                                                        <a href="/delete_certificate/{{ c.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return ajaxDeleteItem(event, this.href, this.closest('.list-group-item'), 'حذف هذا الملف؟');">حذف</a>
                                                         {% endif %}
                                                     </div>
                                                 </div>
@@ -4407,7 +4489,7 @@ def monthly_achievements():
                                                         <button type="button" class="btn btn-sm btn-info py-0 px-2 fs-8 text-white" onclick="previewFile('/view_shahid_file/{{ s.id }}', '{{ s.title }}')">معاينة</button>
                                                         <a href="/download_shahid_file/{{ s.id }}" target="_blank" class="btn btn-sm btn-outline-dark py-0 px-2 fs-8">تنزيل</a>
                                                         {% if can_delete == 1 %}
-                                                        <a href="/delete_shahid/{{ s.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return confirm('حذف هذا الشاهد؟');">حذف</a>
+                                                        <a href="/delete_shahid/{{ s.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return ajaxDeleteItem(event, this.href, this.closest('.list-group-item'), 'حذف هذا الشاهد؟');">حذف</a>
                                                         {% endif %}
                                                     </div>
                                                 </div>
@@ -4473,6 +4555,29 @@ def monthly_achievements():
                 document.getElementById('previewFrame').src = url;
                 var modal = new bootstrap.Modal(document.getElementById('previewFileModal'));
                 modal.show();
+            }
+            // حذف فوري عبر AJAX بدون إعادة تحميل الصفحة - يختفي العنصر مباشرة عند نجاح الحذف
+            function ajaxDeleteItem(event, url, itemEl, confirmMsg) {
+                event.preventDefault();
+                if (confirmMsg && !confirm(confirmMsg)) return false;
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function (r) { return r.text(); })
+                    .then(function (text) {
+                        if (text.indexOf('لا تملك صلاحية') !== -1) {
+                            alert('عذراً، لا تملك صلاحية الحذف.');
+                            return;
+                        }
+                        if (itemEl) {
+                            itemEl.style.transition = 'opacity 0.25s, transform 0.25s';
+                            itemEl.style.opacity = '0';
+                            itemEl.style.transform = 'scale(0.97)';
+                            setTimeout(function () { itemEl.remove(); }, 250);
+                        }
+                    })
+                    .catch(function () {
+                        alert('حدث خطأ أثناء الحذف، الرجاء إعادة المحاولة.');
+                    });
+                return false;
             }
             function toggleAllCheckboxes(formId, sourceCheckbox) {
                 var form = document.getElementById(formId);
@@ -4932,7 +5037,7 @@ def admin_dashboard():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green-primary);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <img src="{{ url_for('static', filename='logo1.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green-primary);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
@@ -5538,7 +5643,7 @@ def admin_permissions():
                         <i class='bx bx-menu fs-2' style="color: var(--fifa-green);"></i>
                     </button>
                     <a class="navbar-brand d-flex align-items-center gap-2 m-0" href="/dashboard">
-                        <img src="{{ url_for('static', filename='logo.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
+                        <img src="{{ url_for('static', filename='logo1.png') }}" alt="نادي فيفا" class="nav-logo" onerror="this.style.display='none'">
                         <span class="fw-bold fs-6 lh-1" style="color: var(--fifa-green);">نادي فيفا الرياضي</span>
                     </a>
                 </div>
