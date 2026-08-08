@@ -3616,6 +3616,17 @@ def archive():
             LEFT JOIN departments s ON l.sender_id = s.id 
             LEFT JOIN departments r ON l.receiver_id = r.id 
             LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
+            WHERE (l.sender_id = l.receiver_id AND l.sender_id = %s) OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND l.archive_dept_id = %s)
+            ORDER BY l.id DESC
+        ''', (dept_id, dept_id))
+        own_letters = cursor.fetchall()
+
+        cursor.execute('''
+            SELECT l.*, s.name as sender_name, r.name as receiver_name, ad.name as archive_dept_name 
+            FROM letters l 
+            LEFT JOIN departments s ON l.sender_id = s.id 
+            LEFT JOIN departments r ON l.receiver_id = r.id 
+            LEFT JOIN departments ad ON l.archive_dept_id = ad.id 
             WHERE ((l.sender_id = l.receiver_id AND l.sender_id IS NOT NULL AND l.sender_id != %s)
                 OR (l.sender_id IS NULL AND l.receiver_id IS NULL AND (l.archive_dept_id IS NULL OR l.archive_dept_id != %s)))
             ORDER BY l.id DESC
