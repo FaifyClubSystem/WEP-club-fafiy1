@@ -1677,13 +1677,37 @@ def suggestions():
                             <span class="badge bg-success">{{ all_suggestions|length }}</span>
                         </h5>
                         {% if all_suggestions %}
+                            {% if current_dept['can_delete'] == 1 %}
+                            <div class="d-flex flex-wrap justify-content-between align-items-center bg-light p-2 rounded mb-3 gap-2 border">
+                                <div class="form-check m-0">
+                                    <input class="form-check-input" type="checkbox" id="selectAllSuggestionsCheckbox" onclick="toggleSelectAllSuggestions(this)">
+                                    <label class="form-check-label fw-bold fs-7 text-dark" for="selectAllSuggestionsCheckbox">تحديد الكل</label>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-danger fs-7" onclick="submitDeleteSelectedSuggestions()">
+                                    <i class='bx bx-trash ms-1'></i>حذف المحدد
+                                </button>
+                            </div>
+                            <form id="bulkDeleteSuggestionsForm" action="/delete_selected_suggestions" method="post"></form>
+                            {% endif %}
                             {% for s in all_suggestions %}
                             <div class="suggestion-item">
-                                <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-1">
-                                    <span class="fw-bold text-dark fs-7">{{ s.dept_name }}</span>
-                                    <small class="text-muted fs-8">{{ s.created_at }}</small>
+                                <div class="d-flex align-items-start gap-2">
+                                    {% if current_dept['can_delete'] == 1 %}
+                                    <input class="form-check-input suggestion-checkbox mt-2 flex-shrink-0" type="checkbox" name="suggestion_ids" value="{{ s.id }}" form="bulkDeleteSuggestionsForm">
+                                    {% endif %}
+                                    <div class="w-100">
+                                        <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-1">
+                                            <span class="fw-bold text-dark fs-7">{{ s.dept_name }}</span>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <small class="text-muted fs-8">{{ s.created_at }}</small>
+                                                {% if current_dept['can_delete'] == 1 %}
+                                                <a href="/delete_suggestion/{{ s.id }}" class="btn btn-sm btn-outline-danger py-0 px-2 fs-8" onclick="return ajaxDeleteItem(event, this.href, this.closest('.suggestion-item'), 'حذف هذه الرسالة؟');">حذف</a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <p class="mb-0 text-secondary fs-7">{{ s.message }}</p>
+                                    </div>
                                 </div>
-                                <p class="mb-0 text-secondary fs-7">{{ s.message }}</p>
                             </div>
                             {% endfor %}
                         {% else %}
@@ -1757,11 +1781,110 @@ def suggestions():
                     }
                 }, { passive: true });
             })();
+
+            // حذف فوري عبر AJAX بدون إعادة تحميل الصفحة - يختفي العنصر مباشرة عند نجاح الحذف
+            function ajaxDeleteItem(event, url, itemEl, confirmMsg) {
+                event.preventDefault();
+                if (confirmMsg && !confirm(confirmMsg)) return false;
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function (r) { return r.text(); })
+                    .then(function (text) {
+                        if (text.indexOf('لا تملك صلاحية') !== -1) {
+                            alert('عذراً، لا تملك صلاحية الحذف.');
+                            return;
+                        }
+                        if (itemEl) {
+                            itemEl.style.transition = 'opacity 0.25s, transform 0.25s';
+                            itemEl.style.opacity = '0';
+                            itemEl.style.transform = 'scale(0.97)';
+                            setTimeout(function () { itemEl.remove(); }, 250);
+                        }
+                    })
+                    .catch(function () {
+                        alert('حدث خطأ أثناء الحذف، الرجاء إعادة المحاولة.');
+                    });
+                return false;
+            }
+
+            function toggleSelectAllSuggestions(source) {
+                var checkboxes = document.querySelectorAll('.suggestion-checkbox');
+                for (var i = 0, n = checkboxes.length; i < n; i++) {
+                    checkboxes[i].checked = source.checked;
+                }
+            }
+
+            function submitDeleteSelectedSuggestions() {
+                var checked = document.querySelectorAll('.suggestion-checkbox:checked');
+                if (checked.length === 0) {
+                    alert('الرجاء تحديد رسالة واحدة على الأقل للحذف.');
+                    return;
+                }
+                if (confirm('هل أنت متأكد من حذف الرسائل المحددة؟ (' + checked.length + ' رسالة)')) {
+                    document.getElementById('bulkDeleteSuggestionsForm').submit();
+                }
+            }
         </script>
     </body>
     </html>
     '''
     return render_template_string(html_code, dept_name=session['dept_name'], current_dept=current_dept, is_admin=is_admin, all_suggestions=all_suggestions)
+
+@app.route('/delete_suggestion/<int:suggestion_id>')
+def delete_suggestion(suggestion_id):
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، هذه الصلاحية للمسؤولين فقط."); window.location.href="/suggestions";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+
+    if current_dept['can_delete'] != 1:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/suggestions";</script>'''
+
+    cursor.execute('DELETE FROM suggestions WHERE id = %s', (suggestion_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return '''<script>alert("تم حذف الرسالة بنجاح"); window.location.href="/suggestions";</script>'''
+
+@app.route('/delete_selected_suggestions', methods=['POST'])
+def delete_selected_suggestions():
+    if 'dept_id' not in session:
+        return redirect(url_for('login'))
+
+    is_admin = is_admin_user(session.get('dept_name'))
+    if not is_admin:
+        return '''<script>alert("عذراً، هذه الصلاحية للمسؤولين فقط."); window.location.href="/suggestions";</script>'''
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM departments WHERE id = %s', (session['dept_id'],))
+    current_dept = cursor.fetchone()
+
+    if current_dept['can_delete'] != 1:
+        cursor.close()
+        conn.close()
+        return '''<script>alert("عذراً، لا تملك صلاحية الحذف."); window.location.href="/suggestions";</script>'''
+
+    suggestion_ids_raw = request.form.getlist('suggestion_ids')
+    suggestion_ids = [int(i) for i in suggestion_ids_raw if i.isdigit()]
+
+    if suggestion_ids:
+        cursor.execute('DELETE FROM suggestions WHERE id = ANY(%s)', (suggestion_ids,))
+        conn.commit()
+
+    cursor.close()
+    conn.close()
+    return '''<script>alert("تم حذف الرسائل المحددة بنجاح"); window.location.href="/suggestions";</script>'''
+
 DASHBOARD_HTML = '''
 {% macro render_letter_item(letter) %}
 <div class="letter-item d-flex flex-column flex-sm-row align-items-start justify-content-between gap-2">
